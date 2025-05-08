@@ -1,9 +1,8 @@
-### src/mcp_server_telegram/__init__.py
-"""MCP Server for Telegram integration."""
+### src/mcp_server_telegram/telegram/__init__.py
+"""Telegram service module for the MCP server."""
 
-from mcp_server_telegram.telegram import (
-    _TelegramService,
-    get_telegram_service,
+from mcp_server_telegram.telegram.module import _TelegramService, get_telegram_service
+from mcp_server_telegram.telegram.config import (
     TelegramConfig,
     TelegramServiceError,
     TelegramApiError,
