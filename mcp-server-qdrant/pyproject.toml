@@ -1,31 +1,34 @@
 [project]
 name = "mcp-server-qdrant"
 version = "0.1.0"
-description = "MCP server for retrieving context from a Qdrant vector database"
+description = "MCP Server for vector database operations using Qdrant"
+authors = [
+    { name = "XyAgent", email = "agent@xyber.inc" },
+]
 readme = "README.md"
 requires-python = ">=3.12"
 
-
 dependencies = [
-    "mcp[cli]>=1.3.0",
-    "fastembed>=0.6.0",
-    "qdrant-client>=1.12.0",
-    "pydantic>=2.10.6",
-    "qdrant-client>=1.14.2"
+    "mcp>=1.8.0,<2.0.0",
+    "pydantic-settings>=2.0",  
+    "uvicorn[standard]",
+    "fastmcp>=2.3.4",
+    "fastapi>=0.115.12",
+    # Qdrant-specific dependencies
+    "qdrant-client>=1.7.0",
+    "sentence-transformers>=2.2.0",
 ]
 
 [dependency-groups]
 dev = [
-    "isort>=6.0.1",
-    "mypy>=1.9.0",
-    "pre-commit>=4.1.0",
-    "pyright>=1.1.389",
-    "pytest>=8.3.3",
-    "pytest-asyncio>=0.23.0",
-    "ruff>=0.8.0",
+    "pytest",
+    "httpx", 
+    "ruff",
+    "black",
+    "isort",
 ]
 debug = [
-    "debugpy>=1.8.14",
+    "debugpy>=1.8.0",
 ]
 
 [build-system]

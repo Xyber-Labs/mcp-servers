@@ -1,50 +1,40 @@
 import argparse
 import logging
 import os
-from mcp_server_qdrant.logging_config import configure_logging, logging_level
-from starlette.routing import Route, Mount
-from mcp.server.sse import SseServerTransport
-from mcp.server import Server
-from starlette.requests import Request
 import uvicorn
-from starlette.applications import Starlette
-from mcp_server_qdrant.server import server
+from fastapi import FastAPI
 
+from mcp_server_qdrant.logging_config import (configure_logging,
+                                            logging_level)
+
+from mcp_server_qdrant.server import mcp_server
 
 configure_logging()
 logger = logging.getLogger(__name__)
 
 # --- Application Factory --- #
 
-def create_starlette_app() -> Starlette:
-    """Create a Starlette application that can serve the provided mcp server with SSE."""
+def create_app() -> FastAPI:
+    """Create a FastAPI application that can serve the provided mcp server with SSE."""
+    # Create the MCP ASGI app
+    mcp_app = mcp_server.http_app(path="/mcp", transport="streamable-http")
     
-    sse = SseServerTransport("/messages/")
-    mcp_server: Server = server
+    # Create FastAPI app
+    app = FastAPI(
+        title="Qdrant MCP Server",
+        description="MCP server for vector database operations using Qdrant",
+        version="1.0.0",
+        lifespan=mcp_app.router.lifespan_context
+    )   
+    
+    # Mount MCP server
+    app.mount("/mcp-server", mcp_app)
 
-    async def handle_sse(request: Request) -> None:
-        async with sse.connect_sse(
-                request.scope,
-                request.receive,
-                request._send,  # noqa: SLF001
-        ) as (read_stream, write_stream):
-            await mcp_server.run(
-                read_stream,
-                write_stream,
-                mcp_server.create_initialization_options(),
-            )
-
-    return Starlette(
-        debug = logging_level == "DEBUG",
-        routes=[
-            Route("/sse", endpoint=handle_sse),
-            Mount("/messages/", app=sse.handle_post_message),
-        ],
-    )
+    return app
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Run Qdrant MCP server')
+    parser = argparse.ArgumentParser(description="Run Qdrant MCP server")
     parser.add_argument(
         "--host",
         default=os.getenv("MCP_QDRANT_HOST", "0.0.0.0"),
@@ -53,7 +43,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--port",
         type=int,
-        default=int(os.getenv("MCP_QDRANT_PORT", "8002")),
+        default=int(os.getenv("MCP_QDRANT_PORT", "8002")), # Default port 8002 for Qdrant
         help="Port to listen on (Default: MCP_QDRANT_PORT or 8002)",
     )
     parser.add_argument(
@@ -63,19 +53,12 @@ if __name__ == "__main__":
         in ("true", "1", "t", "yes"),
         help="Enable hot reload (env: QDRANT_HOT_RELOAD)",
     )
-    parser.add_argument(
-        "--transport",
-        choices=["sse"],
-        default="sse",
-        help="Transport protocol (Only SSE is supported now)"
-    )
 
     args = parser.parse_args()
-    
     logger.info(f"Starting Qdrant MCP server on {args.host}:{args.port}")
-    
+
     uvicorn.run(
-        "mcp_server_qdrant.__main__:create_starlette_app",
+        "mcp_server_qdrant.__main__:create_app",
         host=args.host,
         port=args.port,
         reload=args.reload,
