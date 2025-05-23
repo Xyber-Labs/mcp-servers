@@ -1,30 +1,28 @@
 [project]
 name = "mcp-server-arxiv"
 version = "0.1.0"
-description = "MCP Server providing a tool for searching ArXiv."
+description = "MCP Server for searching and retrieving papers from ArXiv"
 authors = [
-    {name = "AI Assistant", email = "assistant@example.com"} # Or your details
+    { name = "XyAgent", email = "agent@xyber.inc" },
 ]
 readme = "README.md"
-requires-python = ">=3.11" # Async requires newer Python
+requires-python = ">=3.12"
 
 dependencies = [
-    "mcp>=1.6.0,<2.0.0",
-    "starlette>=0.37.0",
-    "uvicorn[standard]>=0.29.0",
-    "python-dotenv>=1.0.0",
-    "pydantic-settings>=2.0",
-    "arxiv>=2.1.0",          # ArXiv library
-    "PyMuPDF>=1.24.0",       # fitz library for PDF parsing
-    "aiofiles>=23.0.0",      # For async file operations if needed (less critical here)
-    "langchain_mcp_adapters>=0.0.9", # Likely needed if client uses it
+    "mcp>=1.8.0,<2.0.0",
+    "pydantic-settings>=2.0",  
+    "uvicorn[standard]",
+    "fastmcp>=2.3.4",
+    "fastapi>=0.115.12",
+    # ArXiv-specific dependencies
+    "arxiv>=2.0.0",
+    "PyPDF2>=3.0.0",
 ]
 
 [dependency-groups]
 dev = [
     "pytest",
-    "pytest-asyncio", # For async tests
-    "httpx",
+    "httpx", 
     "ruff",
     "black",
     "isort",
@@ -38,7 +36,6 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-# Define where the source code for the package lives
 packages = ["src/mcp_server_arxiv"]
 
 # --- Tool Configurations (ruff, black, isort - same as others) ---
