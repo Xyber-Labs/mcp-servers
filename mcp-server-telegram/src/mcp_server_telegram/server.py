@@ -1,8 +1,11 @@
 ### src/mcp_server_telegram/server.py
 import logging
 from enum import StrEnum
-from typing import AsyncIterator, List, Dict, Any
+from typing import AsyncIterator, List, Dict, Any, Literal
 from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator
+from fastmcp import Context, FastMCP
+from fastmcp.exceptions import ToolError
 
 from mcp.server import Server
 from mcp.types import Tool, TextContent
@@ -27,99 +30,60 @@ class TelegramPostRequest(BaseModel):
     """Input schema for the post_to_telegram tool."""
     message: str = Field(..., description="The text message content to post to the Telegram channel.")
 
-# --- MCP Server Initialization --- #
+# --- Lifespan Management --- #
 @asynccontextmanager
-async def server_lifespan(server_instance: Server) -> AsyncIterator[Dict[str, Any]]:
-    """
-    Manage MCP server startup/shutdown. Initializes the Telegram service.
-    """
-    logger.info("MCP Lifespan: Initializing Telegram service...")
-    context = {}
+async def app_lifespan(server: FastMCP) -> AsyncIterator[dict[str, Any]]:
+    """Manage server startup/shutdown. Initializes the Telegram service."""
+    logger.info("Lifespan: Initializing services...")
+    
     try:
-        # Attempt to get the service. If config is invalid, this will raise TelegramConfigError.
-        telegram_service = get_telegram_service()
-        context["telegram_service"] = telegram_service
-        logger.info("MCP Lifespan: Telegram service initialized successfully.")
-        yield context
-    except TelegramConfigError as e:
-        logger.error(f"FATAL: MCP Lifespan: Telegram service initialization failed due to config error: {e}", exc_info=True)
-        yield context 
-    except Exception as e:
-        logger.error(f"FATAL: MCP Lifespan: Unexpected error during Telegram service initialization: {e}", exc_info=True)
-        yield context
+        # Initialize services
+        telegram_service: _TelegramService = get_telegram_service()
+        
+        logger.info("Lifespan: Services initialized successfully")
+        yield {"telegram_service": telegram_service}
+    
+    except TelegramConfigError as init_err:
+        logger.error(f"FATAL: Lifespan initialization failed: {init_err}", exc_info=True)
+        raise init_err
+    
+    except Exception as startup_err:
+        logger.error(f"FATAL: Unexpected error during lifespan initialization: {startup_err}", exc_info=True)
+        raise startup_err
+    
     finally:
-        logger.info("MCP Lifespan: Shutdown (Telegram).")
+        logger.info("Lifespan: Shutdown cleanup completed")
 
-server = Server("telegram-mcp-server", lifespan=server_lifespan)
+# --- MCP Server Initialization --- #
+mcp_server = FastMCP(
+    name="telegram",
+    description="Post messages to a pre-configured Telegram channel",
+    lifespan=app_lifespan
+)
 
 # --- Tool Definitions --- #
+@mcp_server.tool()
+async def post_to_telegram(
+    ctx: Context,
+    message: str, 
+) -> str:
+    """Posts a given message to a pre-configured Telegram channel."""
+    telegram_service = ctx.request_context.lifespan_context["telegram_service"]
 
-@server.list_tools()
-async def list_tools() -> list[Tool]:
-    """Lists the tools available in this MCP server."""
-    logger.debug("Listing available Telegram tools.")
-    
-    return [
-        Tool(
-            name=TelegramToolNames.POST_MESSAGE.value,
-            description="Posts a given message to a pre-configured Telegram channel.",
-            inputSchema=TelegramPostRequest.model_json_schema(),
-        )
-    ]
-
-@server.call_tool()
-async def call_tool(name: str, arguments: dict) -> list[TextContent]:
-    """Handles incoming tool calls for the Telegram MCP server."""
-    logger.info(f"Received call_tool request for '{name}' with args: {arguments}")
-
-    # Retrieve the service instance from request_context's lifespan_context
     try:
-        telegram_service: _TelegramService = server.request_context.lifespan_context["telegram_service"]
-    except KeyError:
-        error_msg = (
-            "Server Lifecycle Error: Telegram service not found in request context. "
-            "This likely means the service failed to initialize during server startup. "
-            "Check server logs for 'MCP Lifespan' errors related to Telegram service initialization."
-        )
-        logger.error(error_msg)
-        return [TextContent(type="text", text=error_msg)]
-
-
-    # --- Tool Business Logic --- #
-    if name == TelegramToolNames.POST_MESSAGE.value:
-        try:
-            # 1. Validate Input
-            request_model = TelegramPostRequest(**arguments)
-            
-            # 2. Execute Core Logic using the service
-            success: bool = await telegram_service.send_message(request_model.message)
-            
-            # 3. Format and return result
-            if success:
-                response_text = "Message successfully posted to the Telegram channel."
-                logger.info(response_text)
-            else:
-                response_text = "Failed to post message to the Telegram channel. Check server logs for details."
-                logger.warning(response_text) # The service logs more specific errors
-            
-            return [TextContent(type="text", text=response_text)]
-
-        except ValidationError as ve:
-            error_msg = f"Invalid arguments for tool '{name}': {ve}"
-            logger.warning(error_msg)
-            return [TextContent(type="text", text=error_msg)]
+        success: bool = await telegram_service.send_message(message)
         
-        except TelegramServiceError as service_err:
-            error_msg = f"Telegram service error processing tool '{name}': {service_err}"
-            logger.error(error_msg, exc_info=True)
-            return [TextContent(type="text", text=error_msg)]
-
-        except Exception as e:
-            error_msg = f"An unexpected internal error occurred processing tool '{name}'. Details: {e}"
-            logger.error(error_msg, exc_info=True)
-            return [TextContent(type="text", text=error_msg)]
+        if success:
+            logger.info("Message successfully posted to the Telegram channel")
+            return "Message successfully posted to the Telegram channel"
+        else:
+            logger.warning("Failed to post message to the Telegram channel")
+            raise ToolError("Failed to post message to the Telegram channel")
     
-    # --- Handle Unknown Tool --- #
-    else:
-        logger.warning(f"Received call for unknown tool: {name}")
-        return [TextContent(type="text", text=f"Unknown tool: {name}")]
+    except TelegramServiceError as service_err:
+        logger.error(f"Service error during message posting: {service_err}")
+        raise ToolError(f"Telegram service error: {service_err}") from service_err
+    
+    except Exception as e:
+        logger.error(f"Unexpected error during message posting: {e}", exc_info=True)
+        raise ToolError("An unexpected error occurred during message posting.") from e

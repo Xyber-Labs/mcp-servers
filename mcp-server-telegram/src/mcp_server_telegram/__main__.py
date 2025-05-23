@@ -2,51 +2,40 @@
 import argparse
 import logging
 import os
-
 import uvicorn
-from mcp.server import Server
-from mcp.server.sse import SseServerTransport
+from fastapi import FastAPI
 
-from mcp_server_telegram.logging_config import configure_logging, LOGGING_LEVEL
-from mcp_server_telegram.server import server 
-from starlette.applications import Starlette
-from starlette.requests import Request
-from starlette.routing import Mount, Route
+from mcp_server_telegram.logging_config import (configure_logging,
+                                              LOGGING_LEVEL as logging_level)
 
-# Apply logging configuration at the earliest
+from mcp_server_telegram.server import mcp_server
+
 configure_logging()
 logger = logging.getLogger(__name__)
 
 # --- Application Factory --- #
 
-def create_starlette_app() -> Starlette:
-    """Create a Starlette application that can serve the provided MCP server with SSE."""
+def create_app() -> FastAPI:
+    """Create a FastAPI application that can serve the provided mcp server with SSE."""
+    # Create the MCP ASGI app
+    mcp_app = mcp_server.http_app(path="/mcp", transport="streamable-http")
+    
+    # Create FastAPI app
+    app = FastAPI(
+        title="Telegram MCP Server",
+        description="MCP server for sending messages to Telegram channels",
+        version="1.0.0",
+        lifespan=mcp_app.router.lifespan_context
+    )   
+    
+    # Mount MCP server
+    app.mount("/mcp-server", mcp_app)
 
-    sse_transport = SseServerTransport("/messages/") 
-    mcp_server_instance: Server = server 
+    return app
 
-    async def handle_sse(request: Request) -> None:
-        async with sse_transport.connect_sse(
-            request.scope,
-            request.receive,
-            request._send,  # noqa: SLF001
-        ) as (read_stream, write_stream):
-            await mcp_server_instance.run(
-                read_stream,
-                write_stream,
-                mcp_server_instance.create_initialization_options(),
-            )
-
-    return Starlette(
-        debug=(LOGGING_LEVEL == "DEBUG"), # Use LOGGING_LEVEL from logging_config
-        routes=[
-            Route("/sse", endpoint=handle_sse),
-            Mount("/messages/", app=sse_transport.handle_post_message),
-        ],
-    )
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Run MCP Starlette server for Telegram')
+    parser = argparse.ArgumentParser(description="Run Telegram MCP server")
     parser.add_argument(
         "--host",
         default=os.getenv("MCP_TELEGRAM_HOST", "0.0.0.0"),
@@ -67,17 +56,13 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    logger.info(f"Starting MCP Telegram Server on http://{args.host}:{args.port}")
-    logger.info(f"Logging level set to: {LOGGING_LEVEL}")
-    if args.reload:
-        logger.info("Hot reload enabled.")
-    
-    # Run Uvicorn server
+    logger.info(f"Starting Telegram MCP server on {args.host}:{args.port}")
+
     uvicorn.run(
-        "mcp_server_telegram.__main__:create_starlette_app", # Path to the app factory
+        "mcp_server_telegram.__main__:create_app",
         host=args.host,
         port=args.port,
         reload=args.reload,
-        log_level=LOGGING_LEVEL.lower(), # uvicorn log level
+        log_level=logging_level.lower(),
         factory=True
     )
