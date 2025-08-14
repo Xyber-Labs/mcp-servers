@@ -3,6 +3,8 @@ import base64
 import io
 import logging
 import ssl
+import os
+import time
 
 import aiohttp
 import anyio
@@ -18,6 +20,19 @@ from tenacity import (
 from tweepy import API, OAuth1UserHandler
 from tweepy.asynchronous import AsyncClient
 from tweepy.errors import TweepyException
+from typing import List, Dict
+
+from mcp_server_twitter.logging_config import configure_logging
+from mcp_server_twitter.helpers import convert_base64_to_image, validate_poll_parameters, load_country_codes
+
+from mcp_server_twitter.exceptions import (
+    BaseMCPException, 
+    ServiceUnavailableError, 
+    InvalidResponseError, 
+    AuthenticationError, 
+    ValidationError, 
+    RateLimitError
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +49,7 @@ def is_retryable_tweepy_error(exception: Exception) -> bool:
     return 500 <= response.status_code < 600
 
 
+# Enhanced retry decorator with better logging
 retry_async_wrapper = retry(
     stop=stop_after_attempt(5),
     wait=wait_exponential(min=0.5, max=10),
@@ -53,6 +69,35 @@ retry_sync_in_async_wrapper = retry(
 )
 
 
+def handle_tweepy_exception(e: TweepyException, operation: str) -> BaseMCPException:
+    """Convert TweepyException to custom exception with context."""
+    error_msg = str(e).lower()
+    response = getattr(e, "response", None)
+    status_code = response.status if response else None
+    
+    logger.warning("Handling Tweepy exception", extra={
+        "operation": operation,
+        "error_type": type(e).__name__,
+        "status_code": status_code,
+        "error_message": error_msg[:200]  # Truncate for logging
+    })
+    
+    if status_code == 429 or "rate limit" in error_msg:
+        return RateLimitError(f"Twitter API rate limit exceeded for {operation}")
+    elif status_code == 401 or "unauthorized" in error_msg:
+        return AuthenticationError(f"Unauthorized access for {operation}")
+    elif status_code == 403 or "forbidden" in error_msg:
+        return ValidationError(f"Forbidden action for {operation}")
+    elif status_code == 404 or "not found" in error_msg:
+        return ValidationError(f"Resource not found for {operation}")
+    elif status_code and 500 <= status_code < 600:
+        return ServiceUnavailableError(f"Twitter service unavailable for {operation}")
+    elif "invalid" in error_msg or "bad request" in error_msg:
+        return InvalidResponseError(f"Invalid request for {operation}: {str(e)}")
+    else:
+        return BaseMCPException(f"Twitter API error for {operation}: {str(e)}")
+
+
 class AsyncTwitterClient:
     def __init__(self, config):
         """
@@ -65,35 +110,116 @@ class AsyncTwitterClient:
         self.ssl_context.check_hostname = True
         self.ssl_context.verify_mode = ssl.CERT_REQUIRED
 
-        self.client = AsyncClient(
-            consumer_key=config.API_KEY,
-            consumer_secret=config.API_SECRET_KEY,
-            access_token=config.ACCESS_TOKEN,
-            access_token_secret=config.ACCESS_TOKEN_SECRET,
-            bearer_token=config.BEARER_TOKEN,
-            wait_on_rate_limit=True,
-        )
+        try:
+            self.client = AsyncClient(
+                consumer_key=config.API_KEY,
+                consumer_secret=config.API_SECRET_KEY,
+                access_token=config.ACCESS_TOKEN,
+                access_token_secret=config.ACCESS_TOKEN_SECRET,
+                bearer_token=config.BEARER_TOKEN,
+                wait_on_rate_limit=True,
+            )
 
-        auth = OAuth1UserHandler(config.API_KEY, config.API_SECRET_KEY)
-        auth.set_access_token(config.ACCESS_TOKEN, config.ACCESS_TOKEN_SECRET)
-        self._sync_api = API(auth, wait_on_rate_limit=True)
+            auth = OAuth1UserHandler(config.API_KEY, config.API_SECRET_KEY)
+            auth.set_access_token(config.ACCESS_TOKEN, config.ACCESS_TOKEN_SECRET)
+            self._sync_api = API(auth, wait_on_rate_limit=True)
+            
+            logger.info("Twitter client initialized successfully", extra={
+                "operation": "client_init",
+                "status": "SUCCESS"
+            })
+            
+        except Exception as e:
+            logger.error("Failed to initialize Twitter client", exc_info=True, extra={
+                "operation": "client_init",
+                "status": "ERROR",
+                "error_type": type(e).__name__
+            })
+            raise AuthenticationError(f"Failed to initialize Twitter client: {str(e)}")
 
     @retry_sync_in_async_wrapper
-    async def _upload_media(self, image_content_str: str):
+    async def _upload_media(self, image_file: io.BytesIO):
         """
         Internal method to upload media to Twitter.
         Note: Using sync client as Tweepy doesn't support async media upload yet.
         """
-        image_content = base64.b64decode(image_content_str)
-        image_file = io.BytesIO(image_content)
-        image_file.name = "image.png"
+        try:
+            logger.debug("Starting media upload", extra={
+                "operation": "upload_media",
+                "status": "START"
+            })
+            
+            def sync_upload():
+                return self._sync_api.media_upload(file=image_file)
+            
+            # Run sync operation in thread pool
+            media = await anyio.to_thread.run_sync(sync_upload)
+            
+            logger.info("Media upload completed successfully", extra={
+                "operation": "upload_media",
+                "status": "SUCCESS",
+                "media_id": media.media_id
+            })
+            
+            return media.media_id
+            
+        except TweepyException as e:
+            custom_exception = handle_tweepy_exception(e, "upload_media")
+            logger.error("Media upload failed", extra={
+                "operation": "upload_media",
+                "status": "ERROR",
+                "error_type": type(custom_exception).__name__
+            })
+            raise custom_exception
+        except Exception as e:
+            logger.error("Unexpected error during media upload", exc_info=True, extra={
+                "operation": "upload_media",
+                "status": "ERROR",
+                "error_type": type(e).__name__
+            })
+            raise BaseMCPException(f"Media upload failed: {str(e)}")
 
-        media = await anyio.to_thread.run_sync(
-            lambda: self._sync_api.media_upload(
-                filename=image_file.name, file=image_file
-            )
-        )
-        return media
+    async def initialize(self):
+        """
+        Initialize and test the Twitter client connection.
+        """
+        start_time = time.time()
+        
+        logger.info("Starting Twitter client initialization", extra={
+            "operation": "initialize_client",
+            "status": "START"
+        })
+        
+        try:
+            user = await self.client.get_me()
+            
+            logger.info("Twitter client initialization completed successfully", extra={
+                "operation": "initialize_client",
+                "status": "SUCCESS",
+                "duration_ms": round((time.time() - start_time) * 1000, 2),
+                "authenticated_user": user.data['username'] if user.data else "unknown"
+            })
+            
+            return self
+            
+        except TweepyException as e:
+            custom_exception = handle_tweepy_exception(e, "initialize_client")
+            logger.error("Twitter client initialization failed", extra={
+                "operation": "initialize_client",
+                "status": "ERROR",
+                "duration_ms": round((time.time() - start_time) * 1000, 2),
+                "error_type": type(custom_exception).__name__
+            })
+            raise custom_exception
+        except Exception as e:
+            logger.error("Twitter client initialization failed", exc_info=True, extra={
+                "operation": "initialize_client",
+                "status": "ERROR",
+                "duration_ms": round((time.time() - start_time) * 1000, 2),
+                "system_error": str(e),
+                "error_type": type(e).__name__
+            })
+            raise AuthenticationError(f"Twitter client initialization failed: {str(e)}")
 
     @retry_async_wrapper
     async def create_tweet(
@@ -104,332 +230,504 @@ class AsyncTwitterClient:
         poll_duration: int | None = None,
         in_reply_to_tweet_id: str | None = None,
         quote_tweet_id: str | None = None,
-    ):
+    ) -> str:
         """
         Create a new tweet with optional media, polls, replies or quotes.
-
-        Args:
-            text (str): The text content of the tweet. Will be truncated to the
-                configured maximum tweet length if necessary.
-            image_content_str (str, optional): A Base64-encoded string of image data
-                to attach as media. Requires media uploads to be enabled in config.
-            poll_options (list[str], optional): A list of 2 to N options (where N is
-                config.poll_max_options) to include in a poll.
-            poll_duration (int, optional): Duration of the poll in minutes (must be
-                between 5 and config.poll_max_duration).
-            in_reply_to_tweet_id (str, optional): The ID of an existing tweet to reply to.
-                Note: Your `text` must include "@username" of the tweet's author.
-            quote_tweet_id (str, optional): The ID of an existing tweet to quote. The
-                quoted tweet will appear inline, with your `text` shown above it.
-
-        Returns:
-            tweepy.Response: The response from Twitter API containing the created tweet data.
-
-        Raises:
-            ValueError: If poll_options length is out of bounds or poll_duration is invalid.
-            Exception: Propagates any error from the Twitter API client or media upload.
-
         """
+        operation_start = time.time()
+        
+        logger.info("Starting tweet creation", extra={
+            "operation": "create_tweet",
+            "status": "START",
+            "text_length": len(text),
+            "has_image": image_content_str is not None,
+            "has_poll": poll_options is not None,
+            "is_reply": in_reply_to_tweet_id is not None,
+            "is_quote": quote_tweet_id is not None
+        })
+
         try:
-            media_ids = []
+            # Validate inputs
+            if not text.strip():
+                raise ValidationError("Tweet text cannot be empty")
+                
+            # Truncate text if necessary
+            if len(text) > self.config.max_tweet_length:
+                text = text[:self.config.max_tweet_length]
+                logger.warning("Tweet text truncated", extra={
+                    "operation": "create_tweet",
+                    "original_length": len(text),
+                    "truncated_length": self.config.max_tweet_length
+                })
+
+            # Prepare tweet parameters
+            tweet_params = {"text": text}
+            
+            # Handle media upload
+            media_ids = None
             if image_content_str and self.config.media_upload_enabled:
-                media = await self._upload_media(image_content_str)
-                media_ids.append(media.media_id)
+                try:
+                    image_file = convert_base64_to_image(image_content_str)
+                    media_id = await self._upload_media(image_file)
+                    media_ids = [media_id]
+                    logger.debug("Media attached to tweet", extra={
+                        "operation": "create_tweet",
+                        "media_id": media_id
+                    })
+                except Exception as e:
+                    raise InvalidResponseError(f"Failed to upload image: {str(e)}")
 
-            poll_params = {}
-            if poll_options:
-                if (
-                    len(poll_options) < 2
-                    or len(poll_options) > self.config.poll_max_options
-                ):
-                    raise ValueError(
-                        f"Poll must have 2-{self.config.poll_max_options} options"
-                    )
-                if (
-                    not poll_duration
-                    or not 5 <= poll_duration <= self.config.poll_max_duration
-                ):
-                    raise ValueError(
-                        f"Poll duration must be 5-{self.config.poll_max_duration} minutes"
-                    )
+            # Handle poll
+            if poll_options and poll_duration:
+                try:
+                    validate_poll_parameters(poll_options, poll_duration, self.config)
+                    tweet_params["poll"] = {
+                        "options": poll_options,
+                        "duration_minutes": poll_duration
+                    }
+                    logger.debug("Poll attached to tweet", extra={
+                        "operation": "create_tweet",
+                        "poll_options_count": len(poll_options),
+                        "poll_duration": poll_duration
+                    })
+                except Exception as e:
+                    raise ValidationError(f"Invalid poll parameters: {str(e)}")
 
-                poll_params = {
-                    "poll_options": poll_options,
-                    "poll_duration_minutes": poll_duration,
+            # Handle reply
+            if in_reply_to_tweet_id:
+                tweet_params["in_reply_to_tweet_id"] = in_reply_to_tweet_id
+                logger.debug("Reply tweet configured", extra={
+                    "operation": "create_tweet",
+                    "reply_to": in_reply_to_tweet_id
+                })
+
+            # Handle quote tweet
+            if quote_tweet_id:
+                tweet_params["quote_tweet_id"] = quote_tweet_id
+                logger.debug("Quote tweet configured", extra={
+                    "operation": "create_tweet",
+                    "quote_tweet": quote_tweet_id
+                })
+
+            # Add media if available
+            if media_ids:
+                tweet_params["media_ids"] = media_ids
+
+            # Create the tweet
+            response = await self.client.create_tweet(**tweet_params)
+            
+            duration_ms = round((time.time() - operation_start) * 1000, 2)
+            
+            logger.info("Tweet created successfully", extra={
+                "operation": "create_tweet",
+                "status": "SUCCESS",
+                "tweet_id": response.data["id"],
+                "duration_ms": duration_ms
+            })
+
+            return f"Tweet created successfully! Tweet ID: {response.data['id']}"
+            
+        except TweepyException as e:
+            custom_exception = handle_tweepy_exception(e, "create_tweet")
+            duration_ms = round((time.time() - operation_start) * 1000, 2)
+            logger.error("Tweet creation failed", extra={
+                "operation": "create_tweet",
+                "status": "ERROR",
+                "duration_ms": duration_ms,
+                "error_type": type(custom_exception).__name__
+            })
+            raise custom_exception
+        except BaseMCPException:
+            # Re-raise custom exceptions as-is
+            raise
+        except Exception as e:
+            duration_ms = round((time.time() - operation_start) * 1000, 2)
+            logger.error("Unexpected error during tweet creation", exc_info=True, extra={
+                "operation": "create_tweet",
+                "status": "ERROR",
+                "duration_ms": duration_ms,
+                "error_type": type(e).__name__
+            })
+            raise BaseMCPException(f"Tweet creation failed: {str(e)}")
+
+    @retry_async_wrapper
+    async def search_tweets(self, query: str, max_results: int = 10) -> str:
+        """
+        Search for tweets matching the given query.
+        """
+        operation_start = time.time()
+        
+        logger.info("Starting tweet search", extra={
+            "operation": "search_tweets",
+            "status": "START",
+            "query": query,
+            "max_results": max_results
+        })
+
+        try:
+            # Validate inputs
+            if not query.strip():
+                raise ValidationError("Search query cannot be empty")
+                
+            if not (1 <= max_results <= 100):
+                raise ValidationError("max_results must be between 1 and 100")
+
+            # Perform search
+            response = await self.client.search_recent_tweets(
+                query=query,
+                max_results=max_results,
+                tweet_fields=["created_at", "author_id", "public_metrics", "context_annotations"]
+            )
+
+            if not response.data:
+                logger.info("No tweets found for search", extra={
+                    "operation": "search_tweets",
+                    "status": "NO_RESULTS",
+                    "query": query
+                })
+                return f"No tweets found for query: {query}"
+
+            # Format results
+            tweets = []
+            for tweet in response.data:
+                tweet_info = {
+                    "id": tweet.id,
+                    "text": tweet.text,
+                    "created_at": tweet.created_at.isoformat() if tweet.created_at else None,
+                    "author_id": tweet.author_id,
+                    "public_metrics": tweet.public_metrics if hasattr(tweet, 'public_metrics') else None
                 }
-            response = await self.client.create_tweet(
-                text=text[: self.config.max_tweet_length],
-                media_ids=media_ids or None,
-                in_reply_to_tweet_id=in_reply_to_tweet_id,
-                quote_tweet_id=quote_tweet_id,
-                **poll_params,
-            )
-            return response.data["id"]
+                tweets.append(tweet_info)
 
-        except Exception as e:
-            logger.error(f"Failed to create tweet: {e}", exc_info=True)
+            duration_ms = round((time.time() - operation_start) * 1000, 2)
+            
+            logger.info("Tweet search completed successfully", extra={
+                "operation": "search_tweets",
+                "status": "SUCCESS",
+                "tweets_found": len(tweets),
+                "duration_ms": duration_ms
+            })
+
+            return f"Found {len(tweets)} tweets:\n" + "\n".join([
+                f"Tweet {tweet['id']}: {tweet['text'][:100]}..." if len(tweet['text']) > 100 
+                else f"Tweet {tweet['id']}: {tweet['text']}"
+                for tweet in tweets
+            ])
+            
+        except TweepyException as e:
+            custom_exception = handle_tweepy_exception(e, "search_tweets")
+            duration_ms = round((time.time() - operation_start) * 1000, 2)
+            logger.error("Tweet search failed", extra={
+                "operation": "search_tweets",
+                "status": "ERROR",
+                "duration_ms": duration_ms,
+                "error_type": type(custom_exception).__name__
+            })
+            raise custom_exception
+        except BaseMCPException:
             raise
+        except Exception as e:
+            duration_ms = round((time.time() - operation_start) * 1000, 2)
+            logger.error("Unexpected error during tweet search", exc_info=True, extra={
+                "operation": "search_tweets",
+                "status": "ERROR",
+                "duration_ms": duration_ms,
+                "error_type": type(e).__name__
+            })
+            raise BaseMCPException(f"Tweet search failed: {str(e)}")
 
     @retry_async_wrapper
-    async def retweet_tweet(self, tweet_id: str):
+    async def follow_user(self, user_id: str) -> str:
         """
-        Retweet an existing tweet asynchronously.
-
-        Args:
-            tweet_id (str): The ID of the tweet to retweet
-
-        Returns:
-            str: Success message
-
+        Follow a user by their user ID.
         """
+        operation_start = time.time()
+        
+        logger.info("Starting follow user", extra={
+            "operation": "follow_user",
+            "status": "START",
+            "user_id": user_id
+        })
+
         try:
-            await self.client.retweet(tweet_id=tweet_id)
-            return f"Successfully retweet post {tweet_id}"
-        except Exception as e:
-            logger.error(f"Failed to retweet tweet {tweet_id}: {e}", exc_info=True)
+            # Validate input
+            if not user_id.strip():
+                raise ValidationError("User ID cannot be empty")
+
+            # Follow the user
+            response = await self.client.follow_user(user_id)
+            
+            duration_ms = round((time.time() - operation_start) * 1000, 2)
+            
+            logger.info("User followed successfully", extra={
+                "operation": "follow_user",
+                "status": "SUCCESS",
+                "user_id": user_id,
+                "duration_ms": duration_ms
+            })
+
+            return f"Successfully followed user {user_id}"
+            
+        except TweepyException as e:
+            custom_exception = handle_tweepy_exception(e, "follow_user")
+            duration_ms = round((time.time() - operation_start) * 1000, 2)
+            logger.error("Follow user failed", extra={
+                "operation": "follow_user",
+                "status": "ERROR",
+                "user_id": user_id,
+                "duration_ms": duration_ms,
+                "error_type": type(custom_exception).__name__
+            })
+            raise custom_exception
+        except BaseMCPException:
             raise
+        except Exception as e:
+            duration_ms = round((time.time() - operation_start) * 1000, 2)
+            logger.error("Unexpected error during follow user", exc_info=True, extra={
+                "operation": "follow_user",
+                "status": "ERROR",
+                "user_id": user_id,
+                "duration_ms": duration_ms,
+                "error_type": type(e).__name__
+            })
+            raise BaseMCPException(f"Follow user failed: {str(e)}")
 
     @retry_async_wrapper
-    async def get_user_tweets(self, user_id: str, max_results: int = 10):
+    async def retweet_tweet(self, tweet_id: str) -> str:
         """
-        Retrieve recent tweets posted by a specified user asynchronously.
-
-        Args:
-            user_id (str): The ID of the user
-            max_results (int, optional): Maximum number of tweets to return
-
-        Returns:
-            tweepy.Response: Response object with tweet data, or raises exception on error
-
+        Retweet an existing tweet.
         """
+        operation_start = time.time()
+        
+        logger.info("Starting retweet", extra={
+            "operation": "retweet_tweet",
+            "status": "START",
+            "tweet_id": tweet_id
+        })
+
         try:
-            tweets = await self.client.get_users_tweets(
-                id=user_id,
-                max_results=max_results,
-                tweet_fields=["id", "text", "created_at"],
-            )
-            return tweets
-        except Exception as e:
-            logger.error(f"Error getting user tweets for user_id {user_id}: {str(e)}")
-            if "401" in str(e) or "Unauthorized" in str(e):
-                logger.error("Twitter API 401 Unauthorized - This usually means:")
-                logger.error("1. Your Twitter app doesn't have 'Read' permissions")
-                logger.error("2. Your app needs Twitter API v2 'tweet.read' scope")
-                logger.error(
-                    "3. You may need to regenerate your access tokens after changing permissions"
-                )
-                logger.error(
-                    "4. For reading other users' tweets, you may need elevated access"
-                )
+            # Validate input
+            if not tweet_id.strip():
+                raise ValidationError("Tweet ID cannot be empty")
+
+            # Retweet the tweet
+            response = await self.client.retweet(tweet_id)
+            
+            duration_ms = round((time.time() - operation_start) * 1000, 2)
+            
+            logger.info("Tweet retweeted successfully", extra={
+                "operation": "retweet_tweet",
+                "status": "SUCCESS",
+                "tweet_id": tweet_id,
+                "duration_ms": duration_ms
+            })
+
+            return f"Successfully retweeted tweet {tweet_id}"
+            
+        except TweepyException as e:
+            custom_exception = handle_tweepy_exception(e, "retweet_tweet")
+            duration_ms = round((time.time() - operation_start) * 1000, 2)
+            logger.error("Retweet failed", extra={
+                "operation": "retweet_tweet",
+                "status": "ERROR",
+                "tweet_id": tweet_id,
+                "duration_ms": duration_ms,
+                "error_type": type(custom_exception).__name__
+            })
+            raise custom_exception
+        except BaseMCPException:
             raise
+        except Exception as e:
+            duration_ms = round((time.time() - operation_start) * 1000, 2)
+            logger.error("Unexpected error during retweet", exc_info=True, extra={
+                "operation": "retweet_tweet",
+                "status": "ERROR",
+                "tweet_id": tweet_id,
+                "duration_ms": duration_ms,
+                "error_type": type(e).__name__
+            })
+            raise BaseMCPException(f"Retweet failed: {str(e)}")
 
     @retry_async_wrapper
-    async def follow_user(self, user_id: str):
+    async def get_trends(self, countries: list[str], max_trends: int = 50) -> str:
         """
-        Follow another Twitter user asynchronously.
-
-        Args:
-            user_id (str): The ID of the user to follow
-
-        Returns:
-            str: Success message
-
+        Get trending topics for specified countries.
         """
+        operation_start = time.time()
+        
+        logger.info("Starting trends retrieval", extra={
+            "operation": "get_trends",
+            "status": "START",
+            "countries": countries,
+            "countries_count": len(countries),
+            "max_trends": max_trends
+        })
+
         try:
-            await self.client.follow_user(user_id=user_id)
-            return f"Successfully followed user: {user_id}"
-        except Exception as e:
-            logger.error(f"Failed to follow user {user_id}: {e}", exc_info=True)
-            raise
+            # Validate inputs
+            if not countries:
+                raise ValidationError("Countries list cannot be empty")
+                
+            if not (1 <= max_trends <= 50):
+                raise ValidationError("max_trends must be between 1 and 50")
 
-    @retry_async_wrapper
-    async def get_trends(
-        self, countries: List[str], max_trends: int = 50
-    ) -> Dict[str, List[str]]:
-        """
-        Retrieve trending topics for each provided WOEID.
+            # Load country codes mapping
+            try:
+                country_codes = load_country_codes()
+            except Exception as e:
+                raise InvalidResponseError(f"Failed to load country codes: {str(e)}")
 
-        Args:
-            countries: List of countries
-            max_trends: Maximum number of trends to return per WOEID (1-50).
-
-        Returns:
-            Dict mapping WOEID to a list of trending topic names.
-            If an error occurs for a WOEID, the list contains a single error string.
-
-        """
-        trends_result: Dict[str, List[str]] = {}
-        woeid_by_country = {
-            "Worldwide": 1,
-            "Algeria": 23424740,
-            "Argentina": 23424747,
-            "Australia": 23424748,
-            "Austria": 23424750,
-            "Bahrain": 23424753,
-            "Belgium": 23424757,
-            "Belarus": 23424765,
-            "Brazil": 23424768,
-            "Canada": 23424775,
-            "Chile": 23424782,
-            "China": 23424781,
-            "Colombia": 23424787,
-            "Dominican Republic": 23424800,
-            "Ecuador": 23424801,
-            "Egypt": 23424802,
-            "Ireland": 23424803,
-            "France": 23424819,
-            "Germany": 23424829,
-            "Ghana": 23424824,
-            "Greece": 23424833,
-            "Guatemala": 23424834,
-            "Indonesia": 23424846,
-            "India": 23424848,
-            "Italy": 23424853,
-            "Japan": 23424856,
-            "Jordan": 23424860,
-            "Kenya": 23424863,
-            "South Korea": 23424868,
-            "Kuwait": 23424870,
-            "Lebanon": 23424873,
-            "Latvia": 23424874,
-            "Oman": 23424898,
-            "Malaysia": 23424901,
-            "Mexico": 23424900,
-            "Netherlands": 23424909,
-            "Norway": 23424910,
-            "Nigeria": 23424908,
-            "New Zealand": 23424916,
-            "Pakistan": 23424922,
-            "Poland": 23424923,
-            "Panama": 23424924,
-            "Portugal": 23424925,
-            "Qatar": 23424930,
-            "Russia": 23424936,
-            "Saudi Arabia": 23424938,
-            "South Africa": 23424942,
-            "Singapore": 23424948,
-            "Spain": 23424950,
-            "Sweden": 23424954,
-            "Switzerland": 23424957,
-            "Thailand": 23424960,
-            "Turkey": 23424969,
-            "United Arab Emirates": 23424738,
-            "Ukraine": 23424976,
-            "United Kingdom": 23424975,
-            "United States": 23424977,
-            "Venezuela": 23424982,
-            "Vietnam": 23424984,
-        }
-
-        bearer_token = getattr(self.config, "BEARER_TOKEN", None) or os.getenv(
-            "BEARER_TOKEN"
-        )
-        if not bearer_token:
-            raise ValueError("Bearer token not configured for trends endpoint")
-
-        headers = {"Authorization": f"Bearer {bearer_token}"}
-        timeout = aiohttp.ClientTimeout(total=30)
-
-        async with aiohttp.ClientSession(
-            timeout=timeout, connector=aiohttp.TCPConnector(ssl=self.ssl_context)
-        ) as session:
+            trends_result = {}
+            
             for country in countries:
-                if country in woeid_by_country:
-                    woeid = woeid_by_country[country]
-                    url = f"https://api.twitter.com/2/trends/by/woeid/{woeid}"
-                    params = {"max_trends": max_trends}
-                    try:
-                        async with session.get(
-                            url, headers=headers, params=params
-                        ) as resp:
-                            if resp.status != 200:
-                                trends_result[str(country)] = [
-                                    f"Error: {resp.status} {await resp.text()}"
-                                ]
-                                continue
+                country_start_time = time.time()
+                
+                try:
+                    # Get WOEID for country
+                    woeid = country_codes.get(country.lower())
+                    if not woeid:
+                        trends_result[str(country)] = [f"Error: Country '{country}' not found in mapping"]
+                        logger.warning("Country not found in mapping", extra={
+                            "operation": "get_trends",
+                            "country": country
+                        })
+                        continue
 
-                            data = await resp.json()
-                            trends = [
-                                t.get("trend_name")
-                                for t in data.get("data", [])
-                                if isinstance(t, dict) and t.get("trend_name")
-                            ]
-                            trends_result[str(country)] = trends
-                    except Exception as e:
-                        trends_result[str(country)] = [
-                            f"Error retrieving trends: {str(e)}"
-                        ]
-                else:
-                    logger.error(f"woeid for {country} not found")
+                    # Get trends for this country (using sync API wrapped in thread)
+                    def get_country_trends():
+                        return self._sync_api.get_place_trends(woeid)
 
-        return trends_result
+                    trends_data = await anyio.to_thread.run_sync(get_country_trends)
+                    
+                    if trends_data and len(trends_data) > 0:
+                        trends = [trend["name"] for trend in trends_data[0]["trends"][:max_trends]]
+                        trends_result[str(country)] = trends
+                        
+                        country_duration_ms = round((time.time() - country_start_time) * 1000, 2)
+                        logger.debug("Country trends retrieved successfully", extra={
+                            "operation": "get_trends",
+                            "country": country,
+                            "woeid": woeid,
+                            "trends_found": len(trends),
+                            "country_duration_ms": country_duration_ms
+                        })
+                    else:
+                        trends_result[str(country)] = ["No trends available"]
+                        
+                except TweepyException as e:
+                    custom_exception = handle_tweepy_exception(e, f"get_trends_{country}")
+                    trends_result[str(country)] = [f"Error retrieving trends: {custom_exception.message}"]
+                    logger.warning("Country trends request failed", extra={
+                        "operation": "get_trends",
+                        "country": country,
+                        "error_type": type(custom_exception).__name__,
+                        "country_duration_ms": round((time.time() - country_start_time) * 1000, 2)
+                    })
+                except Exception as e:
+                    trends_result[str(country)] = [f"Error retrieving trends: {str(e)}"]
+                    logger.warning("Unexpected error for country trends", extra={
+                        "operation": "get_trends",
+                        "country": country,
+                        "error_type": type(e).__name__,
+                        "country_duration_ms": round((time.time() - country_start_time) * 1000, 2)
+                    })
 
-    @retry_async_wrapper
-    async def search_hashtag(self, hashtag: str, max_results: int = 10) -> List[str]:
-        """
-        Search recent tweets containing a specific hashtag and return their texts,
-        ordered by popularity (likes + retweets).
+            duration_ms = round((time.time() - operation_start) * 1000, 2)
+            
+            logger.info("Trends retrieval completed", extra={
+                "operation": "get_trends",
+                "status": "SUCCESS",
+                "countries_processed": len(trends_result),
+                "duration_ms": duration_ms
+            })
 
-        Args:
-            hashtag: Hashtag to search for (with or without '#').
-            max_results: Maximum number of tweets to return (10-100).
-
-        Returns:
-            List of tweet texts.
-
-        """
-        if not hashtag.startswith("#"):
-            hashtag = f"#{hashtag}"
-
-        max_results = max(10, min(max_results, 100))
-
-        try:
-            resp = await self.client.search_recent_tweets(
-                query=hashtag,
-                max_results=max_results,
-                tweet_fields=["id", "text", "public_metrics", "created_at"],
-                sort_order="relevancy",
-            )
-
-            if not resp or not resp.data:
-                return []
-
-            tweets = resp.data
-
-            return [t.text for t in tweets]
-
-        except Exception as e:
-            logger.error(f"Error searching hashtag {hashtag}: {str(e)}", exc_info=True)
+            # Format response
+            import json
+            return json.dumps(trends_result, indent=2)
+            
+        except BaseMCPException:
             raise
+        except Exception as e:
+            duration_ms = round((time.time() - operation_start) * 1000, 2)
+            logger.error("Unexpected error during trends retrieval", exc_info=True, extra={
+                "operation": "get_trends",
+                "status": "ERROR",
+                "duration_ms": duration_ms,
+                "error_type": type(e).__name__
+            })
+            raise BaseMCPException(f"Trends retrieval failed: {str(e)}")
 
-    @retry_async_wrapper
+
+async def get_twitter_client() -> AsyncTwitterClient:
+    """Factory function to create and return configured Twitter client."""
+    try:
+        from .config import TwitterConfig
+        config = TwitterConfig()
+        
+        logger.info("Creating Twitter client", extra={
+            "operation": "get_twitter_client",
+            "status": "START"
+        })
+        
+        client = AsyncTwitterClient(config)
+        # Initialize the client to test connection
+        await client.initialize()
+        
+        logger.info("Twitter client created successfully", extra={
+            "operation": "get_twitter_client",
+            "status": "SUCCESS"
+        })
+        
+        return client
+        
+    except Exception as e:
+        logger.error("Failed to create Twitter client", exc_info=True, extra={
+            "operation": "get_twitter_client",
+            "status": "ERROR",
+            "error_type": type(e).__name__
+        })
+        raise AuthenticationError(f"Failed to create Twitter client: {str(e)}")
+
+
+# Add the initialize method that was in your original client
     async def initialize(self):
         """
         Initialize and test the Twitter client connection.
         """
+        start_time = time.time()
+        
+        logger.info("Starting Twitter client initialization", extra={
+            "operation": "initialize_client",
+            "status": "START"
+        })
+        
         try:
             user = await self.client.get_me()
-            logger.info(f"Successfully authenticated as: {user.data['username']}")
+            
+            logger.info("Twitter client initialization completed successfully", extra={
+                "operation": "initialize_client",
+                "status": "SUCCESS",
+                "duration_ms": round((time.time() - start_time) * 1000, 2),
+                "authenticated_user": user.data['username']
+            })
+            
             return self
+            
+        except TweepyException as e:
+            custom_exception = handle_tweepy_exception(e, "initialize_client")
+            logger.error("Twitter client initialization failed", extra={
+                "operation": "initialize_client",
+                "status": "ERROR",
+                "duration_ms": round((time.time() - start_time) * 1000, 2),
+                "error_type": type(custom_exception).__name__
+            })
+            raise custom_exception
         except Exception as e:
-            logger.error(f"Failed to authenticate: {str(e)}")
-            raise
-
-
-_twitter_client: AsyncTwitterClient | None = None
-_client_lock = asyncio.Lock()
-
-
-async def get_twitter_client() -> AsyncTwitterClient:
-    global _twitter_client
-    if _twitter_client is not None:
-        return _twitter_client
-    async with _client_lock:
-        if _twitter_client is None:
-            logger.info("Creating AsyncTwitterClient instance…")
-            from .config import TwitterConfig
-
-            config = TwitterConfig()
-            client = AsyncTwitterClient(config=config)
-            _twitter_client = await client.initialize()
-        return _twitter_client
+            logger.error("Twitter client initialization failed", exc_info=True, extra={
+                "operation": "initialize_client",
+                "status": "ERROR",
+                "duration_ms": round((time.time() - start_time) * 1000, 2),
+                "system_error": str(e),
+                "error_type": type(e).__name__
+            })
+            raise AuthenticationError(f"Twitter client initialization failed: {str(e)}")

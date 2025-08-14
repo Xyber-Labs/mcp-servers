@@ -1,12 +1,12 @@
 # Data
-/data/
+#/data/
 
 # Mac OS-specific storage files
 .DS_Store
 
 # Output files from code fetcher
 code_output.json
-*.json
+#*.json
 code_fetcher.py
 
 #help documents

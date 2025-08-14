@@ -1,43 +1,18 @@
-# This template file mostly will stay the same for all MCP servers
-# It is responsible for launching a uvicorn server with the given MCP server
-
 import argparse
 import logging
 import os
 
 import uvicorn
-from fastapi import FastAPI
 
-from mcp_server_twitter.logging_config import configure_logging, logging_level
-from mcp_server_twitter.server import mcp_server
+from .logging_config import configure_logging, logging_level
+from .server import app
 
 configure_logging()
 logger = logging.getLogger(__name__)
 
-# --- Application Factory --- #
-
-
-def create_app() -> FastAPI:
-    """Create a FastAPI application that can serve the provided mcp server with SSE."""
-    # Create the MCP ASGI app
-    mcp_app = mcp_server.http_app(path="/mcp", transport="streamable-http")
-
-    # Create FastAPI app with proper FastMCP lifespan
-    app = FastAPI(
-        title="Twitter MCP Server",
-        description="MCP server for Twitter integration",
-        version="1.0.0",
-        lifespan=mcp_app.lifespan,
-    )
-
-    # Mount MCP server
-    app.mount("/mcp-server", mcp_app)
-
-    return app
-
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run Twitter MCP server")
+    parser = argparse.ArgumentParser(description="Run Twitter MCP server with FastAPI")
     parser.add_argument(
         "--host",
         default=os.getenv("MCP_TWITTER_HOST", "0.0.0.0"),
@@ -58,13 +33,20 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    logger.info(f"Starting Twitter MCP server on {args.host}:{args.port}")
+    
+    logger.info("Starting Twitter MCP server with FastAPI", extra={
+        "operation": "server_startup",
+        "status": "START",
+        "host": args.host,
+        "port": args.port,
+        "reload": args.reload,
+        "log_level": logging_level
+    })
 
     uvicorn.run(
-        "mcp_server_twitter.__main__:create_app",
+        "mcp_server_twitter.server:app",
         host=args.host,
         port=args.port,
         reload=args.reload,
         log_level=logging_level.lower(),
-        factory=True,
     )
