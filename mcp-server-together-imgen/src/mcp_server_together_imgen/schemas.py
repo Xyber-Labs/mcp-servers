@@ -8,8 +8,7 @@ class ImageGenerationRequest(BaseModel):
     steps: int | None = Field(28, description="The number of generation steps.")
     guidance_scale: float | None = Field(3.5, description="The guidance scale.")
     seed: int | None = Field(42, description="The seed for the generation.")
-    lora_url: str | None = Field(None, description="The URL of the LoRA model to use.")
-    lora_scale: float | None = Field(0.9, description="The scale of the LoRA model.")
+    lora_scale: float | None = Field(0.0, description="LoRA scale; 0 disables LoRA.")
     refine_prompt: bool = Field(
         False,
         description="Whether to refine the prompt using a chat model.",

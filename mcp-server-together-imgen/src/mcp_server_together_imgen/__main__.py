@@ -7,10 +7,8 @@ from fastapi import FastAPI
 from mcp_server_together_imgen.logging_config import configure_logging, logging_level
 from mcp_server_together_imgen.server import mcp_server
 
-# Configure logging first thing
 configure_logging()
 logger = logging.getLogger(__name__)
-
 
 # --- Application Factory --- #
 def create_app() -> FastAPI:

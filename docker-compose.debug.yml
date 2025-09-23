@@ -253,6 +253,23 @@ services:
     restart: unless-stopped
     environment: {}
 
+  mcp_server_together_imgen:
+    build:
+      context: ./mcp-server-together-imgen
+      dockerfile: Dockerfile
+      target: dev
+    image: mcp_server_together_imgen-debug
+    container_name: mcp_server_together_imgen_debug
+    command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5714", "--wait-for-client", "-m", "mcp_server_together_imgen", "--port", "8000", "--reload"]
+    ports:
+      - "8016:8000"
+      - "5714:5714"
+    volumes:
+      - ./mcp-server-together-imgen/src/mcp_server_together_imgen:/app/mcp_server_together_imgen:ro
+    env_file: ./mcp-server-together-imgen/.env
+    restart: unless-stopped
+    environment: {}
+
   qdrant:
     image: qdrant/qdrant:latest
     container_name: qdrant_storage

@@ -24,7 +24,7 @@ class TogetherClient:
                     },
                     {
                         "role": "user",
-                        "content": self.settings.instruction_text + user_prompt,
+                        "content": (self.settings.instruction_text or "") + user_prompt,
                     },
                 ],
                 temperature=0.2,
@@ -37,9 +37,10 @@ class TogetherClient:
 
     async def generate_image_b64(self, request: ImageGenerationRequest) -> str:
         """Generates a base64 PNG image using the Together Images API."""
+        use_lora = request.lora_scale is not None and request.lora_scale > 0
         loras = (
-            [{"path": request.lora_url, "scale": request.lora_scale}]
-            if request.lora_url and request.lora_scale is not None
+            [{"path": self.settings.lora_url, "scale": float(request.lora_scale)}]
+            if use_lora
             else []
         )
 
