@@ -159,6 +159,19 @@ services:
       - ./mcp-server-stability/.env
     restart: unless-stopped
 
+  mcp_server_together_imgen:
+    build:
+      context: ./mcp-server-together-imgen
+      dockerfile: Dockerfile
+    image: mcp_server_together_imgen
+    container_name: mcp_server_together_imgen
+    command: ["python", "-m", "mcp_server_together_imgen", "--port", "8000"]
+    ports:
+      - "8016:8000"
+    env_file:
+      - ./mcp-server-together-imgen/.env
+    restart: unless-stopped
+
   qdrant:
     image: qdrant/qdrant:latest
     container_name: qdrant_storage
