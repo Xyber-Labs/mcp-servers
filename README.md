@@ -37,6 +37,7 @@ This repository was built from the ground up to eliminate these frustrations:
 - **⚡ Be Modern & Maintained**: built with the latest MCP/FastMCP specifications and actively maintained
 - **📋 Have Best Practices Built-In**: implement industry-standard patterns - no more guessing 
 - **🛠️ Be Production-Ready**: fully tested, documented, monitored, securely configured, and quality-checked with automated linting, type-checking, and environment validation
+- **💰 Monetization-Ready**: Built-in support for the [x402 payment protocol](https://x402.org) to monetize endpoints with zero code changes
 - **🐳 Effortless Deployed**: implement multi-stage Docker builds, Docker Compose integration and optimized images for production or local dev
 - **📚 Convinient for developers**: have template-based rapid prototyping, hot-reload support, and clear documentation/examples
 - **🔒 Secure & Reliable**: inlcude environment-based credential management, health monitoring, and robust error handling

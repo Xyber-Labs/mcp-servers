@@ -1,58 +1,70 @@
-# MCP Weather Server
+# MCP Weather Server - Hybrid Template
+> **General:** This repository serves as a production-ready template for creating MCP (Model Context Protocol) servers with optional x402 payment integration.
+> It demonstrates a **hybrid architecture** that exposes functionality through REST APIs, MCP, or both simultaneously.
 
-> **General:** This repository serves as a template for creating new MCP (Model Context Protocol) servers.
-> It provides a weather service implementation with best practices for MCP-compatible microservices.
+## Capabilities
 
-## Overview
 
-This template demonstrates how to create a microservice that exposes functionality through the Model Context Protocol (MCP). It includes a weather service that retrieves data from the OpenWeatherMap API.
+### 1. **API-Only Endpoints** (`/api`)
 
-## MCP Tools:
+Standard REST endpoints for traditional clients (e.g., web apps, dashboards).
 
-1. `get_weather`
-    - **Description:** Retrieves current weather information for a location.
-    - **Input:**
-        - `latitude` (optional): Location latitude.
-        - `longitude` (optional): Location longitude.
-        - `units` (optional): Unit system (metric or imperial).
-    - **Output:** A dictionary containing weather state, temperature, and humidity.
+| Method | Endpoint              | Price      | Description                            |
+| :----- | :-------------------- | :--------- | :------------------------------------- |
+| `GET`  | `/api/health`         | **Free**   | Checks the server's operational status |
+| `GET`  | `/api/admin/logs`     | **Paid**   | Retrieves server logs                  |
+
+### 2. **Hybrid Endpoints** (`/hybrid`)
+
+Accessible via both REST and as MCP tools. Ideal for functionality shared between humans and AI.
+
+| Method/Tool                 | Price      | Description                         |
+| :-------------------------- | :--------- | :---------------------------------- |
+| `get_current_weather`       | **Free**   | Gets current weather for a location |
+| `get_weather_forecast`      | **Paid**   | Retrieves a multi-day forecast      |
+
+### 3. **MCP-Only Endpoints**
+
+Tools exposed exclusively to AI agents. Not available as REST endpoints.
+
+| Tool                    | Price      | Description                               |
+| :---------------------- | :--------- | :---------------------------------------- |
+| `geolocate_city`        | **Free**   | Converts a city name to coordinates       |
+| `get_weather_analysis`  | **Paid**   | Generates a natural language analysis     |
+
+*Note: Paid endpoints require x402 payment protocol configuration. See `env.example` for details.*
+
+## API Documentation
+
+This server automatically generates OpenAPI documentation. Once the server is running, you can access the interactive API docs at:
+
+- **Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs) (for REST endpoints)
+- **MCP Inspector**: Use an MCP-compatible client to view available agent tools [http://localhost:8000/docs](http://localhost:8000/mcp)
+
+These interfaces allow you to explore all REST-accessible endpoints, view their schemas, and test them directly from your browser.
 
 ## Requirements
 
-- Python 3.12+
-- UV (for dependency management)
-- OpenWeatherMap API key
-- Docker (optional, for containerization)
+- **Python 3.12+**
+- **UV** (for dependency management)
+- **OpenWeatherMap API key**
+- **Docker** (optional, for containerization)
 
 ## Setup
 
-1. **Clone the Repository**:
-   ```bash
-   # path: /path/to/your/projects/
-   git clone <repository-url>
-   ```
+1.  **Clone & Configure**
+    ```bash
+    git clone <repository-url>
+    cd mcp-server-template
+    cp env.example .env
+    # Edit .env and add your WEATHER_API_KEY
+    ```
 
-2. **Create `.env` File based on `.env.example`**:
-   Create a `.env` file inside `./mcp-server-template/`.
-   ```dotenv
-   # Required environment variables
-   WEATHER_API_KEY="your_openweathermap_api_key"
-   
-   # Optional environment variables
-   WEATHER_TIMEOUT_SECONDS=10
-   WEATHER_ENABLE_CACHING=true
-   WEATHER_CACHE_TTL_SECONDS=300
-   ```
-
-3. **Install Dependencies**:
-   ```bash
-   # path: ./mcp-servers/mcp-server-template/
-   # Using UV (recommended)
-   uv sync
-   
-   # Or install for development
-   uv sync --group dev
-   ```
+2.  **Virtual Environment**
+    ```bash
+    # working directory: ./mcp-servers/mcp-server-template/
+    uv sync
+    ```
 
 ## Running the Server
 
@@ -105,30 +117,35 @@ uv run pytest -v
 ## Project Structure
 
 ```
-mcp-server-weather/
+mcp-server-template/
 ├── src/
 │   └── mcp_server_weather/
-        └── weather/
-            ├── __init__.py
-            ├── config.py
-            ├── models.py
-            ├── module.py
 │       ├── __init__.py
-│       ├── __main__.py
-│       ├── logging_config.py
-│       ├── server.py
+│       ├── __main__.py              # Entry point (CLI + uvicorn)
+│       ├── app.py                   # Application factory & lifespan
+│       ├── config.py                # Settings with lru_cache factories
+│       ├── logging_config.py        # Logging configuration
+│       ├── dependencies.py          # FastAPI dependency injection
+│       ├── schemas.py               # Pydantic request/response models
+│       │
+│       ├── api_routers/             # API-Only endpoints (REST)
+│       ├── hybrid_routers/          # Hybrid endpoints (REST + MCP)
+│       ├── mcp_routers/             # MCP-Only endpoints
+│       ├── middlewares/
+│       │   └── x402.py              # x402 payment middleware
+│       │
+│       └── weather/                 # Business logic layer
+│           ├── __init__.py
+│           ├── config.py
+│           ├── models.py
+│           ├── module.py
+│           └── errors.py
+│
 ├── tests/
-│   ├── conftest.py
-│   ├── test_module.py
-│   ├── test_retry_logic.py
-│   └── test_server.py
 ├── .env.example
-├── .gitignore
 ├── Dockerfile
-├── LICENSE
 ├── pyproject.toml
-├── README.md
-└── uv.lock
+└── README.md
 ```
 
 ## Contributing

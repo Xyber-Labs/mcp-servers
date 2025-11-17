@@ -1,73 +1,50 @@
-# This template file mostly will stay the same for all MCP servers
-# It is responsible for launching a uvicorn server with the given MCP server
+"""
+Application entry point and local runner.
+
+This module will stay practically the same for most MCP servers: you usually only
+change the import path of your FastAPI app factory and tweak CLI defaults, while
+keeping the Uvicorn startup pattern and logging configuration as shown here.
+
+It is responsible for:
+1. Providing logging configuration for Uvicorn workers / reload processes
+2. Parsing command-line arguments
+3. Launching the Uvicorn server
+"""
 
 import argparse
 import logging
-import os
 
 import uvicorn
-from fastapi import FastAPI
-from mcp_server_weather.logging_config import configure_logging, logging_level
-from mcp_server_weather.server import mcp_server
 
-# Configure logging first thing
-configure_logging()
+from mcp_server_weather.config import get_app_settings
+from mcp_server_weather.logging_config import get_logging_config
+
 logger = logging.getLogger(__name__)
 
 
-# --- Application Factory --- #
-def create_app() -> FastAPI:
-    """Create a FastAPI application that serves the MCP server with streamable-http
-
-    Returns:
-        Configured FastAPI application
-    """
-    # Create the MCP ASGI app
-    mcp_app = mcp_server.http_app(path="/mcp", transport="streamable-http")
-
-    # Create FastAPI app
-    app = FastAPI(
-        title="Weather MCP Server",
-        description="MCP server providing weather information from OpenWeatherMap API",
-        version="0.1.0",
-        lifespan=mcp_app.router.lifespan_context,
-    )
-
-    # Mount MCP server
-    app.mount("/mcp-server", mcp_app)
-
-    return app
-
-
+# --- Uvicorn Runner ---
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run Weather MCP server")
+    settings = get_app_settings()
+    parser = argparse.ArgumentParser(description="Run the Weather MCP Server.")
+    parser.add_argument("--host", default=settings.host, help="Host to bind to.")
     parser.add_argument(
-        "--host",
-        default=os.getenv("MCP_WEATHER_HOST", "0.0.0.0"),
-        help="Host to bind to (Default: MCP_WEATHER_HOST or 0.0.0.0)",
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=int(os.getenv("MCP_WEATHER_PORT", "8000")),
-        help="Port to listen on (Default: MCP_WEATHER_PORT or 8000)",
+        "--port", type=int, default=settings.port, help="Port to listen on."
     )
     parser.add_argument(
         "--reload",
         action="store_true",
-        default=os.getenv("MCP_WEATHER_HOT_RELOAD", "false").lower()
-        in ("true", "1", "t", "yes"),
-        help="Enable hot reload (env: MCP_WEATHER_HOT_RELOAD)",
+        default=settings.hot_reload,
+        help="Enable hot reload.",
     )
-
     args = parser.parse_args()
-    logger.info(f"Starting Weather MCP server on {args.host}:{args.port}")
 
+    logger.info(f"Starting server on {args.host}:{args.port}")
     uvicorn.run(
-        "mcp_server_weather.__main__:create_app",
+        "mcp_server_weather.app:create_app",
         host=args.host,
         port=args.port,
         reload=args.reload,
-        log_level=logging_level.lower(),
-        factory=True,  # This is required when using debugpy
+        # Use our logging config so every worker / reload process is consistent
+        log_config=get_logging_config(),
+        factory=True,
     )

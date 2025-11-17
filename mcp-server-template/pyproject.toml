@@ -20,8 +20,11 @@ dependencies = [
     "uvicorn[standard]",
     "fastmcp>=2.3.4",
     "fastapi>=0.115.12",
-    "aiohttp>=3.9.1",
     "tenacity>=8.2.3",
+    "cdp-sdk>=1.33.2",
+    "httpx>=0.25.0",
+    "pyyaml",
+    "x402==0.2.1"
 ]
 
 [dependency-groups]
@@ -30,7 +33,6 @@ dev = [
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.11.1",
     "pytest-asyncio>=0.23.2",
-    "httpx>=0.25.0",
     "ruff>=0.1.6",
     "black>=23.11.0",
     "isort>=5.12.0",

@@ -1,29 +1,30 @@
-# This file should change to fit your business logic needs
-# It contains the core logic of the module, implementing abstractions
-# defined in the __init__.py file
+"""
+This module will mostly stay the same for all MCP servers
+This module contains the FastAPI application factory and resource lifecycle management.
+"""
 
 from __future__ import annotations
 
 import logging
 import time
 from functools import lru_cache
-from typing import Any, Literal
+from typing import Literal
 
-import aiohttp
-from mcp_server_weather.weather.config import (
-    WeatherApiError,
-    WeatherClientError,
-    WeatherConfig,
-    get_weather_config,
-)
-from mcp_server_weather.weather.models import WeatherData
+import httpx
 from tenacity import (
     before_sleep_log,
     retry,
-    retry_if_exception_type,
+    retry_if_exception,
     stop_after_attempt,
     wait_exponential,
 )
+
+from mcp_server_weather.weather.config import (
+    WeatherConfig,
+    get_weather_config,
+)
+from mcp_server_weather.weather.errors import WeatherApiError, WeatherClientError
+from mcp_server_weather.weather.models import WeatherData
 
 # --- Logger Setup --- #
 
@@ -31,11 +32,19 @@ from tenacity import (
 # The actual configuration (level, handlers) is usually done in the main application entry point.
 logger = logging.getLogger(__name__)
 
+# --- Helper Functions --- #
+
+
+def _is_retryable_exception(e: BaseException) -> bool:
+    """Return True if the exception is a retryable network error."""
+    return isinstance(e, (httpx.RequestError, WeatherApiError))
+
+
 # --- Setup Retry Decorators --- #
 retry_api_call = retry(
     stop=stop_after_attempt(5),
     wait=wait_exponential(multiplier=0.5, max=10),
-    retry=retry_if_exception_type((aiohttp.ClientError, WeatherApiError)),
+    retry=retry_if_exception(_is_retryable_exception),
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True,
 )
@@ -43,20 +52,23 @@ retry_api_call = retry(
 
 @lru_cache(maxsize=1)
 def get_weather_client() -> WeatherClient:
-    """Get a cached instance of WeatherClient.
+    """
+    Get a cached instance of WeatherClient.
 
     Returns:
         Initialized WeatherClient instance
 
     Raises:
         WeatherConfigError: If configuration validation fails
+
     """
     config = get_weather_config()
     return WeatherClient(config)
 
 
 class WeatherClient:
-    """Weather client for fetching weather data from OpenWeatherMap API.
+    """
+    Weather client for fetching weather data from OpenWeatherMap API.
 
     Handles interaction with the OpenWeatherMap API with retry logic and caching.
     """
@@ -64,35 +76,41 @@ class WeatherClient:
     API_BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
 
     def __init__(self, config: WeatherConfig) -> None:
-        """Initialize the WeatherClient.
+        """
+        Initialize the WeatherClient.
 
         Args:
             config: Weather configuration settings
 
         Raises:
             WeatherConfigError: If configuration validation fails
+
         """
         self.config = config
         self._cache: dict[str, tuple[float, WeatherData]] = {}
-        self._session: aiohttp.ClientSession | None = None
+        self._client: httpx.AsyncClient | None = None
         logger.info("WeatherClient initialized")
 
-    async def _ensure_session(self) -> aiohttp.ClientSession:
-        """Ensure HTTP session exists.
+    def _ensure_client(self) -> httpx.AsyncClient:
+        """
+        Ensure the httpx client is initialized.
 
         Returns:
-            Active aiohttp ClientSession
+            An active httpx.AsyncClient instance.
+
         """
-        if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=self.config.timeout_seconds)
+        if self._client is None:
+            self._client = httpx.AsyncClient(
+                base_url=self.API_BASE_URL,
+                timeout=self.config.timeout_seconds,
             )
-        return self._session
+        return self._client
 
     def _build_request_params(
         self, latitude: str, longitude: str, units: Literal["metric", "imperial"]
     ) -> dict[str, str]:
-        """Build request parameters for OpenWeatherMap API.
+        """
+        Build request parameters for OpenWeatherMap API.
 
         Args:
             latitude: Optional latitude override
@@ -100,6 +118,7 @@ class WeatherClient:
 
         Returns:
             Dictionary of request parameters
+
         """
         return {
             "lat": latitude,
@@ -111,7 +130,8 @@ class WeatherClient:
     def _get_cache_key(
         self, latitude: str, longitude: str, units: Literal["metric", "imperial"]
     ) -> str:
-        """Generate cache key for a location.
+        """
+        Generate cache key for a location.
 
         Args:
             latitude: Location latitude
@@ -119,17 +139,20 @@ class WeatherClient:
 
         Returns:
             Cache key string
+
         """
         return f"{latitude}:{longitude}:{units}"
 
     def _get_from_cache(self, cache_key: str) -> WeatherData | None:
-        """Try to get weather data from cache.
+        """
+        Try to get weather data from cache.
 
         Args:
             cache_key: Cache key for the location
 
         Returns:
             WeatherData if found and not expired, None otherwise
+
         """
         if not self.config.enable_caching:
             return None
@@ -147,11 +170,13 @@ class WeatherClient:
         return data
 
     def _store_in_cache(self, cache_key: str, data: WeatherData) -> None:
-        """Store weather data in cache.
+        """
+        Store weather data in cache.
 
         Args:
             cache_key: Cache key for the location
             data: Weather data to cache
+
         """
         if not self.config.enable_caching:
             return
@@ -161,9 +186,9 @@ class WeatherClient:
 
     async def close(self) -> None:
         """Close the HTTP session."""
-        if self._session and not self._session.closed:
-            await self._session.close()
-            self._session = None
+        if self._client:
+            await self._client.aclose()
+            self._client = None
 
     @retry_api_call
     async def get_weather(
@@ -172,7 +197,8 @@ class WeatherClient:
         longitude: str,
         units: Literal["metric", "imperial"] = "metric",
     ) -> WeatherData:
-        """Get weather data for a location.
+        """
+        Get weather data for a location.
 
         Args:
             latitude: Optional latitude override
@@ -184,6 +210,7 @@ class WeatherClient:
         Raises:
             WeatherApiError: If the API request fails
             WeatherClientError: For other unexpected errors
+
         """
         # Use provided coordinates
         lat = latitude
@@ -200,40 +227,36 @@ class WeatherClient:
 
         try:
             logger.info(f"Fetching weather data for coordinates: {lat}, {lon}")
-            session = await self._ensure_session()
+            client = self._ensure_client()
+            response = await client.get("", params=params)
 
-            async with session.get(self.API_BASE_URL, params=params) as response:
-                # Check for HTTP errors
-                if response.status != 200:
-                    error_text = await response.text()
-                    logger.error(f"HTTP error {response.status}: {error_text}")
-                    raise WeatherApiError(
-                        f"OpenWeatherMap API HTTP error: {response.status}"
-                    )
+            # httpx raises an exception for 4xx/5xx responses
+            response.raise_for_status()
 
-                # Parse JSON response
-                data = await response.json()
+            data = response.json()
 
-                # Check for API error responses
-                if "cod" in data and data["cod"] != 200:
-                    error_msg = data.get("message", "Unknown API error")
-                    logger.error(f"API error: {error_msg}")
-                    raise WeatherApiError(f"OpenWeatherMap API error: {error_msg}")
+            # Check for API error responses within a 200 response
+            if "cod" in data and data["cod"] != 200:
+                error_msg = data.get("message", "Unknown API error")
+                logger.error(f"API error: {error_msg}")
+                raise WeatherApiError(f"OpenWeatherMap API error: {error_msg}")
 
-                # Create WeatherData object
-                weather_data = WeatherData.from_api_response(data)
+            weather_data = WeatherData.from_api_response(data)
+            self._store_in_cache(cache_key, weather_data)
 
-                # Store in cache
-                self._store_in_cache(cache_key, weather_data)
-
-                logger.info(f"Successfully retrieved weather data: {weather_data}")
-                return weather_data
+            logger.info(f"Successfully retrieved weather data: {weather_data}")
+            return weather_data
 
         except WeatherApiError:
             # Re-raise WeatherApiError as-is
             raise
 
-        except aiohttp.ClientError as e:
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP status error: {e}")
+            raise WeatherApiError(
+                f"OpenWeatherMap API HTTP error: {e.response.status_code}"
+            ) from e
+        except httpx.RequestError as e:
             logger.error(f"Request error: {e}")
             raise WeatherApiError(
                 f"Failed to connect to OpenWeatherMap API: {e}"

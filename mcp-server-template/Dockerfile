@@ -41,6 +41,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Make container use python installed inside the venv
 ENV PATH="/app/.venv/bin:$PATH"
 
+COPY tool_pricing.yaml .
+
 CMD ["tail", "-f", "/dev/null"]
 
 # --- Production stage --- #
@@ -49,6 +51,8 @@ FROM python:3.12-slim-bookworm AS prod
 WORKDIR /app
 
 COPY --from=builder /app/.venv /app/.venv
+
+COPY tool_pricing.yaml .
 
 ENV PATH="/app/.venv/bin:$PATH"
 

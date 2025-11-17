@@ -1,5 +1,14 @@
-from pydantic import BaseModel, Field
+"""
+Shared request/response schemas.
+
+This module is expected to change as you define the shapes of the data your MCP
+tools and REST endpoints accept and return, but the pattern of small, focused
+Pydantic models remains the same.
+"""
+
 from typing import Literal
+
+from pydantic import BaseModel, Field
 
 
 class LocationRequest(BaseModel):
