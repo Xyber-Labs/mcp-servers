@@ -9,6 +9,7 @@ class E2ETestConfig(BaseSettings):
     base_url: str = "http://localhost:8006"
     timeout_seconds: int = 60
     private_key: str | None = None
+    weather_api_key: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -38,3 +39,11 @@ def require_wallet(config: E2ETestConfig) -> None:
         import pytest
 
         pytest.skip("Set LUMIRA_WALLET to run x402 payment E2E tests.")
+
+
+def require_weather_api_key(config: E2ETestConfig) -> str:
+    if not config.weather_api_key:
+        import pytest
+
+        pytest.skip("Set MCP_WEATHER_TEST_WEATHER_API_KEY to run header auth E2E tests.")
+    return config.weather_api_key

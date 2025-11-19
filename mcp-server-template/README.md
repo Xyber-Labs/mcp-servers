@@ -47,7 +47,7 @@ These interfaces allow you to explore all REST-accessible endpoints, view their 
 
 - **Python 3.12+**
 - **UV** (for dependency management)
-- **OpenWeatherMap API key**
+- **OpenWeatherMap API key** (sent per request via the `Weather-Api-Key` header for live weather calls)
 - **Docker** (optional, for containerization)
 
 ## Setup
@@ -57,7 +57,7 @@ These interfaces allow you to explore all REST-accessible endpoints, view their 
     git clone <repository-url>
     cd mcp-server-template
     cp env.example .env
-    # Edit .env and add your WEATHER_API_KEY
+    # Configure environment for x402, logging, etc. (see env.example).
     ```
 
 2.  **Virtual Environment**
@@ -146,6 +146,31 @@ mcp-server-template/
 ├── Dockerfile
 ├── pyproject.toml
 └── README.md
+```
+
+## Authentication / API Key Usage
+
+For any endpoint that fetches live weather data from OpenWeatherMap (for example,
+`POST /hybrid/current`), clients **must** provide a valid API key via the
+`Weather-Api-Key` HTTP header.
+
+- The key should be an OpenWeatherMap API key associated with your own account.
+- The server does **not** read `WEATHER_API_KEY` from environment; authentication
+  is purely per-request via this header.
+- If the header is missing or empty, the server responds with **HTTP 400** and
+  a message like: `"Weather-Api-Key header is required"`.
+- If the upstream provider rejects the key (for example, a 401 Unauthorized
+  from OpenWeatherMap), the error is translated into a **503 Service
+  Unavailable** with a message such as:
+  `"OpenWeatherMap API HTTP error: 401"`.
+
+Example `curl` call:
+
+```bash
+curl -X POST "http://localhost:8000/hybrid/current" \
+  -H "Content-Type: application/json" \
+  -H "Weather-Api-Key: YOUR_OPENWEATHER_API_KEY" \
+  -d '{"latitude": "51.5074", "longitude": "-0.1278"}'
 ```
 
 ## Contributing

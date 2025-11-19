@@ -107,7 +107,11 @@ class WeatherClient:
         return self._client
 
     def _build_request_params(
-        self, latitude: str, longitude: str, units: Literal["metric", "imperial"]
+        self,
+        latitude: str,
+        longitude: str,
+        units: Literal["metric", "imperial"],
+        api_key: str,
     ) -> dict[str, str]:
         """
         Build request parameters for OpenWeatherMap API.
@@ -124,11 +128,15 @@ class WeatherClient:
             "lat": latitude,
             "lon": longitude,
             "units": units,
-            "appid": self.config.api_key,
+            "appid": api_key,
         }
 
     def _get_cache_key(
-        self, latitude: str, longitude: str, units: Literal["metric", "imperial"]
+        self,
+        latitude: str,
+        longitude: str,
+        units: Literal["metric", "imperial"],
+        api_key: str,
     ) -> str:
         """
         Generate cache key for a location.
@@ -138,10 +146,10 @@ class WeatherClient:
             longitude: Location longitude
 
         Returns:
-            Cache key string
+            Cache key string including API key to avoid cross-tenant cache bleed
 
         """
-        return f"{latitude}:{longitude}:{units}"
+        return f"{latitude}:{longitude}:{units}:{api_key}"
 
     def _get_from_cache(self, cache_key: str) -> WeatherData | None:
         """
@@ -195,6 +203,7 @@ class WeatherClient:
         self,
         latitude: str,
         longitude: str,
+        api_key: str,
         units: Literal["metric", "imperial"] = "metric",
     ) -> WeatherData:
         """
@@ -216,14 +225,17 @@ class WeatherClient:
         lat = latitude
         lon = longitude
 
+        if not api_key:
+            raise WeatherClientError("Weather API key header is required.")
+
         # Try to get from cache first
-        cache_key = self._get_cache_key(lat, lon, units)
+        cache_key = self._get_cache_key(lat, lon, units, api_key)
         cached_data = self._get_from_cache(cache_key)
         if cached_data:
             return cached_data
 
         # Build request parameters
-        params = self._build_request_params(lat, lon, units)
+        params = self._build_request_params(lat, lon, units, api_key)
 
         try:
             logger.info(f"Fetching weather data for coordinates: {lat}, {lon}")

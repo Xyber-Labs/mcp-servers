@@ -9,7 +9,7 @@ from mcp_server_weather.weather.models import WeatherData
 
 class StubWeatherClient:
     async def get_weather(
-        self, latitude: str, longitude: str, units: str | None = None
+        self, latitude: str, longitude: str, units: str | None = None, api_key: str = ""
     ) -> WeatherData:
         return WeatherData(state="clear", temperature="20C", humidity="40%")
 

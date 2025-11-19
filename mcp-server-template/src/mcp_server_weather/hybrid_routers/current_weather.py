@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # ==============================================================================
 # Hybrid Router Example (Free)
 # ------------------------------------------------------------------------------
@@ -8,7 +10,7 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 
 from mcp_server_weather.dependencies import get_weather_client
 from mcp_server_weather.schemas import LocationRequest
@@ -20,6 +22,7 @@ from mcp_server_weather.weather import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+API_KEY_HEADER = "Weather-Api-Key"
 
 
 @router.post(
@@ -31,21 +34,44 @@ router = APIRouter()
     operation_id="get_current_weather",
 )
 async def get_current_weather(
-    request: LocationRequest,
+    location: LocationRequest,
+    weather_api_key: str | None = Header(
+        default=None,
+        alias=API_KEY_HEADER,
+        description=(
+            "OpenWeatherMap API key used to authorize this weather request. "
+            "This header is required for all calls that fetch live weather data."
+        ),
+    ),
     weather_client: WeatherClient = Depends(get_weather_client),
 ) -> dict[str, str]:
     """
     Retrieves current weather data for a specified location.
 
-    This endpoint is available to both REST API consumers and AI agents via
-    MCP. It demonstrates how to create a hybrid endpoint that serves both
-    audiences without duplication.
+    This endpoint is available to both REST API consumers and AI agents via MCP.
+
+    Authentication / API key usage:
+    - Clients MUST provide a valid OpenWeatherMap API key via the
+      `Weather-Api-Key` HTTP header.
+    - If the header is missing or empty, the server responds with HTTP 400 and
+      the message "Weather-Api-Key header is required".
+    - If the upstream provider rejects the key (e.g. 401), the error is
+      translated into a 503 Service Unavailable response with a message like
+      "OpenWeatherMap API HTTP error: 401".
     """
+    api_key = weather_api_key
+    if not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{API_KEY_HEADER} header is required.",
+        )
+
     try:
         weather_data = await weather_client.get_weather(
-            latitude=request.latitude,
-            longitude=request.longitude,
-            units=request.units,
+            latitude=location.latitude,
+            longitude=location.longitude,
+            units=location.units,
+            api_key=api_key,
         )
         result = {
             "state": weather_data.state,
