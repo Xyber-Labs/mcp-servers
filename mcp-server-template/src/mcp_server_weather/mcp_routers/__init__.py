@@ -1,6 +1,7 @@
 """
-This module will mostly stay the same for all MCP servers
-This module contains the FastAPI application factory and resource lifecycle management.
+This module will usually change as you add, remove, or reorder MCP-only routers used as tools for AI agents.
+
+Main responsibility: Collect MCP-only FastAPI routers into a single list for inclusion in the MCP source application.
 """
 
 from fastapi import APIRouter

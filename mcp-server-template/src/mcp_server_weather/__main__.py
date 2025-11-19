@@ -1,14 +1,7 @@
 """
-Application entry point and local runner.
+This module may change slightly as you point to your own app factory and tweak CLI defaults, but the Uvicorn runner pattern usually stays the same.
 
-This module will stay practically the same for most MCP servers: you usually only
-change the import path of your FastAPI app factory and tweak CLI defaults, while
-keeping the Uvicorn startup pattern and logging configuration as shown here.
-
-It is responsible for:
-1. Providing logging configuration for Uvicorn workers / reload processes
-2. Parsing command-line arguments
-3. Launching the Uvicorn server
+Main responsibility: Provide a CLI entry point that configures logging, parses arguments, and starts the server with Uvicorn.
 """
 
 import argparse

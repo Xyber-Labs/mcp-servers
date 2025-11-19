@@ -52,9 +52,7 @@ async def test_get_weather_success(
     _attach_http_client(monkeypatch, weather_client, http_client)
     weather_client._client = http_client
 
-    result = await weather_client.get_weather(
-        LATITUDE, LONGITUDE, api_key=API_KEY
-    )
+    result = await weather_client.get_weather(LATITUDE, LONGITUDE, api_key=API_KEY)
 
     assert isinstance(result, WeatherData)
     assert result.state == "sunny"

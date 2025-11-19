@@ -1,6 +1,7 @@
 """
-This module will mostly stay the same for all MCP servers
-This module contains the FastAPI application factory and resource lifecycle management.
+This module should be changed to reflect the exact shape and units of the weather data (or other domain data) that your application cares about.
+
+Main responsibility: Provide an immutable data model for weather information and helpers to construct it from raw API responses.
 """
 
 from __future__ import annotations

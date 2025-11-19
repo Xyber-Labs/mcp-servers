@@ -1,9 +1,7 @@
 """
-Hybrid (REST + MCP) router aggregation.
+This module will usually change as you decide which endpoints should be exposed both as REST routes and as MCP tools for your server.
 
-This module will usually change as you define which endpoints should be exposed
-both as REST routes and as MCP tools, but the pattern of collecting them into a
-single ``routers`` list for the main app will remain the same.
+Main responsibility: Collect hybrid (REST + MCP) FastAPI routers into a single list for inclusion in the main application.
 """
 
 from fastapi import APIRouter

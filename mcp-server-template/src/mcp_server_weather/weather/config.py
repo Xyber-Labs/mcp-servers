@@ -1,6 +1,7 @@
 """
-This module will mostly stay the same for all MCP servers
-This module contains the FastAPI application factory and resource lifecycle management.
+This module should be changed to match the exact configuration options and environment variable prefixes for your service.
+
+Main responsibility: Define and load configuration settings for the weather service using Pydantic settings and a cached accessor.
 """
 
 from functools import lru_cache

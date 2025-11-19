@@ -1,9 +1,7 @@
 """
-FastAPI dependency wiring.
+This module should be changed as you add or modify dependencies for your own business logic, while keeping the pattern of thin wrappers around shared clients.
 
-This module is expected to change as you add or modify dependencies for your own
-business logic, but the pattern of thin wrappers around shared clients generally
-stays the same across MCP servers.
+Main responsibility: Provide FastAPI dependency functions that expose shared service clients to routers and tools.
 """
 
 from fastapi import Request

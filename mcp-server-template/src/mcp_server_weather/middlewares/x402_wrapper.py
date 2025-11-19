@@ -1,6 +1,10 @@
 """
-This module will mostly stay the same for all MCP servers
-This module contains the FastAPI application factory and resource lifecycle management.
+This module will stay as is for most MCP servers, unless you need to customize how x402 payments are enforced or how headers and errors are handled.
+Note: in future we will likely use x402 library directly, currently it misses some crucial features like:
+- mcp endpoints pricing
+- multiple payment options for a single endpoint
+
+Main responsibility: Implement a payment-enforcing middleware that applies x402 pricing to REST and MCP calls based on configured tool pricing and a facilitator client.
 """
 
 from __future__ import annotations

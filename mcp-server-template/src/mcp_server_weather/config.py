@@ -1,9 +1,7 @@
 """
-Application and payment configuration.
+This module should be changed to fit your deployment and payment model, adjusting environment prefixes, defaults, and x402 settings while keeping the overall structure.
 
-This module is expected to change for your server: you will typically adjust environment
-variable prefixes, defaults, and x402-related settings to match your deployment and
-pricing model, while keeping the overall structure (settings classes and helpers) similar.
+Main responsibility: Define and load application and x402 payment configuration, exposing cached helpers to access these settings.
 """
 
 from __future__ import annotations

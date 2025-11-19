@@ -1,9 +1,7 @@
 """
-REST-only router aggregation.
+This module will usually change as you add, remove, or reorder REST-only routers for your own API, while keeping the aggregation pattern the same.
 
-This module will usually change as you add, remove, or reorder REST-only routers
-for your own API, but the pattern of collecting them into a single ``routers``
-list for inclusion in the main app should stay the same.
+Main responsibility: Collect REST-only FastAPI routers into a single list for inclusion in the main application.
 """
 
 from fastapi import APIRouter

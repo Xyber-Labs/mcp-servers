@@ -1,12 +1,7 @@
 """
-Logging configuration helpers.
+This module could stay as is for most MCP servers, though you may tweak handler destinations, formats, or logging levels to match your deployment.
 
-For most MCP servers this module can stay practically the same: you typically only
-adjust handler destinations, formats, or logging levels to match your deployment.
-It exposes:
-
-- ``get_logging_config()``: returns a dict suitable for ``logging.config.dictConfig``
-- ``configure_logging()``: applies that configuration in the current process.
+Main responsibility: Build and apply a reusable logging configuration for Uvicorn and application processes based on app settings.
 """
 
 from logging.config import dictConfig

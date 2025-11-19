@@ -1,3 +1,9 @@
+"""
+This module should be changed to reflect your own paid hybrid (REST + MCP) endpoints, using this forecast example and its x402 integration as a template.
+
+Main responsibility: Implement a paid hybrid endpoint that returns a multi-day weather forecast, demonstrating monetization across REST and MCP interfaces.
+"""
+
 # ==============================================================================
 # Hybrid Router Example (Paid)
 # ------------------------------------------------------------------------------

@@ -1,9 +1,7 @@
 """
-Application composition and lifecycle management.
+This module may change slightly as you adapt routing, metadata, and middleware to your own MCP server.
 
-The overall structure of this module (lifespan management, MCP server mounting, and
-router wiring) will stay practically the same for most MCP servers; you primarily
-customize which routers are included, the app metadata, and any additional middleware.
+Main responsibility: Compose the FastAPI/MCP application and manage its lifecycle, including startup/shutdown, middleware, and router mounting.
 """
 
 import logging

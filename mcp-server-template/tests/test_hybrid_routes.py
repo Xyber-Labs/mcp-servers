@@ -10,10 +10,14 @@ from mcp_server_weather.hybrid_routers.current_weather import (
     API_KEY_HEADER,
     LocationRequest,
     get_current_weather,
+)
+from mcp_server_weather.hybrid_routers.current_weather import (
     router as current_router,
 )
 from mcp_server_weather.hybrid_routers.forecast import (
     get_weather_forecast,
+)
+from mcp_server_weather.hybrid_routers.forecast import (
     router as forecast_router,
 )
 from mcp_server_weather.weather.models import WeatherData
@@ -31,7 +35,12 @@ class StubWeatherClient:
         api_key: str = "",
     ) -> WeatherData:
         self.calls.append(
-            {"latitude": latitude, "longitude": longitude, "units": units, "api_key": api_key}
+            {
+                "latitude": latitude,
+                "longitude": longitude,
+                "units": units,
+                "api_key": api_key,
+            }
         )
         return WeatherData(state="clear", temperature="20C", humidity="40%")
 

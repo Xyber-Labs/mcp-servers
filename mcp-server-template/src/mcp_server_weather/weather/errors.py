@@ -1,6 +1,7 @@
 """
-This module will mostly stay the same for all MCP servers
-This module contains the FastAPI application factory and resource lifecycle management.
+This module should be changed to match the exact error types and handling logic for your service.
+
+Main responsibility: Define a small, typed exception hierarchy for configuration, API, and client errors in the weather service.
 """
 
 

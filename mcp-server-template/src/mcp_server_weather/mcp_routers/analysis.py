@@ -1,10 +1,7 @@
 """
-MCP-Only Router Example (Paid)
-------------------------------------------------------------------------------
-This file is a self-contained example of a paid MCP-Only endpoint.
-- You can use this file as a template for your own monetized, agent-specific
-  capabilities.
-- The price is configured dynamically in `config.py` and `.env`.
+This module should be changed to implement your own monetized MCP-only tools, using this paid example and its x402 integration as a reference.
+
+Main responsibility: Define an example paid MCP-only router that performs a detailed weather analysis for AI agents, protected by x402 pricing.
 """
 
 import logging

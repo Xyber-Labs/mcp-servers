@@ -1,9 +1,7 @@
 """
-Paid REST-only admin example.
+This module should be changed to fit your administrative needs, using it as a template for monetized, human-facing REST endpoints protected by x402 pricing.
 
-This module is meant to be customized or replaced: it demonstrates how to build
-monetized, human-facing REST endpoints that are protected by x402 pricing, and
-you should adapt the route path, payload, and pricing to your own admin features.
+Main responsibility: Define an example paid admin REST endpoint that demonstrates integrating x402 pricing for sensitive operations.
 """
 
 import logging

@@ -1,9 +1,7 @@
 """
-MCP-Only Router Example (Free)
-------------------------------------------------------------------------------
-This file is a self-contained example of an MCP-Only endpoint.
-- You can use this file as a template for your own agent-specific tools.
-- This endpoint is free and not protected by x402 middleware.
+This module should be changed to define MCP-only tools that fit your agent’s needs, using this free example as a starting template.
+
+Main responsibility: Provide an example free MCP-only router that converts city names into geographic coordinates for downstream weather queries.
 """
 
 import logging

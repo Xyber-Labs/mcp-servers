@@ -45,5 +45,7 @@ def require_weather_api_key(config: E2ETestConfig) -> str:
     if not config.weather_api_key:
         import pytest
 
-        pytest.skip("Set MCP_WEATHER_TEST_WEATHER_API_KEY to run header auth E2E tests.")
+        pytest.skip(
+            "Set MCP_WEATHER_TEST_WEATHER_API_KEY to run header auth E2E tests."
+        )
     return config.weather_api_key

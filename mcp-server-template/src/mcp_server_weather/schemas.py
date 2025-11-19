@@ -1,9 +1,7 @@
 """
-Shared request/response schemas.
+This module should be changed to match the request and response shapes of your own MCP tools and REST endpoints, while keeping the pattern of small, focused Pydantic models.
 
-This module is expected to change as you define the shapes of the data your MCP
-tools and REST endpoints accept and return, but the pattern of small, focused
-Pydantic models remains the same.
+Main responsibility: Define shared Pydantic schemas for input and output payloads used across routers and tools.
 """
 
 from typing import Literal

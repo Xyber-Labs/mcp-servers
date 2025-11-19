@@ -1,8 +1,7 @@
 """
-This file should change to fit your business logic needs
-It exposes abstractions that your module serves
-In sake of typing and exception handling
-it is also likely to expose base error classes and configuration models
+This module should be changed to fit your domain-specific service layer, using it as a central place to expose clients, configuration, errors, and models.
+
+Main responsibility: Provide a public facade for the weather service by re-exporting the client, configuration helpers, error types, and data models.
 """
 
 from mcp_server_weather.weather.config import (

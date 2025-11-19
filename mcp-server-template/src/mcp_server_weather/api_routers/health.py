@@ -1,9 +1,7 @@
 """
-Free REST-only healthcheck example.
+This module could stay as is for many MCP servers, though you may adjust the path, payload, or status fields to match your infrastructure and monitoring needs.
 
-This module is intended as a lightweight template: many MCP servers will keep a
-similar health endpoint, but you can freely adjust the path, payload, or status
-fields to match your infrastructure and monitoring requirements.
+Main responsibility: Expose a simple, free REST healthcheck endpoint for monitoring and load balancer probes.
 """
 
 import logging

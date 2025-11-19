@@ -1,6 +1,7 @@
 """
-This module will mostly stay the same for all MCP servers
-This module contains the FastAPI application factory and resource lifecycle management.
+This module should be changed to match the external weather (or other) API you call, including any retry, caching, and client behavior specific to your use case.
+
+Main responsibility: Implement the async WeatherClient and its factory, handling HTTP calls, retries, caching, and response parsing for weather data.
 """
 
 from __future__ import annotations

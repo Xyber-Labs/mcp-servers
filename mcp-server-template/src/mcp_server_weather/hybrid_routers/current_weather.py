@@ -1,12 +1,10 @@
-from __future__ import annotations
+"""
+This module should be changed to match how your application exposes free hybrid (REST + MCP) endpoints for fetching current domain-specific data.
 
-# ==============================================================================
-# Hybrid Router Example (Free)
-# ------------------------------------------------------------------------------
-# This file is a self-contained example of a Hybrid (REST + MCP) endpoint.
-# - You can use this file as a template for your own Hybrid endpoints.
-# - This endpoint is free and not protected by x402 middleware.
-# ==============================================================================
+Main responsibility: Implement a free hybrid endpoint that retrieves current weather data for a location, using the shared weather client and FastAPI dependencies.
+"""
+
+from __future__ import annotations
 
 import logging
 
