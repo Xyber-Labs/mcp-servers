@@ -1,27 +1,24 @@
-import asyncio
 import logging
-import re
 from functools import lru_cache
 from typing import Any
 from langchain_tavily import TavilySearch
 
-from mcp_server_tavily.tavily.config import (
+from mcp_server_tavily.tavily.config import TavilyConfig
+from mcp_server_tavily.tavily.errors import (
     TavilyApiError,
-    TavilyConfig,
     TavilyConfigError,
     TavilyEmptyQueryError,
+    TavilyEmptyResultsError,
+    TavilyInvalidResponseError,
+    TavilyServiceError,
 )
-from mcp_server_tavily.tavily.models import TavilySearchResult
+from mcp_server_tavily.tavily.models import TavilyApiResponse, TavilySearchResult
 from tenacity import (
     RetryCallState,
-
     retry,
-    retry_if_exception,
     retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type,
-
 )
 
 logger = logging.getLogger(__name__)
@@ -67,14 +64,31 @@ class _TavilyService:
         self.config = config
         logger.info("TavilyService initialized.")
 
-    def _create_tavily_tool(self, max_results: int | None = None) -> Any:
+    def _resolve_api_key(self, api_key: str | None) -> str:
+        """
+        Resolve the effective API key, prioritizing the header-provided key.
+        """
+        key = api_key or self.config.api_key
+        if not key:
+            raise TavilyServiceError(
+                "Tavily API key is not configured and was not provided in the header."
+            )
+        return key
+
+    def _create_tavily_tool(
+        self,
+        max_results: int | None = None,
+        api_key: str | None = None,
+        search_depth: str | None = None,
+    ) -> Any:
         """Creates an instance of the TavilySearch tool with current config."""
         try:
+            resolved_key = self._resolve_api_key(api_key)
             return TavilySearch(
-                tavily_api_key=self.config.api_key,
+                tavily_api_key=resolved_key,
                 max_results=max_results or self.config.max_results,
                 topic=self.config.topic,
-                search_depth=self.config.search_depth,
+                search_depth=search_depth or self.config.search_depth,
                 include_answer=self.config.include_answer,
                 include_raw_content=self.config.include_raw_content,
                 include_images=self.config.include_images,
@@ -87,7 +101,11 @@ class _TavilyService:
             raise TavilyConfigError(f"Error creating TavilySearch tool: {e}") from e
 
     async def search(
-        self, query: str, max_results: int | None = None
+        self,
+        query: str,
+        max_results: int | None = None,
+        api_key: str | None = None,
+        search_depth: str | None = None,
     ) -> list[TavilySearchResult]:
         """
         Performs a web search using the Tavily API.
@@ -95,13 +113,19 @@ class _TavilyService:
         Args:
             query: The search query string.
             max_results: Optional override for the maximum number of results.
+            api_key: Optional API key override.
+            search_depth: Optional search depth override ('basic' or 'advanced').
 
         Returns:
-            A list of search result dictionaries on success.
+            A list of TavilySearchResult objects on success.
 
         Raises:
-            TavilyApiError: For errors during the Tavily API call.
+            TavilyEmptyQueryError: If query is empty.
+            TavilyConfigError: If tool creation fails.
             TavilyServiceError: For general client issues.
+            TavilyApiError: For errors during the Tavily API call.
+            TavilyEmptyResultsError: If API returns empty results.
+            TavilyInvalidResponseError: If API returns invalid response format.
 
         """
         if not query:
@@ -109,157 +133,45 @@ class _TavilyService:
             raise TavilyEmptyQueryError("Search query cannot be empty.")
 
         logger.debug(f"Performing Tavily search for query: '{query[:100]}...'")
+        tool = self._create_tavily_tool(
+            max_results=max_results, api_key=api_key, search_depth=search_depth
+        )
 
+        # Perform search
+        raw_results = await _ainvoke_with_retry(tool, query)
+
+        logger.debug(f"Tavily raw response type: {type(raw_results)}")
+        logger.debug(f"Tavily raw response: {raw_results}")
+
+        # Validate and parse response using Pydantic model
         try:
-            # Create tool
-            tool = self._create_tavily_tool(max_results=max_results)
-
-            # Perform search
-            results = await _ainvoke_with_retry(tool, query)
-
-            logger.debug(f"Tavily raw response type: {type(results)}")
-            logger.debug(f"Tavily raw response: {results}")
-
-            if not results:
-                logger.warning("Tavily returned empty results.")
-                return [
-                    TavilySearchResult(
-                        title="No Results",
-                        url="#",
-                        content="No results were found for this search query.",
-                    )
-                ]
-
-            if results == "error":
-                logger.warning("Tavily returned an error.")
-                return [
-                    TavilySearchResult(
-                        title="Search Error",
-                        url="#",
-                        content="The Tavily API returned an error. This might be due to API key issues, rate limiting, or service unavailability.",
-                    )
-                ]
-
-            if isinstance(results, str):
-                logger.warning(f"Tavily returned a string instead of a list: {results}")
-                return [
-                    TavilySearchResult(title="Search Result", url="#", content=results)
-                ]
-
-            # Handle dictionary response from Tavily API
-            if isinstance(results, dict):
-                # Extract the actual search results from the 'results' key
-                search_results = results.get("results", [])
-                if not search_results:
-                    # If no results key, try to use the answer if available
-                    answer = results.get("answer", "")
-                    if answer:
-                        return [
-                            TavilySearchResult(
-                                title="Search Answer", url="#", content=answer
-                            )
-                        ]
-                    else:
-                        return [
-                            TavilySearchResult(
-                                title="No Results",
-                                url="#",
-                                content="No search results found.",
-                            )
-                        ]
-
-                # Process the actual search results
-                processed_results = []
-                for i, result in enumerate(search_results):
-                    if isinstance(result, dict):
-                        title = result.get("title", f"Search Result {i + 1}")
-                        url = result.get("url", "#")
-                        content = result.get("content", result.get("snippet", ""))
-                        processed_results.append(
-                            TavilySearchResult(title=title, url=url, content=content)
-                        )
-                    else:
-                        processed_results.append(
-                            TavilySearchResult(
-                                title=f"Search Result {i + 1}",
-                                url="#",
-                                content=str(result),
-                            )
-                        )
-
-                logger.info(
-                    f"Tavily search successful, processed {len(processed_results)} results."
-                )
-                return processed_results
-
-            # Handle list response (fallback for other formats)
-            if isinstance(results, list):
-                processed_results = []
-                for i, result in enumerate(results):
-                    if isinstance(result, str):
-                        # If result is a string, create a TavilySearchResult with the string as content
-                        processed_results.append(
-                            TavilySearchResult(
-                                title=f"Search Result {i + 1}", url="#", content=result
-                            )
-                        )
-                    elif (
-                        hasattr(result, "title")
-                        and hasattr(result, "url")
-                        and hasattr(result, "content")
-                    ):
-                        # If result has the expected attributes, use them
-                        processed_results.append(
-                            TavilySearchResult(
-                                title=result.title,
-                                url=result.url,
-                                content=result.content,
-                            )
-                        )
-                    elif hasattr(result, "page_content") and hasattr(
-                        result, "metadata"
-                    ):
-                        # Handle Document objects from langchain
-                        metadata = result.metadata or {}
-                        processed_results.append(
-                            TavilySearchResult(
-                                title=metadata.get("title", f"Search Result {i + 1}"),
-                                url=metadata.get("source", "#"),
-                                content=result.page_content,
-                            )
-                        )
-                    else:
-                        # Fallback for unknown result types
-                        processed_results.append(
-                            TavilySearchResult(
-                                title=f"Search Result {i + 1}",
-                                url="#",
-                                content=str(result),
-                            )
-                        )
-
-                logger.info(
-                    f"Tavily search successful, processed {len(processed_results)} results."
-                )
-                return processed_results
-
-            # Fallback for unexpected response types
-            logger.warning(f"Unexpected Tavily response type: {type(results)}")
-            return [
-                TavilySearchResult(title="Search Result", url="#", content=str(results))
-            ]
-
+            api_response = TavilyApiResponse.from_raw_response(raw_results)
+        except (
+            TavilyApiError,
+            TavilyInvalidResponseError,
+            TavilyEmptyResultsError,
+        ):
+            # Re-raise known errors
+            raise
         except Exception as e:
             logger.error(
-                f"Error during Tavily API call for query '{query}': {e}", exc_info=True
+                f"Unexpected error parsing Tavily response: {e}", exc_info=True
             )
-            return [
-                TavilySearchResult(
-                    title="Search Error",
-                    url="#",
-                    content=f"An error occurred during the search: {str(e)}",
-                )
-            ]
+            raise TavilyInvalidResponseError(
+                f"Failed to parse Tavily API response: {e}"
+            ) from e
+
+        # Convert to TavilySearchResult list
+        search_results = api_response.to_search_results()
+
+        if not search_results:
+            logger.warning("Tavily response could not be converted to search results.")
+            raise TavilyEmptyResultsError("No results were found for this search query.")
+
+        logger.info(
+            f"Tavily search successful, processed {len(search_results)} results."
+        )
+        return search_results
 
 
 @lru_cache(maxsize=1)

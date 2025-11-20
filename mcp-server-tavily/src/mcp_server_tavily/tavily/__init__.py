@@ -1,16 +1,14 @@
-"""Tavily client module for the MCP server."""
-
-from mcp_server_tavily.tavily.config import (
+from mcp_server_tavily.tavily.config import TavilyConfig
+from mcp_server_tavily.tavily.errors import (
     TavilyApiError,
-    TavilyConfig,
     TavilyConfigError,
+    TavilyEmptyQueryError,
+    TavilyEmptyResultsError,
+    TavilyInvalidResponseError,
     TavilyServiceError,
 )
-from mcp_server_tavily.tavily.module import (
-    TavilySearchResult,
-    _TavilyService,
-    get_tavily_service,
-)
+from mcp_server_tavily.tavily.models import TavilySearchResult
+from mcp_server_tavily.tavily.module import _TavilyService, get_tavily_service
 
 __all__ = [
     "_TavilyService",
@@ -20,4 +18,7 @@ __all__ = [
     "TavilyServiceError",
     "TavilyApiError",
     "TavilyConfigError",
+    "TavilyEmptyQueryError",
+    "TavilyEmptyResultsError",
+    "TavilyInvalidResponseError",
 ]

@@ -1,73 +1,40 @@
 import argparse
 import logging
-import os
 
-from mcp_server_tavily.middleware import ProcessTimeMiddleware
 import uvicorn
-from fastapi import FastAPI
-from mcp_server_tavily.logging_config import configure_logging, logging_level
-from mcp_server_tavily.server import mcp_server
 
-configure_logging()
+from mcp_server_tavily.app import create_app
+from mcp_server_tavily.config import get_app_settings
+from mcp_server_tavily.logging_config import get_logging_config
 
 logger = logging.getLogger(__name__)
 
-# --- Application Factory --- #
-
-
-def create_app() -> FastAPI:
-    """Create a FastAPI application that can serve the provided mcp server with SSE."""
-    # Create the MCP ASGI app
-    mcp_app = mcp_server.http_app(path="/mcp", transport="streamable-http")
-
-    # Create FastAPI app
-    app = FastAPI(
-        title="Tavily MCP Server",
-        description="MCP server for web search using Tavily API",
-        version="1.0.0",
-        lifespan=mcp_app.router.lifespan_context,
-    )
-
-    # Mount MCP server
-    app.mount("/mcp-server", mcp_app)
-
-    # Add middleware 
-    app.add_middleware(ProcessTimeMiddleware)
-
-    return app
-
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run Tavily MCP server")
+    parser = argparse.ArgumentParser(description="Run the Tavily MCP Server.")
+    parser.add_argument("--host", default="0.0.0.0", help="Host to bind to.")
     parser.add_argument(
-        "--host",
-        default=os.getenv("MCP_TAVILY_HOST", "0.0.0.0"),
-        help="Host to bind to (Default: MCP_TAVILY_HOST or 0.0.0.0)",
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=int(
-            os.getenv("MCP_TAVILY_PORT", "8005")
-        ),  # Default port 8005 for Tavily
-        help="Port to listen on (Default: MCP_TAVILY_PORT or 8005)",
+        "--port", type=int, default=8006, help="Port to listen on."
     )
     parser.add_argument(
         "--reload",
         action="store_true",
-        default=os.getenv("TAVILY_HOT_RELOAD", "false").lower()
-        in ("true", "1", "t", "yes"),
-        help="Enable hot reload (env: TAVILY_HOT_RELOAD)",
+        default=False,
+        help="Enable hot reload.",
     )
-
     args = parser.parse_args()
-    logger.info(f"Starting Tavily MCP server on {args.host}:{args.port}")
 
+    settings = get_app_settings()
+    settings.host = args.host
+    settings.port = args.port
+    settings.hot_reload = args.reload
+
+    logger.info(f"Starting server on {settings.host}:{settings.port}")
     uvicorn.run(
-        "mcp_server_tavily.__main__:create_app",
-        host=args.host,
-        port=args.port,
-        reload=args.reload,
-        log_level=logging_level.lower(),
+        "mcp_server_tavily.app:create_app",
+        host=settings.host,
+        port=settings.port,
+        reload=settings.hot_reload,
+        log_config=get_logging_config(),
         factory=True,
     )

@@ -1,9 +1,7 @@
 from pydantic import BaseModel, Field
 
 
-class TavilySearchRequest(BaseModel):
-    """Input schema for Tavily search tool."""
-
+class SearchRequest(BaseModel):
     query: str = Field(
         ...,
         min_length=1,
@@ -16,3 +14,16 @@ class TavilySearchRequest(BaseModel):
         le=50,
         description="Optional override for the maximum number of search results (min 1, max 50)",
     )
+    search_depth: str = Field(
+        default="basic",
+        pattern="^(basic|advanced)$",
+        description="Search depth level: 'basic' or 'advanced'",
+    )
+
+
+class TavilySearchResultResponse(BaseModel):
+    """Response model for a single Tavily search result."""
+
+    title: str = Field(description="Title of the search result")
+    url: str = Field(description="URL of the search result")
+    content: str = Field(description="Content/snippet from the search result")

@@ -1,0 +1,4 @@
+tavily_search:
+  - token_amount: 1000 # ~0.001 USDC 
+    chain_id: 8453
+    token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"

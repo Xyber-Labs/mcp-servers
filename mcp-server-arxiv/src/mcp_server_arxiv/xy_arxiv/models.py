@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
 
 
 @dataclass(frozen=True)
@@ -10,12 +9,10 @@ class ArxivSearchResult:
     published_date: str  # Store as string e.g., "YYYY-MM-DD"
     summary: str
     arxiv_id: str  # e.g., "1703.06870v1"
-    authors: List[str] = field(default_factory=list)
-    pdf_url: Optional[str] = None
-    full_text: Optional[str] = None
-    processing_error: Optional[str] = (
-        None  # To capture any errors during PDF download/parsing for this item
-    )
+    authors: list[str] = field(default_factory=list)
+    pdf_url: str | None = None
+    full_text: str | None = None
+    processing_error: str | None = None
 
     def __str__(self) -> str:
         """Returns a string representation of the ArxivSearchResult object."""

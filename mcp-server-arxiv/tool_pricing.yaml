@@ -1,0 +1,5 @@
+arxiv_search:
+  - token_amount: 2000 # ~0.002 USDC 
+    chain_id: 8453
+    token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+

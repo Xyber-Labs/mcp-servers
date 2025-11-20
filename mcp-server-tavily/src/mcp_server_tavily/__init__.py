@@ -1,5 +1,3 @@
-"""Tavily client module for the MCP server."""
-
 from mcp_server_tavily.tavily import (
     TavilyApiError,
     TavilyConfig,
@@ -16,4 +14,7 @@ __all__ = [
     "TavilySearchResult",
     "TavilyConfig",
     "TavilyServiceError",
+    "TavilyApiError",
+    "TavilyConfigError",
+    "TavilyEmptyQueryError",
 ]
