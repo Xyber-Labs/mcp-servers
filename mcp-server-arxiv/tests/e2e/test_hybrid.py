@@ -5,7 +5,7 @@ import pytest
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.slow
+@pytest.mark.payment_disabled
 async def test_hybrid_search_via_rest(rest_client) -> None:
     config, client = rest_client
     payload = {"query": "machine learning", "max_results": 3}
@@ -23,7 +23,7 @@ async def test_hybrid_search_via_rest(rest_client) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.slow
+@pytest.mark.payment_agnostic
 async def test_hybrid_search_requires_payment(rest_client) -> None:
     config, client = rest_client
     payload = {"query": "machine learning", "max_results": 3}
@@ -43,7 +43,7 @@ async def test_hybrid_search_requires_payment(rest_client) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.slow
+@pytest.mark.payment_enabled
 async def test_hybrid_search_succeeds_with_x402(paid_client) -> None:
     config, client = paid_client
     payload = {"query": "machine learning", "max_results": 3}
@@ -52,8 +52,11 @@ async def test_hybrid_search_succeeds_with_x402(paid_client) -> None:
         json=payload,
     )
     if response.status_code == 402:
-        pytest.skip(
-            "Hybrid search is priced but payment flow is not yet fully configured in this environment."
+        error_body = response.json()
+        pytest.fail(
+            f"Payment-enabled test received 402 response. "
+            f"This indicates payment flow is not working correctly. "
+            f"Error body: {error_body}"
         )
     response.raise_for_status()
     body = response.json()
@@ -63,7 +66,7 @@ async def test_hybrid_search_succeeds_with_x402(paid_client) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.slow
+@pytest.mark.payment_agnostic
 async def test_hybrid_search_by_id_via_rest(rest_client) -> None:
     config, client = rest_client
     payload = {"arxiv_id": "1706.03762"}
@@ -90,14 +93,17 @@ async def test_hybrid_search_by_id_via_rest(rest_client) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.slow
+@pytest.mark.payment_enabled
 async def test_hybrid_search_by_id_succeeds_with_x402(paid_client) -> None:
     config, client = paid_client
     payload = {"arxiv_id": "1706.03762"}
     response = await client.post("/hybrid/search", json=payload)
     if response.status_code == 402:
-        pytest.skip(
-            "Hybrid search is priced but payment flow is not yet fully configured in this environment."
+        error_body = response.json()
+        pytest.fail(
+            f"Payment-enabled test received 402 response. "
+            f"This indicates payment flow is not working correctly. "
+            f"Error body: {error_body}"
         )
     if response.status_code == 404:
         pytest.skip("Paper not found - might be a valid test skip")

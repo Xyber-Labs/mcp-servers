@@ -101,6 +101,13 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
             )
         if not verify_response.is_valid:
             reason = verify_response.invalid_reason or "Unknown reason"
+            logger.error(
+                f"Payment verification failed for '{operation_id}': {reason}. "
+                f"Full verify_response: {verify_response.model_dump(by_alias=True)}. "
+                f"Resource in requirements: {selected_req.resource}. "
+                f"Payment details: scheme={payment.scheme}, network={payment.network}, "
+                f"x402_version={payment.x402_version}"
+            )
             return self._create_402_response(
                 payment_requirements, f"Invalid payment: {reason}"
             )
@@ -131,6 +138,18 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
         max_retries: int = 5,
         retry_delay_seconds: float = 1.0,
     ) -> VerifyResponse:
+        logger.debug(
+            f"Verifying payment. Requirements are: "
+            f"resource={payment_requirements.resource}, "
+            f"pay_to={payment_requirements.pay_to}, "
+            f"asset={payment_requirements.asset}, "
+            f"amount={payment_requirements.max_amount_required}, "
+            f"mime_type={payment_requirements.mime_type}"
+        )
+        logger.debug(
+            f"Payment payload: scheme={payment.scheme}, network={payment.network}, "
+            f"x402_version={payment.x402_version}"
+        )
         last_error: httpx.HTTPError | None = None
         for attempt in range(1, max_retries + 1):
             try:
@@ -196,15 +215,16 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
             token_name = get_token_name(chain_id_str, option.token_address)
             token_version = get_token_version(chain_id_str, option.token_address)
 
+            resource_url = str(request.url)            
             accepts.append(
                 PaymentRequirements(
                     scheme="exact",
                     network=network_name,
                     asset=option.token_address,
                     max_amount_required=str(option.token_amount),
-                    resource=str(request.url),
+                    resource=resource_url,
                     description=f"Payment for {request.url.path}",
-                    mime_type=request.headers.get("content-type", ""),
+                    mime_type=request.headers.get("content-type", "application/json"),
                     pay_to=self.settings.payee_wallet_address,
                     max_timeout_seconds=60,
                     extra={

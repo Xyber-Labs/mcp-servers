@@ -12,7 +12,7 @@ from tests.e2e.utils import (
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.slow
+@pytest.mark.payment_agnostic
 async def test_mcp_geolocate_city_tool() -> None:
     config = load_e2e_config()
     require_base_url(config)
@@ -32,7 +32,7 @@ async def test_mcp_geolocate_city_tool() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.slow
+@pytest.mark.payment_enabled
 async def test_mcp_weather_analysis_tool_requires_payment() -> None:
     config = load_e2e_config()
     require_base_url(config)

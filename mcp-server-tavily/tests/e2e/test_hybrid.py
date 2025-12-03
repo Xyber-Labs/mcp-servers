@@ -9,7 +9,7 @@ API_KEY_HEADER = "Tavily-Api-Key"
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.slow
+@pytest.mark.payment_disabled
 async def test_hybrid_search_via_rest(rest_client) -> None:
     config, client = rest_client
     payload = {"query": "Python programming", "max_results": 3}
@@ -30,7 +30,7 @@ async def test_hybrid_search_via_rest(rest_client) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.slow
+@pytest.mark.payment_agnostic
 async def test_hybrid_search_via_rest_missing_header_falls_back_to_config(rest_client):
     """Test that missing header falls back to TAVILY_API_KEY config if available."""
     config, client = rest_client
@@ -53,7 +53,7 @@ async def test_hybrid_search_via_rest_missing_header_falls_back_to_config(rest_c
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.slow
+@pytest.mark.payment_agnostic
 async def test_hybrid_search_requires_payment(rest_client) -> None:
     config, client = rest_client
     api_key = require_tavily_api_key(config)
@@ -75,7 +75,7 @@ async def test_hybrid_search_requires_payment(rest_client) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.slow
+@pytest.mark.payment_enabled
 async def test_hybrid_search_succeeds_with_x402(paid_client) -> None:
     config, client = paid_client
     api_key = require_tavily_api_key(config)
@@ -86,9 +86,8 @@ async def test_hybrid_search_succeeds_with_x402(paid_client) -> None:
         headers={API_KEY_HEADER: api_key},
     )
     if response.status_code == 402:
-        pytest.skip(
-            "Hybrid search is priced but payment flow is not yet fully configured in this environment."
-        )
+        error_body = response.json()
+        pytest.fail(f"Httpx client failed to handle 402 response. Error body: {error_body}")
     response.raise_for_status()
     body = response.json()
     assert isinstance(body, list)

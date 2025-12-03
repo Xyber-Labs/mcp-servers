@@ -5,7 +5,7 @@ import pytest
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.slow
+@pytest.mark.payment_agnostic
 async def test_health_endpoint_available(rest_client) -> None:
     config, client = rest_client
     response = await client.get("/api/health")

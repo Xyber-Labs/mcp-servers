@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class E2ETestConfig(BaseSettings):
     """Configuration for end-to-end tests, driven by environment variables."""
 
-    base_url: str = "http://localhost:8006"
+    base_url: str
     timeout_seconds: int = 60
     private_key: str | None = None
     tavily_api_key: str | None = None

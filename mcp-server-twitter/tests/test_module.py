@@ -14,7 +14,6 @@ from tenacity import retry, stop_after_attempt
 # --- Retry Logic Tests (slower, but necessary) ---
 
 @pytest.mark.asyncio
-@pytest.mark.slow
 async def test_create_tweet_retries_on_aiohttp_client_error(
     mock_config, mocker, caplog
 ):
@@ -56,7 +55,6 @@ async def test_create_tweet_retries_on_aiohttp_client_error(
 
 
 @pytest.mark.asyncio
-@pytest.mark.slow
 async def test_create_tweet_fails_after_max_retries(mock_config, mocker):
     """
     Test that create_tweet fails after the maximum number of retries.
@@ -106,7 +104,6 @@ async def test_create_tweet_success_basic(mock_config, mocker):
 
 
 @pytest.mark.asyncio
-@pytest.mark.slow
 async def test_create_tweet_retries_on_tweepy_5xx_error(mock_config, mocker):
     """
     Test that create_tweet retries on a TweepyException with a 5xx status code.
@@ -138,7 +135,6 @@ async def test_create_tweet_retries_on_tweepy_5xx_error(mock_config, mocker):
 
 
 @pytest.mark.asyncio
-@pytest.mark.slow
 async def test_retweet_retries_and_succeeds(mock_config, mocker, caplog):
     """
     Test that retweet_tweet retries on failure and eventually succeeds.

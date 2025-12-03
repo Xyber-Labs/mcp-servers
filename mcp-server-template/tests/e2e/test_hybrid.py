@@ -9,7 +9,7 @@ API_KEY_HEADER = "Weather-Api-Key"
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.slow
+@pytest.mark.payment_agnostic
 async def test_hybrid_current_via_rest(rest_client) -> None:
     config, client = rest_client
     payload = {"latitude": "51.5074", "longitude": "-0.1278"}
@@ -26,7 +26,7 @@ async def test_hybrid_current_via_rest(rest_client) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.slow
+@pytest.mark.payment_agnostic
 async def test_hybrid_current_via_rest_missing_header_falls_back_to_config(rest_client):
     """Test that missing header falls back to WEATHER_API_KEY config if available."""
     config, client = rest_client
@@ -49,7 +49,7 @@ async def test_hybrid_current_via_rest_missing_header_falls_back_to_config(rest_
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.slow
+@pytest.mark.payment_enabled
 async def test_hybrid_forecast_requires_payment(rest_client) -> None:
     config, client = rest_client
     response = await client.post("/hybrid/forecast", params={"days": 5})
@@ -61,13 +61,16 @@ async def test_hybrid_forecast_requires_payment(rest_client) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.slow
+@pytest.mark.payment_enabled
 async def test_hybrid_forecast_succeeds_with_x402(paid_client) -> None:
     config, client = paid_client
     response = await client.post("/hybrid/forecast", params={"days": 5})
     if response.status_code == 402:
-        pytest.skip(
-            "Hybrid forecast is priced but payment flow is not yet fully configured in this environment."
+        error_body = response.json()
+        pytest.fail(
+            f"Payment-enabled test received 402 response. "
+            f"This indicates payment flow is not working correctly. "
+            f"Error body: {error_body}"
         )
     response.raise_for_status()
     body = response.json()

@@ -5,7 +5,7 @@ import pytest
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.slow
+@pytest.mark.payment_agnostic
 async def test_hybrid_search_by_id_via_rest(rest_client) -> None:
     config, client = rest_client
     payload = {"arxiv_id": "1706.03762"}
