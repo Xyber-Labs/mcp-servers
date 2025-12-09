@@ -1,6 +1,17 @@
 from __future__ import annotations
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def get_env_path() -> Path | str:
+    """Find the .env file recursively from current directory up to root."""
+    current = Path(__file__).resolve().parent
+    for parent in [current] + list(current.parents):
+        env_file = parent / ".env"
+        if env_file.exists():
+            return env_file
+    return ".env"
 
 
 class E2ETestConfig(BaseSettings):
@@ -12,7 +23,7 @@ class E2ETestConfig(BaseSettings):
     weather_api_key: str | None = None
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=get_env_path(),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -37,8 +48,8 @@ def require_base_url(config: E2ETestConfig) -> None:
 def require_wallet(config: E2ETestConfig) -> None:
     if not config.private_key:
         import pytest
-
-        pytest.skip("Set LUMIRA_WALLET to run x402 payment E2E tests.")
+       
+        pytest.skip("Set MCP_WEATHER_TEST_PRIVATE_KEY to run x402 payment E2E tests.")
 
 
 def require_weather_api_key(config: E2ETestConfig) -> str:
