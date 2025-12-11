@@ -21,14 +21,24 @@ class ImageGenerationRequest(BaseModel):
         20, ge=1, le=100, description="The number of generation steps."
     )
     guidance_scale: float | None = Field(
-        3.5, ge=1.0, le=30.0, description="The guidance scale."
+        None, 
+        ge=1.0, 
+        le=30.0, 
+        description="The guidance scale. Only supported for FLUX.1-dev and FLUX.2-flex models. Not supported for FLUX.2-pro/dev."
     )
-    seed: int | None = Field(None, description="The seed for the generation.")
+    seed: int | None = Field(
+        None, 
+        description="The seed for the generation. Use None or omit for random seed. Note: seed=0 may not be accepted by some models."
+    )
     lora_scale: float | None = Field(
-        0.0, ge=0.0, le=1.0, description="LoRA scale; 0 disables LoRA."
+        0.0, 
+        ge=0.0, 
+        le=1.0, 
+        description="LoRA scale; 0 disables LoRA. Only supported for FLUX.1-dev-lora models."
     )
     negative_prompt: str | None = Field(
-        None, description="The prompt or prompts not to guide the image generation."
+        None, 
+        description="The prompt or prompts not to guide the image generation. Only supported for FLUX.1-dev and older models. Not supported for FLUX.2 models."
     )
     refine_prompt: bool = Field(
         False,

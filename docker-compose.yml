@@ -165,9 +165,8 @@ services:
       dockerfile: Dockerfile
     image: mcp_server_together_imgen
     container_name: mcp_server_together_imgen
-    command: ["python", "-m", "mcp_server_together_imgen", "--port", "8000"]
-    ports:
-      - "8016:8000"
+    command: ["python", "-m", "mcp_server_together_imgen", "--port", "8016"]
+    network_mode: host
     env_file:
       - ./mcp-server-together-imgen/.env
     restart: unless-stopped

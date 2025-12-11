@@ -30,7 +30,9 @@ async def generate_image(
             request.prompt = await together_client.refine_prompt(request.prompt)
             logger.info(f"Refined prompt: {request.prompt}")
 
+        logger.info("Starting image generation...")
         image_b64 = await together_client.generate_image_b64(request)
+        logger.info("Image generation completed successfully")
         return Response(content=image_b64)
     except InvalidRequestError as e:
         logger.error(f"Upstream API request error: {e}")
