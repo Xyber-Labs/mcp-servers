@@ -35,8 +35,8 @@ async def generate_image(
     except InvalidRequestError as e:
         logger.error(f"Upstream API request error: {e}")
         raise HTTPException(
-            status_code=403,
-            detail=f"Upstream API request blocked or invalid: {e}",
+            status_code=400,
+            detail=f"Upstream API request error: {e}",
         )
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}", exc_info=True)

@@ -48,20 +48,30 @@ class TogetherClient:
             model = self.settings.non_lora_image_model
             loras = None
 
-        response = await self.client.images.generate(
-            model=model,
-            prompt=request.prompt,
-            negative_prompt=request.negative_prompt,
-            width=request.width,
-            height=request.height,
-            steps=request.steps,
-            guidance_scale=request.guidance_scale,
-            seed=request.seed,
-            n=1,
-            response_format="base64",
-            output_format="png",
-            image_loras=loras,
-        )
+        # FLUX.2-pro and similar models don't support guidance_scale
+        # Only include it for models that support it (e.g., FLUX.1-dev)
+        supports_guidance_scale = "FLUX.2" not in model and "flux.2" not in model.lower()
+
+        # Build the request parameters
+        generate_params = {
+            "model": model,
+            "prompt": request.prompt,
+            "negative_prompt": request.negative_prompt,
+            "width": request.width,
+            "height": request.height,
+            "steps": request.steps,
+            "seed": request.seed,
+            "n": 1,
+            "response_format": "base64",
+            "output_format": "png",
+            "image_loras": loras,
+        }
+
+        # Only add guidance_scale if the model supports it
+        if supports_guidance_scale and request.guidance_scale is not None:
+            generate_params["guidance_scale"] = request.guidance_scale
+
+        response = await self.client.images.generate(**generate_params)
         b64 = response.data[0].b64_json
         return b64.replace("\n", "")
 
