@@ -20,6 +20,7 @@ dependencies = [
     "together>=1.1.2",
     "pillow>=10.3.0",
     "fastapi-mcp",
+    "httpx>=0.27.0",
 ]
 
 [dependency-groups]

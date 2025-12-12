@@ -64,10 +64,18 @@ if __name__ == "__main__":
     external_port = os.getenv("MCP_TOGETHER_IMGEN_EXTERNAL_PORT", "8016")
     external_url = f"http://localhost:{external_port}"
     
-    logger.info(f"API Documentation (Swagger UI): {external_url}/docs")
-    logger.info(f"API Endpoint: {external_url}/api/images")
-    logger.info(f"MCP Endpoint: {external_url}/mcp")
-    logger.info(f"Internal URL: {base_url}")
+    logger.info("=" * 70)
+    logger.info("Available Endpoints:")
+    logger.info("=" * 70)
+    logger.info(f"  📚 Swagger UI (API Documentation): {external_url}/docs")
+    logger.info(f"     ⚠️  Note: Swagger is at /docs (NOT /api/images/docs)")
+    logger.info("")
+    logger.info(f"  🖼️  Generate Image (POST):{external_url}/api/images")
+    logger.info(f"  📋 List Models (GET):{external_url}/api/models")
+    logger.info(f"  🔌 MCP Endpoint (POST):{external_url}/mcp")
+    logger.info("")
+    logger.info(f"  🔧 Internal URL:{base_url}")
+    logger.info("=" * 70)
 
     uvicorn.run(
         "mcp_server_together_imgen.__main__:create_app",

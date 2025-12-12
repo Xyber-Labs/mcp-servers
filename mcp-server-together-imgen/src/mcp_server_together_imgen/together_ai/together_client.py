@@ -1,11 +1,14 @@
 import asyncio
 from functools import lru_cache
+import json
 
+import httpx
 from loguru import logger
 from together import AsyncTogether
 
 from mcp_server_together_imgen.together_ai.config import TogetherSettings
 from mcp_server_together_imgen.schemas import ImageGenerationRequest
+from mcp_server_together_imgen.together_ai.model_registry import get_model_schema
 
 
 class TogetherClient:
@@ -44,72 +47,51 @@ class TogetherClient:
 
     async def generate_image_b64(self, request: ImageGenerationRequest) -> str:
         """Generates a base64 PNG image using the Together Images API."""
-        use_lora = request.lora_scale is not None and request.lora_scale > 0
-
-        if use_lora:
+        # Determine which model to use
+        if request.model:
+            # Use explicitly specified model
+            model = request.model
+            model_schema = get_model_schema(model)
+        elif request.lora_scale is not None and request.lora_scale > 0:
+            # Use LoRA model if LoRA is requested
             model = self.settings.lora_image_model
-            loras = [
-                {"path": self.settings.lora_url, "scale": float(request.lora_scale)}
-            ]
+            model_schema = get_model_schema(model)
         else:
+            # Use default non-LoRA model
             model = self.settings.non_lora_image_model
-            loras = None
+            model_schema = get_model_schema(model)
 
-        # FLUX.2 models don't support negative_prompt
-        # FLUX.2-flex uses "guidance" parameter, not "guidance_scale"
-        # FLUX.2-pro and FLUX.2-dev don't support guidance parameters
-        # FLUX.1-dev and other models use "guidance_scale"
-        is_flux2 = "FLUX.2" in model or "flux.2" in model.lower()
-        is_flux2_flex = "flex" in model.lower()
-        supports_guidance_scale = not is_flux2  # Only FLUX.1 and older models
+        logger.info(f"Using model: {model} (family: {model_schema.family.value})")
 
-        # Build the request parameters - match the working Together API example
-        generate_params = {
-            "model": model,
+        # Prepare request parameters for model schema
+        # Only include parameters that are not None and are supported by the model
+        request_params = {
             "prompt": request.prompt,
-            "n": 1,
         }
         
-        # FLUX.2 models: add width/height if specified
+        # Add optional parameters only if they are provided
         if request.width is not None:
-            generate_params["width"] = request.width
+            request_params["width"] = request.width
         if request.height is not None:
-            generate_params["height"] = request.height
-        
-        # Add optional parameters only if they have valid values
-        if request.steps is not None:
-            generate_params["steps"] = request.steps
-        
-        # Only include seed if it's not None and not 0 (some APIs don't accept 0)
+            request_params["height"] = request.height
+        # Only include steps if model supports it AND it's provided
+        if model_schema.capabilities.supports_steps and request.steps is not None:
+            request_params["steps"] = request.steps
         if request.seed is not None and request.seed != 0:
-            generate_params["seed"] = request.seed
-        
-        # FLUX.2 models: disable safety checker (recommended for FLUX.2)
-        if is_flux2:
-            generate_params["disable_safety_checker"] = True
-            # FLUX.2 requires explicit response_format to get base64
-            generate_params["response_format"] = "b64_json"
-        else:
-            # For other models, use base64 format
-            generate_params["response_format"] = "base64"
-            if request.width is not None or request.height is not None:
-                generate_params["output_format"] = "png"
-        
-        # Add LoRA support if applicable (for FLUX.1 models)
-        if loras is not None:
-            generate_params["image_loras"] = loras
+            request_params["seed"] = request.seed
+        # Only include guidance_scale if model supports it AND it's provided
+        if (model_schema.capabilities.supports_guidance_scale or model_schema.capabilities.supports_guidance_param) and request.guidance_scale is not None:
+            request_params["guidance_scale"] = request.guidance_scale
+        # Only include negative_prompt if model supports it AND it's provided
+        if model_schema.capabilities.supports_negative_prompt and request.negative_prompt is not None:
+            request_params["negative_prompt"] = request.negative_prompt
+        # Only include lora parameters if model supports it AND they're provided
+        if model_schema.capabilities.supports_lora and request.lora_scale is not None and request.lora_scale > 0:
+            request_params["lora_scale"] = request.lora_scale
+            request_params["lora_url"] = request.lora_url or self.settings.lora_url
 
-        # FLUX.2 models don't support negative_prompt
-        if not is_flux2 and request.negative_prompt is not None:
-            generate_params["negative_prompt"] = request.negative_prompt
-
-        # Add guidance parameter based on model type
-        if is_flux2_flex and request.guidance_scale is not None:
-            # FLUX.2-flex uses "guidance" parameter
-            generate_params["guidance"] = request.guidance_scale
-        elif supports_guidance_scale and request.guidance_scale is not None:
-            # FLUX.1-dev and older models use "guidance_scale"
-            generate_params["guidance_scale"] = request.guidance_scale
+        # Build API parameters using model schema
+        generate_params = model_schema.build_api_params(request_params)
 
         logger.info(f"Calling Together API with model: {model}")
         logger.debug(f"API parameters: {generate_params}")
@@ -119,30 +101,44 @@ class TogetherClient:
             raise ValueError("TOGETHER_API_KEY is not set or empty")
         
         try:
-            # Add timeout of 300 seconds (FLUX.2 can take 60-180+ seconds for high quality)
-            # This matches the client-level timeout
+            # Use direct HTTP call to have full control over parameters
+            # This bypasses the Together SDK which might be adding unwanted defaults
             logger.info("Waiting for Together API response (timeout: 300s)...")
-            response = await asyncio.wait_for(
-                self.client.images.generate(**generate_params),
-                timeout=300.0
-            )
+            
+            async with httpx.AsyncClient(timeout=300.0) as client:
+                response = await client.post(
+                    "https://api.together.xyz/v1/images/generations",
+                    headers={
+                        "Authorization": f"Bearer {self.settings.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json=generate_params,
+                )
+                response.raise_for_status()
+                result = response.json()
+            
             logger.info(f"Together API call successful, received response")
             
-            if not response or not hasattr(response, 'data'):
+            if not result or "data" not in result:
                 raise ValueError("Invalid response structure from API")
                 
-            if not response.data or len(response.data) == 0:
+            if not result["data"] or len(result["data"]) == 0:
                 raise ValueError("No image data in API response")
                 
-            image_data = response.data[0]
-            if not hasattr(image_data, 'b64_json') or not image_data.b64_json:
-                # Check if URL is returned instead
-                if hasattr(image_data, 'url') and image_data.url:
-                    logger.warning("API returned URL instead of base64. This endpoint expects base64.")
-                    raise ValueError("API returned URL instead of base64. Please check response_format parameter.")
+            image_data = result["data"][0]
+            
+            # Handle both b64_json and base64 response formats
+            b64 = None
+            if "b64_json" in image_data:
+                b64 = image_data["b64_json"]
+            elif "base64" in image_data:
+                b64 = image_data["base64"]
+            elif "url" in image_data:
+                logger.warning("API returned URL instead of base64. This endpoint expects base64.")
+                raise ValueError("API returned URL instead of base64. Please check response_format parameter.")
+            else:
                 raise ValueError("Empty or missing base64 data in response")
                 
-            b64 = image_data.b64_json
             logger.info(f"Image generated successfully, base64 length: {len(b64)}")
             return b64.replace("\n", "")
             
