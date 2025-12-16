@@ -56,26 +56,6 @@ if __name__ == "__main__":
     logger.info(
         f"Starting Together Image Generation MCP server on {args.host}:{args.port}"
     )
-    
-    # Log important URLs
-    # Note: When running in Docker, the external port may differ (check docker-compose.yml)
-    # Default external port is 8016, but internal is 8000
-    base_url = f"http://{args.host if args.host != '0.0.0.0' else 'localhost'}:{args.port}"
-    external_port = os.getenv("MCP_TOGETHER_IMGEN_EXTERNAL_PORT", "8016")
-    external_url = f"http://localhost:{external_port}"
-    
-    logger.info("=" * 70)
-    logger.info("Available Endpoints:")
-    logger.info("=" * 70)
-    logger.info(f"  📚 Swagger UI (API Documentation): {external_url}/docs")
-    logger.info(f"     ⚠️  Note: Swagger is at /docs (NOT /api/images/docs)")
-    logger.info("")
-    logger.info(f"  🖼️  Generate Image (POST):{external_url}/api/images")
-    logger.info(f"  📋 List Models (GET):{external_url}/api/models")
-    logger.info(f"  🔌 MCP Endpoint (POST):{external_url}/mcp")
-    logger.info("")
-    logger.info(f"  🔧 Internal URL:{base_url}")
-    logger.info("=" * 70)
 
     uvicorn.run(
         "mcp_server_together_imgen.__main__:create_app",
