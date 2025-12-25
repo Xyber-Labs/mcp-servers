@@ -1,13 +1,21 @@
 #!/usr/bin/env python3
 """
-Test script for MCP tools using the same pattern as the template's e2e tests.
+E2E tests for MCP tools using the same pattern as the template's e2e tests.
 Handles Server-Sent Events (SSE) format responses from FastMCP.
+
+These tests require a running server at http://localhost:8002.
+Run with: uv run python -m pytest tests/test_mcp_tools.py
+
+To run standalone: uv run python tests/test_mcp_tools.py
 """
 import asyncio
 import json
+import os
 from typing import Any
 
 import httpx
+import pytest
+import pytest_asyncio
 
 
 async def negotiate_mcp_session_id(base_url: str) -> str:
@@ -105,12 +113,132 @@ async def list_mcp_tools(base_url: str, session_id: str) -> httpx.Response:
         return await client.post("/mcp/", json=payload, headers=headers)
 
 
+# --- Pytest Fixtures ---
+
+@pytest.fixture
+def base_url() -> str:
+    """Base URL for the MCP server."""
+    return os.getenv("MCP_SERVER_URL", "http://localhost:8002")
+
+
+@pytest_asyncio.fixture
+async def mcp_session(base_url: str) -> str:
+    """Fixture to negotiate and initialize an MCP session."""
+    try:
+        session_id = await negotiate_mcp_session_id(base_url)
+        await initialize_mcp_session(base_url, session_id)
+        return session_id
+    except httpx.ConnectError:
+        pytest.skip("MCP server not running - start server to run E2E tests")
+
+
+# --- Pytest Tests ---
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_negotiate_mcp_session(base_url: str):
+    """Test MCP session negotiation."""
+    try:
+        session_id = await negotiate_mcp_session_id(base_url)
+        assert session_id is not None
+        assert len(session_id) > 0
+    except httpx.ConnectError:
+        pytest.skip("MCP server not running - start server to run E2E tests")
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_initialize_mcp_session(base_url: str):
+    """Test MCP session initialization."""
+    try:
+        session_id = await negotiate_mcp_session_id(base_url)
+        await initialize_mcp_session(base_url, session_id)
+        # If no exception is raised, initialization succeeded
+    except httpx.ConnectError:
+        pytest.skip("MCP server not running - start server to run E2E tests")
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_list_mcp_tools(base_url: str, mcp_session: str):
+    """Test listing available MCP tools."""
+    try:
+        response = await list_mcp_tools(base_url, mcp_session)
+        response.raise_for_status()
+        
+        tools_data = parse_sse_response(response.text)
+        assert "result" in tools_data
+        assert "tools" in tools_data["result"]
+        
+        tools = tools_data["result"]["tools"]
+        assert isinstance(tools, list)
+        assert len(tools) > 0
+        
+        # Verify tool structure
+        for tool in tools:
+            assert "name" in tool
+            assert "description" in tool
+    except httpx.ConnectError:
+        pytest.skip("MCP server not running - start server to run E2E tests")
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_mcp_search_youtube_videos(base_url: str, mcp_session: str):
+    """Test mcp_search_youtube_videos tool."""
+    try:
+        response = await call_mcp_tool(
+            base_url,
+            mcp_session,
+            name="mcp_search_youtube_videos",
+            arguments={"query": "python tutorial", "max_results": 3},
+        )
+        response.raise_for_status()
+        
+        result = parse_sse_response(response.text)
+        assert "result" in result
+        
+        # Check for errors
+        if isinstance(result["result"], dict) and result["result"].get("isError"):
+            error_text = result["result"].get("content", [{}])[0].get("text", "Unknown error")
+            pytest.fail(f"MCP tool returned error: {error_text}")
+    except httpx.ConnectError:
+        pytest.skip("MCP server not running - start server to run E2E tests")
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_extract_transcripts(base_url: str, mcp_session: str):
+    """Test extract_transcripts tool (requires APIFY_TOKEN)."""
+    # Skip if no APIFY_TOKEN is set
+    if not os.getenv("APIFY_TOKEN"):
+        pytest.skip("APIFY_TOKEN not set, skipping transcript extraction test")
+    
+    try:
+        response = await call_mcp_tool(
+            base_url,
+            mcp_session,
+            name="extract_transcripts",
+            arguments={"video_ids": ["dQw4w9WgXcQ"]},
+        )
+        
+        # Accept both 200 and error responses (since transcript extraction can fail)
+        assert response.status_code in [200, 500], f"Unexpected status code: {response.status_code}"
+        
+        result = parse_sse_response(response.text)
+        assert "result" in result
+    except httpx.ConnectError:
+        pytest.skip("MCP server not running - start server to run E2E tests")
+
+
+# --- Standalone Execution (for manual testing) ---
+
 async def main():
-    """Main test function."""
-    base_url = "http://localhost:8002"
+    """Main test function for standalone execution."""
+    base_url = os.getenv("MCP_SERVER_URL", "http://localhost:8002")
     
     print("=" * 60)
-    print("MCP Tools Testing")
+    print("MCP Tools Testing (Standalone)")
     print("=" * 60)
     
     # Step 1: Negotiate session

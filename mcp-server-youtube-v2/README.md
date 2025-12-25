@@ -173,11 +173,24 @@ curl -X POST http://localhost:8002/api/v1/extract-transcripts \
 
 MCP tools use the StreamableHTTP transport protocol, which requires session negotiation.
 
-#### Option 1: Using Python Script (Recommended)
+#### Option 1: Using pytest (Recommended)
 
 ```bash
-# Run the test script
-uv run python test_mcp_tools.py
+# Run MCP E2E tests with pytest (requires running server)
+uv run python -m pytest tests/test_mcp_tools.py -v
+
+# Run all tests including MCP E2E tests
+uv run python -m pytest
+
+# Skip integration tests (faster, unit tests only)
+uv run python -m pytest -m "not integration"
+```
+
+#### Option 2: Standalone Script
+
+```bash
+# Run the test script directly (for manual testing)
+uv run python tests/test_mcp_tools.py
 ```
 
 #### Option 2: Using Bash Script
@@ -303,7 +316,10 @@ mcp-server-youtube-v2/
 │           └── client.py            # YouTube search & transcript extraction
 │
 ├── tests/
-├── test_mcp_tools.py                # Python test script for MCP tools
+│   ├── test_mcp_tools.py            # Python test script for MCP tools
+│   ├── test_api_routers.py
+│   ├── test_app.py
+│   └── test_youtube_client.py
 ├── test_mcp.sh                      # Bash test script for MCP tools
 ├── tool_pricing.yaml                # x402 pricing configuration
 ├── Dockerfile
