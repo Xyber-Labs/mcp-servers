@@ -122,6 +122,9 @@ async def search_and_extract_transcripts(
             total_found=len(results),
             cached_count=cached_count,
         )
+    except HTTPException:
+        # Re-raise HTTPExceptions (like 404) without wrapping
+        raise
     except Exception as e:
         logger.error(f"Error in search-transcripts endpoint: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -163,6 +166,9 @@ async def extract_transcripts(
             total_processed=len(results),
             cached_count=cached_count_after,
         )
+    except HTTPException:
+        # Re-raise HTTPExceptions (like 404) without wrapping
+        raise
     except Exception as e:
         logger.error(f"Error in extract-transcripts endpoint: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -192,6 +198,9 @@ async def extract_single_transcript(
         video_response = format_video_response(results[0])
 
         return video_response
+    except HTTPException:
+        # Re-raise HTTPExceptions (like 404) without wrapping
+        raise
     except Exception as e:
         logger.error(f"Error in extract-transcript endpoint: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -227,6 +236,9 @@ async def search_videos_only(
             videos=video_responses,
             total_found=len(videos),
         )
+    except HTTPException:
+        # Re-raise HTTPExceptions (like 404) without wrapping
+        raise
     except Exception as e:
         logger.error(f"Error in search endpoint: {e}")
         raise HTTPException(status_code=500, detail=str(e))

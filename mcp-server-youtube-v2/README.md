@@ -128,6 +128,27 @@ docker run --rm -it -p 8002:8002 \
 
 ## Testing
 
+### Running Tests
+
+```bash
+# Run all tests
+uv run python -m pytest
+
+# Run with verbose output
+uv run python -m pytest -v
+
+# Run specific test file
+uv run python -m pytest tests/test_api_routers.py
+
+# Run with coverage
+uv run python -m pytest --cov=mcp_server_youtube --cov-report=html
+
+# Run specific test
+uv run python -m pytest tests/test_app.py::TestAppLifespan::test_app_lifespan_success
+```
+
+**Note:** Use `uv run python -m pytest` instead of `uv run pytest` to ensure the correct Python environment is used.
+
 ### Testing REST Endpoints
 
 ```bash
