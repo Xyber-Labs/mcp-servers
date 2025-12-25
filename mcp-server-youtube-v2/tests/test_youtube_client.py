@@ -87,16 +87,22 @@ class TestYouTubeVideoSearchAndTranscript:
     @pytest.mark.asyncio
     async def test_get_transcript_safe_no_apify_token(self):
         """Test transcript retrieval without Apify token."""
-        client = YouTubeVideoSearchAndTranscript(
-            delay_between_requests=0.1,
-            apify_api_token=None,
-            require_apify=False,
-        )
-        
-        result = await client.get_transcript_safe("test_video_id")
-        
-        assert result["success"] is False
-        assert "Apify client not initialized" in result["error"]
+        with patch('mcp_server_youtube.youtube.client.get_app_settings') as mock_settings:
+            mock_settings.return_value.apify.apify_token = None
+            
+            client = YouTubeVideoSearchAndTranscript(
+                delay_between_requests=0.1,
+                apify_api_token=None,
+                require_apify=False,
+            )
+            
+            # Ensure apify_client is None
+            client.apify_client = None
+            
+            result = await client.get_transcript_safe("test_video_id")
+            
+            assert result["success"] is False
+            assert "Apify client not initialized" in result["error"]
 
     @pytest.mark.asyncio
     async def test_get_transcript_safe_error_handling(self, youtube_client: YouTubeVideoSearchAndTranscript):
