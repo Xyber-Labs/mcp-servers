@@ -14,9 +14,6 @@ import yt_dlp
 from apify_client import ApifyClient
 
 from mcp_server_youtube.config import get_app_settings
-import logging
-
-logger = logging.getLogger(__name__)
 from mcp_server_youtube.youtube.methods import get_db_manager
 
 logger = logging.getLogger(__name__)
@@ -90,6 +87,8 @@ class YouTubeVideoSearchAndTranscript:
         if max_results is None:
             max_results = settings.youtube.max_results
 
+        logger.info(f"🔍 Searching YouTube for: '{query}' (max_results: {max_results})")
+
         try:
 
             def search_with_ytdlp():
@@ -107,11 +106,15 @@ class YouTubeVideoSearchAndTranscript:
                 results = []
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     search_query = f"ytsearch{max_results}:{query}"
+                    logger.debug(f"Executing yt-dlp search: {search_query}")
                     search_results = ydl.extract_info(search_query, download=False)
 
                     entries = search_results.get("entries", [])
                     if not entries:
+                        logger.warning("No video entries found in search results")
                         return results
+
+                    logger.info(f"Found {len(entries)} video entries, processing...")
 
                     for entry in entries:
                         if entry is None:
@@ -160,9 +163,12 @@ class YouTubeVideoSearchAndTranscript:
 
             results = await asyncio.to_thread(search_with_ytdlp)
             results.sort(key=lambda x: x.get("likes") or 0, reverse=True)
+            logger.info(f"✅ Search completed: {len(results)} videos found (sorted by likes)")
+            if results:
+                logger.debug(f"Top result: {results[0].get('title', 'Unknown')} - {results[0].get('likes', 0)} likes")
             return results
         except Exception as e:
-            logger.error(f"Search error: {e}")
+            logger.error(f"❌ Search error: {e}", exc_info=True)
             return []
 
     async def get_transcript_safe(
@@ -273,12 +279,14 @@ class YouTubeVideoSearchAndTranscript:
         if num_videos is None:
             num_videos = settings.youtube.num_videos
 
-        logger.info(f"Searching for: '{query}'")
+        logger.info(f"🔍 Searching for: '{query}' (num_videos: {num_videos})")
         videos = await self.search_videos(query, max_results=num_videos)
 
         if not videos:
-            logger.warning("No videos found")
+            logger.warning("❌ No videos found")
             return []
+        
+        logger.info(f"📊 Found {len(videos)} videos (sorted by likes)")
 
         db_manager = get_db_manager()
 
@@ -310,7 +318,7 @@ class YouTubeVideoSearchAndTranscript:
 
             transcript_result = None
             if cached_transcripts.get(video_id, False):
-                logger.info(f"Loading transcript from cache for video {video_id}")
+                logger.info(f"💾 Loading transcript from cache for video {video_id}")
                 cached_video = await asyncio.to_thread(db_manager.get_video, video_id)
                 if cached_video:
                     transcript_result = {
@@ -322,10 +330,14 @@ class YouTubeVideoSearchAndTranscript:
                         "language": cached_video.language,
                         "error": cached_video.error,
                     }
+                    logger.info(f"✅ Loaded transcript from cache (length: {cached_video.transcript_length or 0} chars)")
 
             if transcript_result is None:
-                logger.info(f"Fetching transcript from API for video {video_id}")
+                logger.info(f"🌐 Fetching transcript from API for video {video_id}")
                 transcript_result = await self.get_transcript_safe(video_id)
+                
+                if transcript_result.get("success"):
+                    logger.info(f"💾 Saving transcript to cache")
 
                 if transcript_result.get("transcript"):
                     transcript_result["transcript_length"] = len(
@@ -417,20 +429,23 @@ class YouTubeVideoSearchAndTranscript:
             logger.warning("No video IDs provided")
             return []
 
-        logger.info(f"Extracting transcripts for {len(video_ids)} video IDs")
+        logger.info(f"📝 Extracting transcripts for {len(video_ids)} video IDs")
 
         db_manager = get_db_manager()
         cached_transcripts = await asyncio.to_thread(
             db_manager.batch_check_transcripts, video_ids
         )
+        logger.info(f"📊 Cache check: {sum(cached_transcripts.values())}/{len(video_ids)} videos have cached transcripts")
 
         results = []
         for i, video_id in enumerate(video_ids, 1):
+            logger.info(f"\n[{i}/{len(video_ids)}] Processing video ID: {video_id}")
+            
             transcript_result = None
             cached_video = None
 
             if cached_transcripts.get(video_id, False):
-                logger.info(f"Loading transcript from cache for video {video_id}")
+                logger.info(f"💾 Loading transcript from cache for video {video_id}")
                 cached_video = await asyncio.to_thread(db_manager.get_video, video_id)
                 if cached_video:
                     transcript_result = {
@@ -442,10 +457,14 @@ class YouTubeVideoSearchAndTranscript:
                         "language": cached_video.language,
                         "error": cached_video.error,
                     }
+                    logger.info(f"✅ Loaded transcript from cache (length: {cached_video.transcript_length or 0} chars)")
 
             if transcript_result is None:
-                logger.info(f"Fetching transcript from API for video {video_id}")
+                logger.info(f"🌐 Fetching transcript from API for video {video_id}")
                 transcript_result = await self.get_transcript_safe(video_id)
+                
+                if transcript_result.get("success"):
+                    logger.info(f"💾 Saving transcript to cache")
 
                 if transcript_result.get("transcript"):
                     transcript_result["transcript_length"] = len(
