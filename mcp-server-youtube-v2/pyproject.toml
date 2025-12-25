@@ -6,7 +6,7 @@ name = "mcp-server-youtube"
 version = "2.0.0"
 description = "MCP Server providing YouTube video search and transcript retrieval"
 authors = [
-    { name = "XyAgent", email = "agent@xyber.inc" },
+    { name = "XyManchick", email = "xymanchick@xyber.inc" },
 ]
 readme = "README.md"
 requires-python = ">=3.12"

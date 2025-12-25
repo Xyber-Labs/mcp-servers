@@ -14,6 +14,9 @@ import yt_dlp
 from apify_client import ApifyClient
 
 from mcp_server_youtube.config import get_app_settings
+import logging
+
+logger = logging.getLogger(__name__)
 from mcp_server_youtube.youtube.methods import get_db_manager
 
 logger = logging.getLogger(__name__)
@@ -29,8 +32,8 @@ def get_youtube_client() -> YouTubeVideoSearchAndTranscript:
     """
     settings = get_app_settings()
     return YouTubeVideoSearchAndTranscript(
-        delay_between_requests=settings.delay_between_requests,
-        apify_api_token=settings.apify_token,
+        delay_between_requests=settings.youtube.delay_between_requests,
+        apify_api_token=settings.apify.apify_token,
     )
 
 
@@ -50,10 +53,10 @@ class YouTubeVideoSearchAndTranscript:
             require_apify: If False, skip Apify initialization (for search-only mode).
         """
         settings = get_app_settings()
-        self.delay = delay_between_requests or settings.delay_between_requests
+        self.delay = delay_between_requests or settings.youtube.delay_between_requests
         self.apify_api_token = (
             apify_api_token
-            or settings.apify_token
+            or settings.apify.apify_token
             or os.getenv("APIFY_TOKEN")
             or os.getenv("APIFY_API_TOKEN")
         )
@@ -85,7 +88,7 @@ class YouTubeVideoSearchAndTranscript:
         """
         settings = get_app_settings()
         if max_results is None:
-            max_results = settings.max_results
+            max_results = settings.youtube.max_results
 
         try:
 
@@ -268,7 +271,7 @@ class YouTubeVideoSearchAndTranscript:
         """
         settings = get_app_settings()
         if num_videos is None:
-            num_videos = settings.num_videos
+            num_videos = settings.youtube.num_videos
 
         logger.info(f"Searching for: '{query}'")
         videos = await self.search_videos(query, max_results=num_videos)

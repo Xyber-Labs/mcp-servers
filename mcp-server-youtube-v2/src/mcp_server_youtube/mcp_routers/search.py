@@ -1,5 +1,5 @@
 """
-Hybrid router for YouTube search - available via both REST and MCP.
+MCP router for YouTube search - available via MCP and also accessible via REST API.
 """
 
 from __future__ import annotations
@@ -8,12 +8,10 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from mcp_server_youtube.dependencies import get_youtube_service, get_youtube_service_search_only
+from mcp_server_youtube.dependencies import get_youtube_service_search_only
 from mcp_server_youtube.schemas import (
     SearchOnlyRequest,
     SearchOnlyResponse,
-    SearchRequest,
-    SearchTranscriptsResponse,
     VideoSearchResponse,
 )
 from mcp_server_youtube.youtube import YouTubeVideoSearchAndTranscript
@@ -46,7 +44,7 @@ def format_video_search_response(video: dict) -> VideoSearchResponse:
 @router.post(
     "/search",
     tags=["YouTube"],
-    operation_id="search_youtube_videos",
+    operation_id="mcp_search_youtube_videos",
     response_model=SearchOnlyResponse,
 )
 async def search_youtube_videos(
@@ -56,11 +54,15 @@ async def search_youtube_videos(
     """
     Search for YouTube videos without extracting transcripts.
 
-    This endpoint is available to both REST API consumers and AI agents via MCP.
-    It does not require Apify API token.
+    Available via:
+    - REST API: POST /api/v1/search
+    - Hybrid: POST /hybrid/search
+    - MCP: As a tool via /mcp endpoint
+
+    This endpoint does not require Apify API token.
     """
     try:
-        logger.info(f"Search only - query: '{request.query}', max_results: {request.max_results}")
+        logger.info(f"MCP: Search only - query: '{request.query}', max_results: {request.max_results}")
 
         videos = await service.search_videos(request.query, max_results=request.max_results)
 

@@ -12,6 +12,10 @@ from typing import Literal
 import yaml
 from cdp.x402 import create_facilitator_config
 from pydantic import BaseModel, Field, computed_field
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from x402.facilitator import FacilitatorConfig
 
@@ -149,6 +153,28 @@ class X402Config(BaseSettings):
                 )
 
 
+class ApifyConfig(BaseModel):
+    """Apify API configuration."""
+    apify_token: str | None = Field(default=None, env="APIFY_TOKEN")
+
+
+class YouTubeConfig(BaseModel):
+    """YouTube service configuration."""
+    delay_between_requests: float = Field(default=1.0, env="DELAY_BETWEEN_REQUESTS")
+    max_results: int = Field(default=10, env="MAX_RESULTS")
+    num_videos: int = Field(default=5, env="NUM_VIDEOS")
+    query: str = Field(default="quantum computing basics", env="QUERY")
+
+
+class LoggingConfig(BaseModel):
+    """Logging configuration."""
+    log_level: str = Field(default="INFO", env="LOG_LEVEL")
+    log_format: str = Field(
+        default="%(asctime)s [%(levelname)s] %(name)s: %(message)s", env="LOG_FORMAT"
+    )
+    log_file: str = Field(default="logs/mcp_youtube.log", env="LOG_FILE")
+
+
 class AppSettings(BaseSettings):
     """
     Application settings for the MCP YouTube Server.
@@ -160,14 +186,13 @@ class AppSettings(BaseSettings):
     logging_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     hot_reload: bool = False
 
-    # --- YouTube Settings ---
-    db_path: str = "videos.db"
-    delay_between_requests: float = 1.0
-    max_results: int = 10
-    num_videos: int = 5
+    # --- Nested Configurations ---
+    youtube: YouTubeConfig = YouTubeConfig()
+    apify: ApifyConfig = ApifyConfig()
+    logging: LoggingConfig = LoggingConfig()
 
-    # --- Apify Settings ---
-    apify_token: str | None = None
+    # --- Database Settings ---
+    db_path: str = Field(default="videos.db", env="DB_PATH")
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -21,7 +21,7 @@ def get_youtube_service_search_only() -> YouTubeVideoSearchAndTranscript:
     
     settings = get_app_settings()
     return YouTubeVideoSearchAndTranscript(
-        delay_between_requests=settings.delay_between_requests,
+        delay_between_requests=settings.youtube.delay_between_requests,
         apify_api_token=None,
         require_apify=False,
     )

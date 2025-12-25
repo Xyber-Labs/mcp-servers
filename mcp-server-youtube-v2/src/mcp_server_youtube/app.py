@@ -9,6 +9,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastmcp import FastMCP
 
 from mcp_server_youtube.api_routers import routers as api_routers
@@ -80,12 +81,24 @@ def create_app() -> FastAPI:
         description="A server with REST, MCP, and x402 payment capabilities.",
         version="2.0.0",
         lifespan=combined_lifespan,
+        docs_url="/docs",  # Swagger UI
+        redoc_url="/redoc",  # ReDoc alternative
+        openapi_url="/openapi.json",  # OpenAPI schema
+    )
+
+    # --- CORS Middleware ---
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # Configure as needed for production
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     # --- Router Configuration ---
-    # API-only routes: accessible via /api/* (REST only)
+    # API-only routes: accessible via /api/v1/* (REST only)
     for router in api_routers:
-        app.include_router(router, prefix="/api")
+        app.include_router(router, prefix="/api/v1")
 
     # Hybrid routes: accessible via /hybrid/* (REST) and /mcp (MCP)
     for router in hybrid_routers:

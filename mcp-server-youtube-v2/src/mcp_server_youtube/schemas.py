@@ -2,12 +2,27 @@
 Pydantic schemas for request/response models.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 
 
 class VideoResponse(BaseModel):
     """Video information with transcript."""
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "title": "Example Video",
+                "channel": "Example Channel",
+                "video_url": "https://www.youtube.com/watch?v=example",
+                "video_id": "example",
+                "likes": 1000,
+                "transcript_success": True,
+                "transcript_length": 5000,
+                "transcript_preview": "This is a preview of the transcript..."
+            }
+        }
+    )
+    
     title: str
     channel: str
     channel_id: Optional[str] = None
@@ -32,6 +47,18 @@ class VideoResponse(BaseModel):
 
 class VideoSearchResponse(BaseModel):
     """Video search result without transcript."""
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "title": "Example Video",
+                "channel": "Example Channel",
+                "video_url": "https://www.youtube.com/watch?v=example",
+                "video_id": "example",
+                "likes": 1000
+            }
+        }
+    )
+    
     title: str
     channel: str
     channel_id: Optional[str] = None
@@ -49,19 +76,45 @@ class VideoSearchResponse(BaseModel):
 
 class SearchRequest(BaseModel):
     """Request model for video search with transcript extraction."""
-    query: str = Field(..., description="Search query for YouTube videos", example="quantum computing")
-    num_videos: int = Field(5, ge=1, le=50, description="Number of videos to process (1-50)", example=5)
+    query: str = Field(..., description="Search query for YouTube videos")
+    num_videos: int = Field(5, ge=1, le=50, description="Number of videos to process (1-50)")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "query": "quantum computing",
+                "num_videos": 5
+            }
+        }
+    )
 
 
 class ExtractTranscriptsRequest(BaseModel):
     """Request model for extracting transcripts from video IDs."""
-    video_ids: List[str] = Field(..., min_length=1, max_length=50, description="List of YouTube video IDs", example=["dQw4w9WgXcQ", "jNQXAC9IVRw"])
+    video_ids: List[str] = Field(..., min_length=1, max_length=50, description="List of YouTube video IDs")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "video_ids": ["dQw4w9WgXcQ", "jNQXAC9IVRw"]
+            }
+        }
+    )
 
 
 class SearchOnlyRequest(BaseModel):
     """Request model for video search without transcript extraction."""
-    query: str = Field(..., description="Search query for YouTube videos", example="quantum computing")
-    max_results: int = Field(10, ge=1, le=50, description="Maximum number of videos to return (1-50)", example=10)
+    query: str = Field(..., description="Search query for YouTube videos")
+    max_results: int = Field(10, ge=1, le=50, description="Maximum number of videos to return (1-50)")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "query": "quantum computing",
+                "max_results": 10
+            }
+        }
+    )
 
 
 class SearchTranscriptsResponse(BaseModel):

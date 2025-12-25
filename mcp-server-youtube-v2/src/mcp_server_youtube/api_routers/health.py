@@ -25,7 +25,7 @@ async def get_server_health():
     """
     logger.info("Health check endpoint was called")
     return {
-        "status": "ok",
-        "service": "mcp-server-youtube",
+        "status": "healthy",
+        "service": "mcp_youtube_api",
     }
 
