@@ -88,43 +88,215 @@ uv run python -m mcp_server_youtube --port 8002 --reload
 
 ### Using Docker
 
-```bash
-# Build the image
-docker build -t mcp-server-youtube .
+#### Quick Start (Production)
 
-# Run the container with persistent database storage
-docker run --rm -it -p 8002:8002 \
-  -e APIFY_TOKEN=your-token-here \
-  -v youtube-data:/data \
-  -v youtube-logs:/app/logs \
-  mcp-server-youtube
+```bash
+# Build the production image
+docker build --target prod -t mcp-server-youtube:latest .
+
+# Run the container (using .env file and bind mounts for local persistence)
+mkdir -p data logs
+
+docker run --rm -d \
+  --name mcp-youtube \
+  -p 8002:8002 \
+  --env-file .env \
+  -v $(pwd)/data:/data \
+  -v $(pwd)/logs:/app/logs \
+  mcp-server-youtube:latest
 ```
 
-**With named volumes (recommended for persistence):**
+**Database Location:** The database (`videos.db`) will be stored in `./data/videos.db` on your host machine and will persist across container restarts.
+
+#### Step-by-Step Guide
+
+**1. Build the Docker Image**
+
+```bash
+cd mcp-server-youtube-v2
+
+# Build production image (recommended)
+docker build --target prod -t mcp-server-youtube:latest .
+
+# Or build dev image (for development/debugging)
+docker build --target dev -t mcp-server-youtube:dev .
+```
+
+**2. Run with Named Volumes (Docker-Managed Storage)**
+
 ```bash
 # Create named volumes for data persistence
 docker volume create youtube-data
 docker volume create youtube-logs
 
-# Run container with volumes
-docker run --rm -it -p 8002:8002 \
-  -e APIFY_TOKEN=your-token-here \
+# Run container with volumes (using .env file)
+docker run --rm -d \
+  --name mcp-youtube \
+  -p 8002:8002 \
+  --env-file .env \
   -v youtube-data:/data \
   -v youtube-logs:/app/logs \
-  mcp-server-youtube
+  mcp-server-youtube:latest
 ```
 
-**With bind mounts (for local access to database):**
+**3. Run with Bind Mounts (Recommended - Database Persists on Host)**
+
 ```bash
-# Run container with bind mounts to local directories
-docker run --rm -it -p 8002:8002 \
-  -e APIFY_TOKEN=your-token-here \
+# Create local directories
+mkdir -p data logs
+
+# Run container with bind mounts
+# Database will be stored at: ./data/videos.db (on your machine)
+# Logs will be stored at: ./logs/mcp_youtube.log (on your machine)
+docker run --rm -d \
+  --name mcp-youtube \
+  -p 8002:8002 \
+  --env-file .env \
   -v $(pwd)/data:/data \
   -v $(pwd)/logs:/app/logs \
-  mcp-server-youtube
+  mcp-server-youtube:latest
 ```
 
-**Note:** The SQLite database (`videos.db`) is stored in `/data` inside the container, which is mounted as a volume. This ensures that cached video metadata and transcripts persist across container restarts.
+**Benefits of Bind Mounts:**
+- ✅ Database persists on your host machine at `./data/videos.db`
+- ✅ You can access the database file directly from your machine
+- ✅ Data survives container removal (`docker rm`)
+- ✅ Easy to backup (just copy the `data/` directory)
+- ✅ Can inspect database with SQLite tools on your host
+
+**4. Alternative: Manual Environment Variables**
+
+If you prefer to specify environment variables manually instead of using `.env`:
+
+```bash
+docker run --rm -d \
+  --name mcp-youtube \
+  -p 8002:8002 \
+  -e APIFY_TOKEN=your-token-here \
+  -e MCP_YOUTUBE_PORT=8002 \
+  -v youtube-data:/data \
+  -v youtube-logs:/app/logs \
+  mcp-server-youtube:latest
+```
+
+**Note:** All examples above use `--env-file .env` to automatically load your `.env` file. Make sure your `.env` file exists in the same directory where you run the `docker run` command.
+
+#### Docker Commands Reference
+
+```bash
+# View logs
+docker logs -f mcp-youtube
+
+# Stop the container
+docker stop mcp-youtube
+
+# Start a stopped container
+docker start mcp-youtube
+
+# Restart the container
+docker restart mcp-youtube
+
+# Remove the container (data persists in ./data/ directory)
+docker rm -f mcp-youtube
+
+# Execute commands inside container
+docker exec -it mcp-youtube bash
+
+# View container status
+docker ps | grep mcp-youtube
+```
+
+#### Testing Database Persistence
+
+To verify that videos are stored in the database and persist across container restarts:
+
+```bash
+# 1. Process some videos (search and extract transcripts)
+curl -X POST http://localhost:8002/api/v1/search-transcripts \
+  -H "Content-Type: application/json" \
+  -d '{"query": "python tutorial", "num_videos": 2}'
+
+# 2. Check database file exists on your machine
+ls -lh ./data/videos.db
+
+# 3. Query database to see stored videos
+sqlite3 ./data/videos.db "SELECT video_id, title, transcript_success FROM youtube_videos LIMIT 5;"
+
+# 4. Count total videos in database
+sqlite3 ./data/videos.db "SELECT COUNT(*) FROM youtube_videos;"
+
+# 5. Stop the container
+docker stop mcp-youtube
+
+# 6. Verify database file still exists (it should!)
+ls -lh ./data/videos.db
+
+# 7. Restart the container
+docker start mcp-youtube
+# OR recreate it:
+docker run --rm -d \
+  --name mcp-youtube \
+  -p 8002:8002 \
+  --env-file .env \
+  -v $(pwd)/data:/data \
+  -v $(pwd)/logs:/app/logs \
+  mcp-server-youtube:latest
+
+# 8. Query database again - videos should still be there!
+sqlite3 ./data/videos.db "SELECT video_id, title, transcript_success FROM youtube_videos LIMIT 5;"
+
+# 9. Test that cached videos are used (should be faster, no re-fetching)
+curl -X POST http://localhost:8002/api/v1/search-transcripts \
+  -H "Content-Type: application/json" \
+  -d '{"query": "python tutorial", "num_videos": 2}'
+# Check logs - you should see cached transcripts being used
+
+# Inspect volumes
+docker volume inspect youtube-data
+docker volume inspect youtube-logs
+```
+
+#### Development Mode
+
+For development with hot reload and debugging:
+
+```bash
+# Build dev image
+docker build --target dev -t mcp-server-youtube:dev .
+
+# Run in interactive mode (using .env file)
+docker run --rm -it \
+  --name mcp-youtube-dev \
+  -p 8002:8002 \
+  --env-file .env \
+  -v $(pwd)/src:/app/src \
+  -v $(pwd)/data:/data \
+  -v $(pwd)/logs:/app/logs \
+  mcp-server-youtube:dev \
+  python -m mcp_server_youtube --port 8002 --reload
+```
+
+#### Testing the Docker Container
+
+```bash
+# Health check
+curl http://localhost:8002/api/v1/health
+
+# Check logs
+docker logs mcp-youtube
+
+# Run tests against Docker container
+# (from host machine, ensure server is running)
+uv run python -m pytest tests/test_mcp_tools.py -v
+```
+
+**Note:** 
+- The SQLite database (`videos.db`) is stored in `/data` inside the container
+- Logs are stored in `/app/logs` inside the container
+- Both directories are mounted as volumes to persist data across container restarts
+- The production image uses port 8002 by default
+- Use `--target prod` for production builds (smaller, optimized)
+- Use `--target dev` for development (includes dev tools)
 
 ## Testing
 
