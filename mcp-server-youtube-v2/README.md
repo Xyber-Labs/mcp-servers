@@ -55,9 +55,19 @@ Once the server is running, access the interactive API docs:
 1. **Clone & Configure**
    ```bash
    cd mcp-server-youtube-v2
-   cp .env.example .env  # if available
-   # Configure APIFY_TOKEN for transcript extraction
+   cp .env.example .env
+   # Edit .env and set your APIFY_TOKEN (required for transcript extraction)
    ```
+   
+   **Required Environment Variables:**
+   - `APIFY_TOKEN` - Get from https://console.apify.com/account/integrations
+   
+   **Optional Environment Variables:**
+   - `DB_PATH` - SQLite database path (default: `videos.db`)
+   - `MCP_YOUTUBE_PORT` - Server port (default: `8002`)
+   - `MCP_YOUTUBE__YOUTUBE__DELAY_BETWEEN_REQUESTS` - Delay between requests (default: `1.0`)
+   - `MCP_YOUTUBE__LOGGING__LOG_LEVEL` - Log level (default: `INFO`)
+   - See `.env.example` for all available options
 
 2. **Install Dependencies**
    ```bash
@@ -82,11 +92,39 @@ uv run python -m mcp_server_youtube --port 8002 --reload
 # Build the image
 docker build -t mcp-server-youtube .
 
-# Run the container
+# Run the container with persistent database storage
 docker run --rm -it -p 8002:8002 \
   -e APIFY_TOKEN=your-token-here \
+  -v youtube-data:/data \
+  -v youtube-logs:/app/logs \
   mcp-server-youtube
 ```
+
+**With named volumes (recommended for persistence):**
+```bash
+# Create named volumes for data persistence
+docker volume create youtube-data
+docker volume create youtube-logs
+
+# Run container with volumes
+docker run --rm -it -p 8002:8002 \
+  -e APIFY_TOKEN=your-token-here \
+  -v youtube-data:/data \
+  -v youtube-logs:/app/logs \
+  mcp-server-youtube
+```
+
+**With bind mounts (for local access to database):**
+```bash
+# Run container with bind mounts to local directories
+docker run --rm -it -p 8002:8002 \
+  -e APIFY_TOKEN=your-token-here \
+  -v $(pwd)/data:/data \
+  -v $(pwd)/logs:/app/logs \
+  mcp-server-youtube
+```
+
+**Note:** The SQLite database (`videos.db`) is stored in `/data` inside the container, which is mounted as a volume. This ensures that cached video metadata and transcripts persist across container restarts.
 
 ## Testing
 

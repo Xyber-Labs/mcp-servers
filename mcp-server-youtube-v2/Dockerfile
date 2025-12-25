@@ -41,6 +41,19 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Make container use python installed inside the venv
 ENV PATH="/app/.venv/bin:$PATH"
 
+# Create data directory for persistent SQLite database
+RUN mkdir -p /data /app/logs && \
+    chmod 755 /data /app/logs
+
+# Set database path to persistent volume location
+ENV DB_PATH="/data/videos.db"
+
+# Set log file path
+ENV MCP_YOUTUBE__LOGGING__LOG_FILE="/app/logs/mcp_youtube.log"
+
+# Mount point for persistent data (database and logs)
+VOLUME ["/data", "/app/logs"]
+
 COPY tool_pricing.yaml .
 
 CMD ["tail", "-f", "/dev/null"]
@@ -55,6 +68,19 @@ COPY --from=builder /app/.venv /app/.venv
 COPY tool_pricing.yaml .
 
 ENV PATH="/app/.venv/bin:$PATH"
+
+# Create data directory for persistent SQLite database
+RUN mkdir -p /data /app/logs && \
+    chmod 755 /data /app/logs
+
+# Set database path to persistent volume location
+ENV DB_PATH="/data/videos.db"
+
+# Set log file path (logs directory will be created if needed)
+ENV MCP_YOUTUBE__LOGGING__LOG_FILE="/app/logs/mcp_youtube.log"
+
+# Mount point for persistent data (database and logs)
+VOLUME ["/data", "/app/logs"]
 
 EXPOSE 8002
 
