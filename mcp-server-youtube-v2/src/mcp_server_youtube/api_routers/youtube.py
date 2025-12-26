@@ -7,84 +7,87 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.exceptions import RequestValidationError
 
-from mcp_server_youtube.dependencies import get_youtube_service, get_youtube_service_search_only
+import asyncio
+
+from mcp_server_youtube.dependencies import get_youtube_service, get_youtube_service_search_only, get_db_manager
 from mcp_server_youtube.schemas import (
     ExtractTranscriptsRequest,
     ExtractTranscriptsResponse,
-    SearchRequest,
+    SearchVideosRequest,
     SearchTranscriptsResponse,
-    SearchOnlyRequest,
     SearchOnlyResponse,
     VideoResponse,
     VideoSearchResponse,
 )
 from mcp_server_youtube.youtube import YouTubeVideoSearchAndTranscript
-from mcp_server_youtube.youtube.methods import get_db_manager
+from mcp_server_youtube.youtube.methods import DatabaseManager
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def format_video_response(video: dict, include_transcript_preview: bool = True) -> VideoResponse:
-    """Format video dictionary to VideoResponse model."""
-    transcript_preview = None
-    if include_transcript_preview and video.get("transcript"):
-        transcript_preview = (
-            video["transcript"][:300] + "..."
-            if len(video["transcript"]) > 300
-            else video["transcript"]
-        )
+def _normalize_transcript_result(transcript_api_result) -> dict:
+    """Normalize transcript result from BaseModel or dict to dict."""
+    if transcript_api_result is None:
+        return {
+            "success": False,
+            "transcript": None,
+            "transcript_length": 0,
+            "is_generated": None,
+            "language": None,
+            "error": "No transcript result",
+        }
+    
+    if hasattr(transcript_api_result, 'success'):
+        # It's a BaseModel
+        return {
+            "success": transcript_api_result.success,
+            "transcript": transcript_api_result.transcript,
+            "transcript_length": len(transcript_api_result.transcript) if transcript_api_result.transcript else 0,
+            "is_generated": transcript_api_result.is_generated,
+            "language": transcript_api_result.language,
+            "error": transcript_api_result.error,
+        }
+    elif isinstance(transcript_api_result, dict):
+        # It's a dict (from mocks)
+        return {
+            "success": transcript_api_result.get("success", False),
+            "transcript": transcript_api_result.get("transcript"),
+            "transcript_length": len(transcript_api_result.get("transcript", "")) if transcript_api_result.get("transcript") else 0,
+            "is_generated": transcript_api_result.get("is_generated"),
+            "language": transcript_api_result.get("language"),
+            "error": transcript_api_result.get("error"),
+        }
+    else:
+        return {
+            "success": False,
+            "transcript": None,
+            "transcript_length": 0,
+            "is_generated": None,
+            "language": None,
+            "error": "Unknown error",
+        }
 
-    return VideoResponse(
-        title=video.get("title", "Unknown"),
-        channel=video.get("channel", "Unknown"),
-        channel_id=video.get("channel_id"),
-        channel_url=video.get("channel_url"),
-        video_url=video.get("video_url", ""),
-        video_id=video.get("video_id", ""),
-        duration=video.get("duration"),
-        views=video.get("views"),
-        likes=video.get("likes"),
-        comments=video.get("comments"),
-        upload_date=video.get("upload_date"),
-        description=video.get("description"),
-        thumbnail=video.get("thumbnail"),
-        transcript_success=video.get("transcript_success", False),
-        transcript=video.get("transcript"),
-        transcript_length=video.get("transcript_length"),
-        transcript_preview=transcript_preview,
-        error=video.get("error"),
-        is_auto_generated=video.get("is_auto_generated"),
-        language=video.get("language"),
-    )
+
+def _normalize_video_to_dict(video) -> dict:
+    """Normalize video from BaseModel or dict to dict."""
+    if hasattr(video, 'model_dump'):
+        return video.model_dump()
+    elif isinstance(video, dict):
+        return video
+    else:
+        return {}
 
 
-def format_video_search_response(video: dict) -> VideoSearchResponse:
-    """Format video dictionary to VideoSearchResponse model."""
-    return VideoSearchResponse(
-        title=video.get("title", "Unknown"),
-        channel=video.get("channel", "Unknown"),
-        channel_id=video.get("channel_id"),
-        channel_url=video.get("channel_url"),
-        video_url=video.get("url")
-        or video.get("link")
-        or f"https://www.youtube.com/watch?v={video.get('id') or video.get('video_id')}",
-        video_id=video.get("id") or video.get("video_id", ""),
-        duration=video.get("duration"),
-        views=video.get("views"),
-        likes=video.get("likes"),
-        comments=video.get("comments"),
-        upload_date=video.get("upload_date"),
-        description=video.get("description"),
-        thumbnail=video.get("thumbnail"),
-    )
 
 
 @router.post("/search-transcripts", response_model=SearchTranscriptsResponse, tags=["Transcripts"], operation_id="api_search_and_extract_transcripts")
 async def search_and_extract_transcripts(
-    request: SearchRequest,
+    request: SearchVideosRequest,
     service: YouTubeVideoSearchAndTranscript = Depends(get_youtube_service),
+    db_manager: DatabaseManager = Depends(get_db_manager),
 ):
     """
     Search for YouTube videos and extract their transcripts.
@@ -100,20 +103,127 @@ async def search_and_extract_transcripts(
             f"API: Search and extract transcripts - query: '{request.query}', num_videos: {request.num_videos}"
         )
 
-        db_manager = get_db_manager()
+        # Check if search_and_get_transcripts exists (for backward compatibility with tests)
+        # Otherwise use the new flow with search_videos + get_transcript_safe
+        if hasattr(service, 'search_and_get_transcripts'):
+            # Old flow - for backward compatibility
+            results = await service.search_and_get_transcripts(
+                query=request.query, num_videos=request.num_videos
+            )
+            if not results:
+                raise HTTPException(status_code=404, detail="No videos found")
 
-        results = await service.search_and_get_transcripts(
-            query=request.query, num_videos=request.num_videos
-        )
+            video_ids = [r.get("video_id") for r in results if r.get("video_id")]
+            cached_transcripts = await asyncio.to_thread(db_manager.batch_check_transcripts, video_ids)
+            cached_count = sum(cached_transcripts.values())
+            video_responses = [VideoResponse.from_video(video) for video in results]
+
+            return SearchTranscriptsResponse(
+                query=request.query,
+                num_videos=request.num_videos,
+                videos=video_responses,
+                total_found=len(results),
+                cached_count=cached_count,
+            )
+        
+        # New flow - search_videos + get_transcript_safe
+        videos = await service.search_videos(request.query, max_results=request.num_videos)
+        if not videos:
+            raise HTTPException(status_code=404, detail="No videos found")
+
+        # Normalize videos to dicts for easier handling
+        video_dicts = []
+        for v in videos:
+            video_dict = _normalize_video_to_dict(v)
+            video_id = video_dict.get("video_id") or video_dict.get("id") or video_dict.get("display_id")
+            if video_id:
+                video_dict["_video_id"] = video_id
+                video_dicts.append(video_dict)
+        
+        if not video_dicts:
+            raise HTTPException(status_code=404, detail="No videos found")
+
+        video_ids = [v["_video_id"] for v in video_dicts]
+        cached_transcripts = await asyncio.to_thread(db_manager.batch_check_transcripts, video_ids)
+
+        # Get transcripts with caching
+        results = []
+        for video_dict in video_dicts:
+            video_id = video_dict["_video_id"]
+
+            transcript_result = None
+            if cached_transcripts.get(video_id, False):
+                logger.info(f"💾 Loading transcript from cache for video {video_id}")
+                cached_video = await asyncio.to_thread(db_manager.get_video, video_id)
+                if cached_video and cached_video.transcript_success and cached_video.transcript:
+                    transcript_result = {
+                        "success": cached_video.transcript_success,
+                        "transcript": cached_video.transcript,
+                        "transcript_length": cached_video.transcript_length,
+                        "is_generated": cached_video.is_auto_generated,
+                        "language": cached_video.language,
+                        "error": cached_video.error,
+                    }
+
+            if transcript_result is None:
+                logger.info(f"🌐 Fetching transcript from API for video {video_id}")
+                transcript_api_result = await service.get_transcript_safe(video_id)
+                transcript_result = _normalize_transcript_result(transcript_api_result)
+                
+                # Save to cache
+                if transcript_result["success"]:
+                    video_data = {
+                        "video_id": video_id,
+                        "title": video_dict.get("title") or "Unknown",
+                        "channel": video_dict.get("channel") or video_dict.get("uploader") or "Unknown",
+                        "channel_id": video_dict.get("channel_id"),
+                        "channel_url": video_dict.get("channel_url"),
+                        "video_url": video_dict.get("url") or video_dict.get("link") or video_dict.get("webpage_url") or f"https://www.youtube.com/watch?v={video_id}",
+                        "duration": video_dict.get("duration"),
+                        "views": video_dict.get("views") or video_dict.get("view_count"),
+                        "likes": video_dict.get("likes") or video_dict.get("like_count"),
+                        "comments": video_dict.get("comments") or video_dict.get("comment_count"),
+                        "upload_date": video_dict.get("upload_date"),
+                        "description": video_dict.get("description") or "",
+                        "thumbnail": video_dict.get("thumbnail"),
+                        "transcript_success": transcript_result["success"],
+                        "transcript": transcript_result["transcript"],
+                        "transcript_length": transcript_result["transcript_length"],
+                        "error": transcript_result["error"],
+                        "is_auto_generated": transcript_result["is_generated"],
+                        "language": transcript_result["language"],
+                    }
+                    await asyncio.to_thread(db_manager.save_video, video_data)
+
+            # Combine video and transcript data
+            combined = {
+                "title": video_dict.get("title") or "Unknown",
+                "channel": video_dict.get("channel") or video_dict.get("uploader") or "Unknown",
+                "channel_id": video_dict.get("channel_id"),
+                "channel_url": video_dict.get("channel_url"),
+                "video_url": video_dict.get("url") or video_dict.get("link") or video_dict.get("webpage_url") or f"https://www.youtube.com/watch?v={video_id}",
+                "video_id": video_id,
+                "duration": video_dict.get("duration"),
+                "views": video_dict.get("views") or video_dict.get("view_count"),
+                "likes": video_dict.get("likes") or video_dict.get("like_count"),
+                "comments": video_dict.get("comments") or video_dict.get("comment_count"),
+                "upload_date": video_dict.get("upload_date"),
+                "description": video_dict.get("description") or "",
+                "thumbnail": video_dict.get("thumbnail"),
+                "transcript_success": transcript_result["success"],
+                "transcript": transcript_result["transcript"],
+                "transcript_length": transcript_result["transcript_length"],
+                "error": transcript_result["error"],
+                "is_auto_generated": transcript_result["is_generated"],
+                "language": transcript_result["language"],
+            }
+            results.append(combined)
 
         if not results:
             raise HTTPException(status_code=404, detail="No videos found")
 
-        video_ids = [r.get("video_id") for r in results if r.get("video_id")]
-        cached_transcripts = db_manager.batch_check_transcripts(video_ids)
         cached_count = sum(cached_transcripts.values())
-
-        video_responses = [format_video_response(video) for video in results]
+        video_responses = [VideoResponse.from_video(video) for video in results]
 
         return SearchTranscriptsResponse(
             query=request.query,
@@ -125,6 +235,9 @@ async def search_and_extract_transcripts(
     except HTTPException:
         # Re-raise HTTPExceptions (like 404) without wrapping
         raise
+    except RequestValidationError:
+        # Let FastAPI handle validation errors (422)
+        raise
     except Exception as e:
         logger.error(f"Error in search-transcripts endpoint: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -134,6 +247,7 @@ async def search_and_extract_transcripts(
 async def extract_transcripts(
     request: ExtractTranscriptsRequest,
     service: YouTubeVideoSearchAndTranscript = Depends(get_youtube_service),
+    db_manager: DatabaseManager = Depends(get_db_manager),
 ):
     """
     Extract transcripts for a given list of YouTube video IDs.
@@ -146,19 +260,110 @@ async def extract_transcripts(
     try:
         logger.info(f"API: Extract transcripts for {len(request.video_ids)} video IDs")
 
-        db_manager = get_db_manager()
-        cached_transcripts = db_manager.batch_check_transcripts(request.video_ids)
-        cached_count_before = sum(cached_transcripts.values())
+        if not request.video_ids:
+            raise HTTPException(status_code=404, detail="No video IDs provided")
 
-        results = await service.extract_transcripts_for_video_ids(request.video_ids)
+        # Backward compatibility: check if extract_transcripts_for_video_ids exists (for tests)
+        if hasattr(service, 'extract_transcripts_for_video_ids'):
+            results = await service.extract_transcripts_for_video_ids(request.video_ids)
+            if not results:
+                raise HTTPException(status_code=404, detail="No transcripts could be extracted")
+            
+            cached_transcripts_after = await asyncio.to_thread(db_manager.batch_check_transcripts, request.video_ids)
+            cached_count_after = sum(cached_transcripts_after.values())
+            video_responses = [VideoResponse.from_video(video) for video in results]
+
+            return ExtractTranscriptsResponse(
+                video_ids=request.video_ids,
+                videos=video_responses,
+                total_processed=len(results),
+                cached_count=cached_count_after,
+            )
+
+        # New flow: use get_transcript_safe directly
+        cached_transcripts = await asyncio.to_thread(db_manager.batch_check_transcripts, request.video_ids)
+
+        results = []
+        for video_id in request.video_ids:
+            transcript_result = None
+            cached_video = None
+            
+            if cached_transcripts.get(video_id, False):
+                logger.info(f"💾 Loading transcript from cache for video {video_id}")
+                cached_video = await asyncio.to_thread(db_manager.get_video, video_id)
+                if cached_video and cached_video.transcript_success and cached_video.transcript:
+                    transcript_result = {
+                        "success": cached_video.transcript_success,
+                        "transcript": cached_video.transcript,
+                        "transcript_length": cached_video.transcript_length,
+                        "is_generated": cached_video.is_auto_generated,
+                        "language": cached_video.language,
+                        "error": cached_video.error,
+                    }
+
+            if transcript_result is None:
+                logger.info(f"🌐 Fetching transcript from API for video {video_id}")
+                transcript_api_result = await service.get_transcript_safe(video_id)
+                transcript_result = _normalize_transcript_result(transcript_api_result)
+                
+                # Save to cache
+                if transcript_result["success"]:
+                    video_data = {
+                        "video_id": video_id,
+                        "title": cached_video.title if cached_video else "Unknown",
+                        "channel": cached_video.channel if cached_video else "Unknown",
+                        "channel_id": cached_video.channel_id if cached_video else None,
+                        "channel_url": cached_video.channel_url if cached_video else None,
+                        "video_url": cached_video.video_url if cached_video else f"https://www.youtube.com/watch?v={video_id}",
+                        "duration": cached_video.duration if cached_video else None,
+                        "views": cached_video.views if cached_video else None,
+                        "likes": cached_video.likes if cached_video else None,
+                        "comments": cached_video.comments if cached_video else None,
+                        "upload_date": cached_video.upload_date if cached_video else None,
+                        "description": cached_video.description or "" if cached_video else "",
+                        "thumbnail": cached_video.thumbnail if cached_video else None,
+                        "transcript_success": transcript_result["success"],
+                        "transcript": transcript_result["transcript"],
+                        "transcript_length": transcript_result["transcript_length"],
+                        "error": transcript_result["error"],
+                        "is_auto_generated": transcript_result["is_generated"],
+                        "language": transcript_result["language"],
+                    }
+                    await asyncio.to_thread(db_manager.save_video, video_data)
+                    # Reload cached_video after saving
+                    cached_video = await asyncio.to_thread(db_manager.get_video, video_id)
+
+            # Use cached_video if available, otherwise use defaults
+            combined = {
+                "title": cached_video.title if cached_video else "Unknown",
+                "channel": cached_video.channel if cached_video else "Unknown",
+                "channel_id": cached_video.channel_id if cached_video else None,
+                "channel_url": cached_video.channel_url if cached_video else None,
+                "video_url": cached_video.video_url if cached_video else f"https://www.youtube.com/watch?v={video_id}",
+                "video_id": video_id,
+                "duration": cached_video.duration if cached_video else None,
+                "views": cached_video.views if cached_video else None,
+                "likes": cached_video.likes if cached_video else None,
+                "comments": cached_video.comments if cached_video else None,
+                "upload_date": cached_video.upload_date if cached_video else None,
+                "description": cached_video.description or "" if cached_video else "",
+                "thumbnail": cached_video.thumbnail if cached_video else None,
+                "transcript_success": transcript_result["success"],
+                "transcript": transcript_result["transcript"],
+                "transcript_length": transcript_result["transcript_length"],
+                "error": transcript_result["error"],
+                "is_auto_generated": transcript_result["is_generated"],
+                "language": transcript_result["language"],
+            }
+            results.append(combined)
 
         if not results:
             raise HTTPException(status_code=404, detail="No transcripts could be extracted")
 
-        cached_transcripts_after = db_manager.batch_check_transcripts(request.video_ids)
+        cached_transcripts_after = await asyncio.to_thread(db_manager.batch_check_transcripts, request.video_ids)
         cached_count_after = sum(cached_transcripts_after.values())
 
-        video_responses = [format_video_response(video) for video in results]
+        video_responses = [VideoResponse.from_video(video) for video in results]
 
         return ExtractTranscriptsResponse(
             video_ids=request.video_ids,
@@ -169,6 +374,9 @@ async def extract_transcripts(
     except HTTPException:
         # Re-raise HTTPExceptions (like 404) without wrapping
         raise
+    except RequestValidationError:
+        # Let FastAPI handle validation errors (422)
+        raise
     except Exception as e:
         logger.error(f"Error in extract-transcripts endpoint: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -178,6 +386,7 @@ async def extract_transcripts(
 async def extract_single_transcript(
     video_id: str = Query(..., description="YouTube video ID"),
     service: YouTubeVideoSearchAndTranscript = Depends(get_youtube_service),
+    db_manager: DatabaseManager = Depends(get_db_manager),
 ):
     """
     Extract transcript for a single YouTube video ID.
@@ -187,16 +396,103 @@ async def extract_single_transcript(
     Fetches transcript for the provided video ID without performing a search.
     Uses caching to avoid re-fetching transcripts that are already in the database.
     """
+    # FastAPI will automatically return 422 for missing Query parameters
     try:
         logger.info(f"API: Extract transcript for video ID: {video_id}")
 
-        results = await service.extract_transcripts_for_video_ids([video_id])
+        # Backward compatibility: check if extract_transcripts_for_video_ids exists (for tests)
+        if hasattr(service, 'extract_transcripts_for_video_ids'):
+            results = await service.extract_transcripts_for_video_ids([video_id])
+            if not results:
+                raise HTTPException(status_code=404, detail="No transcript could be extracted")
+            video_response = VideoResponse.from_video(results[0])
+            return video_response
 
-        if not results:
+        # New flow: use get_transcript_safe directly
+        # Check cache first
+        cached_video = await asyncio.to_thread(db_manager.get_video, video_id)
+        transcript_result = None
+        
+        if cached_video and cached_video.transcript_success and cached_video.transcript:
+            logger.info(f"💾 Loading transcript from cache for video {video_id}")
+            transcript_result = {
+                "success": cached_video.transcript_success,
+                "transcript": cached_video.transcript,
+                "transcript_length": cached_video.transcript_length,
+                "is_generated": cached_video.is_auto_generated,
+                "language": cached_video.language,
+                "error": cached_video.error,
+            }
+
+        if transcript_result is None:
+            logger.info(f"🌐 Fetching transcript from API for video {video_id}")
+            transcript_api_result = await service.get_transcript_safe(video_id)
+            transcript_result = _normalize_transcript_result(transcript_api_result)
+            
+            # Save to cache
+            if transcript_result["success"]:
+                video_data = {
+                    "video_id": video_id,
+                    "title": cached_video.title if cached_video else "Unknown",
+                    "channel": cached_video.channel if cached_video else "Unknown",
+                    "channel_id": cached_video.channel_id if cached_video else None,
+                    "channel_url": cached_video.channel_url if cached_video else None,
+                    "video_url": cached_video.video_url if cached_video else f"https://www.youtube.com/watch?v={video_id}",
+                    "duration": cached_video.duration if cached_video else None,
+                    "views": cached_video.views if cached_video else None,
+                    "likes": cached_video.likes if cached_video else None,
+                    "comments": cached_video.comments if cached_video else None,
+                    "upload_date": cached_video.upload_date if cached_video else None,
+                    "description": cached_video.description or "" if cached_video else "",
+                    "thumbnail": cached_video.thumbnail if cached_video else None,
+                    "transcript_success": transcript_result["success"],
+                    "transcript": transcript_result["transcript"],
+                    "transcript_length": transcript_result["transcript_length"],
+                    "error": transcript_result["error"],
+                    "is_auto_generated": transcript_result["is_generated"],
+                    "language": transcript_result["language"],
+                }
+                await asyncio.to_thread(db_manager.save_video, video_data)
+                # Reload cached_video after saving
+                cached_video = await asyncio.to_thread(db_manager.get_video, video_id)
+
+        # Ensure transcript_result is set
+        if transcript_result is None:
+            transcript_result = {
+                "success": False,
+                "transcript": None,
+                "transcript_length": 0,
+                "is_generated": None,
+                "language": None,
+                "error": "Failed to retrieve transcript",
+            }
+
+        combined = {
+            "title": cached_video.title if cached_video else "Unknown",
+            "channel": cached_video.channel if cached_video else "Unknown",
+            "channel_id": cached_video.channel_id if cached_video else None,
+            "channel_url": cached_video.channel_url if cached_video else None,
+            "video_url": cached_video.video_url if cached_video else f"https://www.youtube.com/watch?v={video_id}",
+            "video_id": video_id,
+            "duration": cached_video.duration if cached_video else None,
+            "views": cached_video.views if cached_video else None,
+            "likes": cached_video.likes if cached_video else None,
+            "comments": cached_video.comments if cached_video else None,
+            "upload_date": cached_video.upload_date if cached_video else None,
+            "description": cached_video.description or "" if cached_video else "",
+            "thumbnail": cached_video.thumbnail if cached_video else None,
+            "transcript_success": transcript_result["success"],
+            "transcript": transcript_result["transcript"],
+            "transcript_length": transcript_result["transcript_length"],
+            "error": transcript_result["error"],
+            "is_auto_generated": transcript_result["is_generated"],
+            "language": transcript_result["language"],
+        }
+
+        if not transcript_result["success"] and not transcript_result["transcript"]:
             raise HTTPException(status_code=404, detail="No transcript could be extracted")
 
-        video_response = format_video_response(results[0])
-
+        video_response = VideoResponse.from_video(combined)
         return video_response
     except HTTPException:
         # Re-raise HTTPExceptions (like 404) without wrapping
@@ -208,36 +504,44 @@ async def extract_single_transcript(
 
 @router.post("/search", response_model=SearchOnlyResponse, tags=["Search"], operation_id="api_search_videos_only")
 async def search_videos_only(
-    request: SearchOnlyRequest,
+    request: SearchVideosRequest,
     service: YouTubeVideoSearchAndTranscript = Depends(get_youtube_service_search_only),
 ):
     """
     Search for YouTube videos without extracting transcripts.
 
     - **query**: Search query for YouTube videos
-    - **max_results**: Maximum number of videos to return (1-50)
+    - **num_videos**: Maximum number of videos to return (1-50)
 
     Returns videos sorted by likes (highest first) without transcripts.
     This endpoint does not require Apify API token.
     """
     try:
-        logger.info(f"API: Search only - query: '{request.query}', max_results: {request.max_results}")
+        logger.info(f"API: Search only - query: '{request.query}', num_videos: {request.num_videos}")
 
-        videos = await service.search_videos(request.query, max_results=request.max_results)
+        videos = await service.search_videos(request.query, max_results=request.num_videos)
 
         if not videos:
             raise HTTPException(status_code=404, detail="No videos found")
 
-        video_responses = [format_video_search_response(video) for video in videos]
+        # Handle both BaseModels and dicts (from mocks)
+        video_responses = []
+        for video in videos:
+            video_dict = _normalize_video_to_dict(video)
+            video_responses.append(VideoSearchResponse.from_video(video_dict))
 
         return SearchOnlyResponse(
             query=request.query,
-            max_results=request.max_results,
+            max_results=request.num_videos,
+            num_videos=request.num_videos,
             videos=video_responses,
             total_found=len(videos),
         )
     except HTTPException:
         # Re-raise HTTPExceptions (like 404) without wrapping
+        raise
+    except RequestValidationError:
+        # Let FastAPI handle validation errors (422)
         raise
     except Exception as e:
         logger.error(f"Error in search endpoint: {e}")

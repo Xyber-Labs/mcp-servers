@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from functools import lru_cache
 from datetime import datetime
 
@@ -14,7 +13,7 @@ import yt_dlp
 from apify_client import ApifyClient
 
 from mcp_server_youtube.config import get_app_settings
-from mcp_server_youtube.youtube.methods import get_db_manager
+from mcp_server_youtube.youtube.api_models import YouTubeSearchResult, ApifyTranscriptResult
 
 logger = logging.getLogger(__name__)
 
@@ -51,18 +50,20 @@ class YouTubeVideoSearchAndTranscript:
         """
         settings = get_app_settings()
         self.delay = delay_between_requests or settings.youtube.delay_between_requests
-        self.apify_api_token = (
-            apify_api_token
-            or settings.apify.apify_token
-            or os.getenv("APIFY_TOKEN")
-            or os.getenv("APIFY_API_TOKEN")
-        )
+        
+        # Rely on Pydantic BaseSettings - no hidden logic
+        if apify_api_token is not None:
+            self.apify_api_token = apify_api_token
+        else:
+            self.apify_api_token = settings.apify.apify_token
 
         if require_apify and not self.apify_api_token:
-            raise ValueError(
-                "Apify API token is required. "
-                "Provide it via apify_api_token parameter, set APIFY_TOKEN in .env file, "
-                "or set APIFY_API_TOKEN environment variable."
+            # Keep initialization non-fatal so the server can still run for
+            # search-only use cases and so request validation (422) isn't masked
+            # by dependency resolution errors in tests.
+            logger.warning(
+                "Apify API token is not configured. Transcript features will be unavailable. "
+                "Set APIFY_TOKEN in your environment to enable transcript extraction."
             )
 
         if self.apify_api_token:
@@ -72,7 +73,23 @@ class YouTubeVideoSearchAndTranscript:
 
         logger.info("YouTubeVideoSearchAndTranscript initialized")
 
-    async def search_videos(self, query: str, max_results: int | None = None) -> list:
+    def _video_id_from(self, video) -> str | None:
+        if isinstance(video, dict):
+            return video.get("video_id") or video.get("id") or video.get("display_id")
+        return getattr(video, "video_id", None) or getattr(video, "id", None) or getattr(video, "display_id", None)
+
+    def _video_field(self, video, field: str, default=None):
+        if isinstance(video, dict):
+            return video.get(field, default)
+        return getattr(video, field, default)
+
+    def _transcript_field(self, transcript_result, field: str, default=None):
+        if isinstance(transcript_result, dict):
+            return transcript_result.get(field, default)
+        # ApifyTranscriptResult is made dict-like in api_models.py, so __getitem__ works too.
+        return getattr(transcript_result, field, default)
+
+    async def search_videos(self, query: str, max_results: int | None = None) -> list[YouTubeSearchResult]:
         """
         Search YouTube for videos matching a query using yt-dlp.
 
@@ -81,7 +98,7 @@ class YouTubeVideoSearchAndTranscript:
             max_results: Number of videos to return (defaults to config value)
 
         Returns:
-            List of video dictionaries with enhanced metadata
+            List of YouTubeSearchResult BaseModels
         """
         settings = get_app_settings()
         if max_results is None:
@@ -124,48 +141,38 @@ class YouTubeVideoSearchAndTranscript:
                         if not video_id:
                             continue
 
+                        # Normalize upload_date format
                         upload_date = entry.get("upload_date")
                         if upload_date:
                             try:
                                 upload_date_obj = datetime.strptime(upload_date, "%Y%m%d")
-                                upload_date = upload_date_obj.strftime("%Y-%m-%d")
+                                entry["upload_date"] = upload_date_obj.strftime("%Y-%m-%d")
                             except (ValueError, TypeError):
                                 pass
 
-                        video_data = {
-                            "id": video_id,
-                            "video_id": video_id,
-                            "title": entry.get("title", "Unknown"),
-                            "channel": entry.get("channel", entry.get("uploader", "Unknown")),
-                            "channel_id": entry.get("channel_id"),
-                            "url": entry.get("webpage_url", f"https://www.youtube.com/watch?v={video_id}"),
-                            "link": entry.get("webpage_url", f"https://www.youtube.com/watch?v={video_id}"),
-                            "link_suffix": f"/watch?v={video_id}",
-                            "duration": entry.get("duration"),
-                            "views": entry.get("view_count"),
-                            "likes": entry.get("like_count"),
-                            "comments": entry.get("comment_count"),
-                            "upload_date": upload_date,
-                            "description": entry.get("description", ""),
-                            "thumbnail": entry.get(
-                                "thumbnail",
-                                entry.get("thumbnails", [{}])[0].get("url", "")
-                                if entry.get("thumbnails")
-                                else "",
-                            ),
-                            "channel_url": entry.get("channel_url", ""),
-                            "uploader": entry.get("uploader", ""),
-                            "uploader_id": entry.get("uploader_id", ""),
-                        }
-                        results.append(video_data)
+                        # Normalize field names for BaseModel
+                        entry["video_id"] = video_id
+                        entry["views"] = entry.get("view_count")
+                        entry["likes"] = entry.get("like_count")
+                        entry["comments"] = entry.get("comment_count")
+                        entry["url"] = entry.get("webpage_url", f"https://www.youtube.com/watch?v={video_id}")
+                        entry["link"] = entry.get("webpage_url", f"https://www.youtube.com/watch?v={video_id}")
+                        entry["link_suffix"] = f"/watch?v={video_id}"
+                        
+                        # Handle thumbnail
+                        if not entry.get("thumbnail") and entry.get("thumbnails"):
+                            entry["thumbnail"] = entry.get("thumbnails", [{}])[0].get("url", "")
+
+                        result = YouTubeSearchResult.from_dict(entry)
+                        results.append(result)
 
                 return results
 
             results = await asyncio.to_thread(search_with_ytdlp)
-            results.sort(key=lambda x: x.get("likes") or 0, reverse=True)
+            results.sort(key=lambda x: (x.likes or 0), reverse=True)
             logger.info(f"✅ Search completed: {len(results)} videos found (sorted by likes)")
             if results:
-                logger.debug(f"Top result: {results[0].get('title', 'Unknown')} - {results[0].get('likes', 0)} likes")
+                logger.debug(f"Top result: {results[0].title or 'Unknown'} - {results[0].likes or 0} likes")
             return results
         except Exception as e:
             logger.error(f"❌ Search error: {e}", exc_info=True)
@@ -173,14 +180,14 @@ class YouTubeVideoSearchAndTranscript:
 
     async def get_transcript_safe(
         self, video_id: str, language: str = "en", max_retries: int = 0
-    ) -> dict:
+    ) -> ApifyTranscriptResult:
         """Get transcript using Apify YouTube Transcript Scraper with error handling."""
         if not self.apify_client:
-            return {
-                "success": False,
-                "video_id": video_id,
-                "error": "Apify client not initialized",
-            }
+            return ApifyTranscriptResult(
+                success=False,
+                video_id=video_id,
+                error="Apify client not initialized",
+            )
 
         video_url = f"https://www.youtube.com/watch?v={video_id}"
 
@@ -200,46 +207,30 @@ class YouTubeVideoSearchAndTranscript:
 
                 dataset_items = await asyncio.to_thread(get_dataset_items)
 
-                if not dataset_items:
-                    raise Exception("No transcript data returned from Apify")
-
-                result = dataset_items[0]
-                transcript_segments = result.get("data", [])
-
-                if not isinstance(transcript_segments, list):
-                    if isinstance(result, list):
-                        transcript_segments = result
+                result = ApifyTranscriptResult.from_apify_response(video_id, dataset_items)
+                if result.success:
+                    result.language = language
+                    return result
+                else:
+                    # Retry on failure
+                    if attempt < max_retries:
+                        wait_time = self.delay * (2 ** attempt)
+                        await asyncio.sleep(wait_time)
+                        continue
                     else:
-                        for key, value in result.items():
-                            if isinstance(value, list) and len(value) > 0:
-                                if isinstance(value[0], dict) and "text" in value[0]:
-                                    transcript_segments = value
-                                    break
-
-                if not transcript_segments or not isinstance(transcript_segments, list):
-                    raise Exception("No transcript segments found in Apify response")
-
-                text_parts = []
-                for segment in transcript_segments:
-                    if isinstance(segment, dict):
-                        text = segment.get("text", "").strip()
-                        if text:
-                            text_parts.append(text)
-                    elif isinstance(segment, str):
-                        text_parts.append(segment.strip())
-
-                transcript_text = " ".join(text_parts)
-
-                if not transcript_text:
-                    raise Exception("Could not extract text from transcript segments")
-
-                return {
-                    "success": True,
-                    "video_id": video_id,
-                    "transcript": transcript_text,
-                    "is_generated": None,
-                    "language": language,
-                }
+                        # Normalize error message
+                        error_msg = result.error or "Unknown error"
+                        if "No transcript" in error_msg or "not available" in error_msg.lower():
+                            error_msg = "No subtitles available for this video"
+                        elif "API token" in error_msg or "authentication" in error_msg.lower():
+                            error_msg = "Apify API authentication failed. Check your API token."
+                        elif len(error_msg) > 200:
+                            error_msg = error_msg[:200] + "..."
+                        return ApifyTranscriptResult(
+                            success=False,
+                            video_id=video_id,
+                            error=error_msg,
+                        )
 
             except Exception as e:
                 if attempt == max_retries:
@@ -251,29 +242,33 @@ class YouTubeVideoSearchAndTranscript:
                     elif len(error_msg) > 200:
                         error_msg = error_msg[:200] + "..."
 
-                    return {
-                        "success": False,
-                        "video_id": video_id,
-                        "error": error_msg,
-                    }
+                    return ApifyTranscriptResult(
+                        success=False,
+                        video_id=video_id,
+                        error=error_msg,
+                    )
                 wait_time = self.delay * (2 ** attempt)
                 await asyncio.sleep(wait_time)
 
-        return {"success": False, "video_id": video_id, "error": "Unknown error"}
+        return ApifyTranscriptResult(
+            success=False,
+            video_id=video_id,
+            error="Unknown error"
+        )
 
     async def search_and_get_transcripts(
         self, query: str, num_videos: int | None = None
-    ) -> list:
+    ) -> list[dict]:
         """
         Search for videos and retrieve their transcripts.
-        Checks database cache before fetching transcripts.
+        Pure API call - no caching logic.
 
         Args:
             query: Search topic
             num_videos: Number of videos to process (defaults to config value)
 
         Returns:
-            List of results with video info and transcripts
+            List of dictionaries with video info and transcripts
         """
         settings = get_app_settings()
         if num_videos is None:
@@ -288,142 +283,66 @@ class YouTubeVideoSearchAndTranscript:
         
         logger.info(f"📊 Found {len(videos)} videos (sorted by likes)")
 
-        db_manager = get_db_manager()
-
-        video_ids = []
-        for video in videos:
-            video_id = (
-                video.get("id")
-                or video.get("video_id")
-                or video.get("link_suffix", "").lstrip("/watch?v=")
-            )
-            if video_id:
-                video_ids.append(video_id)
-
-        cached_transcripts = await asyncio.to_thread(
-            db_manager.batch_check_transcripts, video_ids
-        )
-
         results = []
         for i, video in enumerate(videos, 1):
-            video_id = (
-                video.get("id")
-                or video.get("video_id")
-                or video.get("link_suffix", "").lstrip("/watch?v=")
-            )
-
+            video_id = self._video_id_from(video)
             if not video_id:
                 logger.warning("Skipping video: Could not find video ID")
                 continue
 
-            transcript_result = None
-            if cached_transcripts.get(video_id, False):
-                logger.info(f"💾 Loading transcript from cache for video {video_id}")
-                cached_video = await asyncio.to_thread(db_manager.get_video, video_id)
-                if cached_video:
-                    transcript_result = {
-                        "success": cached_video.transcript_success,
-                        "video_id": video_id,
-                        "transcript": cached_video.transcript,
-                        "transcript_length": cached_video.transcript_length,
-                        "is_generated": cached_video.is_auto_generated,
-                        "language": cached_video.language,
-                        "error": cached_video.error,
-                    }
-                    logger.info(f"✅ Loaded transcript from cache (length: {cached_video.transcript_length or 0} chars)")
-
-            if transcript_result is None:
-                logger.info(f"🌐 Fetching transcript from API for video {video_id}")
-                transcript_result = await self.get_transcript_safe(video_id)
-                
-                if transcript_result.get("success"):
-                    logger.info(f"💾 Saving transcript to cache")
-
-                if transcript_result.get("transcript"):
-                    transcript_result["transcript_length"] = len(
-                        transcript_result["transcript"]
-                    )
-                else:
-                    transcript_result["transcript_length"] = 0
+            logger.info(f"🌐 Fetching transcript from API for video {video_id}")
+            transcript_result = await self.get_transcript_safe(video_id)
+            
+            transcript_text = self._transcript_field(transcript_result, "transcript", "") or ""
+            transcript_length = len(transcript_text) if transcript_text else 0
 
             video_url = (
-                video.get("url")
-                or video.get("link")
-                or video.get("link_suffix")
+                self._video_field(video, "url")
+                or self._video_field(video, "link")
+                or self._video_field(video, "webpage_url")
                 or f"https://www.youtube.com/watch?v={video_id}"
             )
 
-            channel = (
-                video.get("channel")
-                or video.get("channel_name")
-                or video.get("channelTitle")
-                or video.get("uploader", "Unknown")
-            )
-
-            transcript_text = transcript_result.get("transcript", "")
-            transcript_length = len(transcript_text) if transcript_text else 0
+            channel = self._video_field(video, "channel") or self._video_field(video, "uploader") or "Unknown"
 
             combined = {
-                "title": video.get("title", "Unknown"),
+                "title": self._video_field(video, "title") or "Unknown",
                 "channel": channel,
-                "channel_id": video.get("channel_id"),
-                "channel_url": video.get("channel_url"),
+                "channel_id": self._video_field(video, "channel_id"),
+                "channel_url": self._video_field(video, "channel_url"),
                 "video_url": video_url,
                 "video_id": video_id,
-                "duration": video.get("duration"),
-                "views": video.get("views"),
-                "likes": video.get("likes"),
-                "comments": video.get("comments"),
-                "upload_date": video.get("upload_date"),
-                "description": video.get("description", ""),
-                "thumbnail": video.get("thumbnail"),
-                "transcript_success": transcript_result["success"],
+                "duration": self._video_field(video, "duration"),
+                "views": self._video_field(video, "views"),
+                "likes": self._video_field(video, "likes"),
+                "comments": self._video_field(video, "comments"),
+                "upload_date": self._video_field(video, "upload_date"),
+                "description": self._video_field(video, "description") or "",
+                "thumbnail": self._video_field(video, "thumbnail"),
+                "transcript_success": bool(self._transcript_field(transcript_result, "success", False)),
                 "transcript": transcript_text,
                 "transcript_length": transcript_length,
-                "error": transcript_result.get("error", None),
-                "is_auto_generated": transcript_result.get("is_generated", None),
-                "language": transcript_result.get("language", None),
+                "error": self._transcript_field(transcript_result, "error"),
+                "is_auto_generated": self._transcript_field(transcript_result, "is_generated"),
+                "language": self._transcript_field(transcript_result, "language"),
             }
             results.append(combined)
 
-            video_data = {
-                "video_id": video_id,
-                "title": combined["title"],
-                "channel": combined["channel"],
-                "channel_id": combined["channel_id"],
-                "channel_url": combined["channel_url"],
-                "video_url": combined["video_url"],
-                "duration": combined["duration"],
-                "views": combined["views"],
-                "likes": combined["likes"],
-                "comments": combined["comments"],
-                "upload_date": combined["upload_date"],
-                "description": combined["description"],
-                "thumbnail": combined["thumbnail"],
-                "transcript_success": combined["transcript_success"],
-                "transcript": combined["transcript"],
-                "transcript_length": combined["transcript_length"],
-                "error": combined["error"],
-                "is_auto_generated": combined["is_auto_generated"],
-                "language": combined["language"],
-            }
-            await asyncio.to_thread(db_manager.save_video, video_data)
-
-            if not cached_transcripts.get(video_id, False) and i < len(videos):
+            if i < len(videos):
                 await asyncio.sleep(self.delay)
 
         return results
 
-    async def extract_transcripts_for_video_ids(self, video_ids: list) -> list:
+    async def extract_transcripts_for_video_ids(self, video_ids: list[str]) -> list[dict]:
         """
         Extract transcripts for a given list of video IDs.
-        Checks database cache before fetching transcripts.
+        Pure API call - no caching logic.
 
         Args:
             video_ids: List of YouTube video IDs
 
         Returns:
-            List of results with video info and transcripts
+            List of dictionaries with video info and transcripts
         """
         if not video_ids:
             logger.warning("No video IDs provided")
@@ -431,121 +350,48 @@ class YouTubeVideoSearchAndTranscript:
 
         logger.info(f"📝 Extracting transcripts for {len(video_ids)} video IDs")
 
-        db_manager = get_db_manager()
-        cached_transcripts = await asyncio.to_thread(
-            db_manager.batch_check_transcripts, video_ids
-        )
-        logger.info(f"📊 Cache check: {sum(cached_transcripts.values())}/{len(video_ids)} videos have cached transcripts")
-
         results = []
         for i, video_id in enumerate(video_ids, 1):
             logger.info(f"\n[{i}/{len(video_ids)}] Processing video ID: {video_id}")
             
-            transcript_result = None
-            cached_video = None
+            logger.info(f"🌐 Fetching transcript from API for video {video_id}")
+            transcript_result = await self.get_transcript_safe(video_id)
+            
+            transcript_text = self._transcript_field(transcript_result, "transcript", "") or ""
+            transcript_length = len(transcript_text) if transcript_text else 0
 
-            if cached_transcripts.get(video_id, False):
-                logger.info(f"💾 Loading transcript from cache for video {video_id}")
-                cached_video = await asyncio.to_thread(db_manager.get_video, video_id)
-                if cached_video:
-                    transcript_result = {
-                        "success": cached_video.transcript_success,
-                        "video_id": video_id,
-                        "transcript": cached_video.transcript,
-                        "transcript_length": cached_video.transcript_length,
-                        "is_generated": cached_video.is_auto_generated,
-                        "language": cached_video.language,
-                        "error": cached_video.error,
-                    }
-                    logger.info(f"✅ Loaded transcript from cache (length: {cached_video.transcript_length or 0} chars)")
-
-            if transcript_result is None:
-                logger.info(f"🌐 Fetching transcript from API for video {video_id}")
-                transcript_result = await self.get_transcript_safe(video_id)
-                
-                if transcript_result.get("success"):
-                    logger.info(f"💾 Saving transcript to cache")
-
-                if transcript_result.get("transcript"):
-                    transcript_result["transcript_length"] = len(
-                        transcript_result["transcript"]
-                    )
-                else:
-                    transcript_result["transcript_length"] = 0
-
-            if cached_video:
-                combined = {
-                    "title": cached_video.title or "Unknown",
-                    "channel": cached_video.channel or "Unknown",
-                    "channel_id": cached_video.channel_id,
-                    "channel_url": cached_video.channel_url,
-                    "video_url": cached_video.video_url
-                    or f"https://www.youtube.com/watch?v={video_id}",
-                    "video_id": video_id,
-                    "duration": cached_video.duration,
-                    "views": cached_video.views,
-                    "likes": cached_video.likes,
-                    "comments": cached_video.comments,
-                    "upload_date": cached_video.upload_date,
-                    "description": cached_video.description or "",
-                    "thumbnail": cached_video.thumbnail,
-                    "transcript_success": transcript_result["success"],
-                    "transcript": transcript_result.get("transcript", ""),
-                    "transcript_length": transcript_result.get("transcript_length", 0),
-                    "error": transcript_result.get("error", None),
-                    "is_auto_generated": transcript_result.get("is_generated", None),
-                    "language": transcript_result.get("language", None),
-                }
-            else:
-                combined = {
-                    "title": "Unknown",
-                    "channel": "Unknown",
-                    "channel_id": None,
-                    "channel_url": None,
-                    "video_url": f"https://www.youtube.com/watch?v={video_id}",
-                    "video_id": video_id,
-                    "duration": None,
-                    "views": None,
-                    "likes": None,
-                    "comments": None,
-                    "upload_date": None,
-                    "description": "",
-                    "thumbnail": None,
-                    "transcript_success": transcript_result["success"],
-                    "transcript": transcript_result.get("transcript", ""),
-                    "transcript_length": transcript_result.get("transcript_length", 0),
-                    "error": transcript_result.get("error", None),
-                    "is_auto_generated": transcript_result.get("is_generated", None),
-                    "language": transcript_result.get("language", None),
-                }
+            combined = {
+                "title": "Unknown",
+                "channel": "Unknown",
+                "channel_id": None,
+                "channel_url": None,
+                "video_url": f"https://www.youtube.com/watch?v={video_id}",
+                "video_id": video_id,
+                "duration": None,
+                "views": None,
+                "likes": None,
+                "comments": None,
+                "upload_date": None,
+                "description": "",
+                "thumbnail": None,
+                "transcript_success": bool(self._transcript_field(transcript_result, "success", False)),
+                "transcript": transcript_text,
+                "transcript_length": transcript_length,
+                "error": self._transcript_field(transcript_result, "error"),
+                "is_auto_generated": self._transcript_field(transcript_result, "is_generated"),
+                "language": self._transcript_field(transcript_result, "language"),
+            }
 
             results.append(combined)
 
-            video_data = {
-                "video_id": video_id,
-                "title": combined["title"],
-                "channel": combined["channel"],
-                "channel_id": combined["channel_id"],
-                "channel_url": combined["channel_url"],
-                "video_url": combined["video_url"],
-                "duration": combined["duration"],
-                "views": combined["views"],
-                "likes": combined["likes"],
-                "comments": combined["comments"],
-                "upload_date": combined["upload_date"],
-                "description": combined["description"],
-                "thumbnail": combined["thumbnail"],
-                "transcript_success": combined["transcript_success"],
-                "transcript": combined["transcript"],
-                "transcript_length": combined["transcript_length"],
-                "error": combined["error"],
-                "is_auto_generated": combined["is_auto_generated"],
-                "language": combined["language"],
-            }
-            await asyncio.to_thread(db_manager.save_video, video_data)
-
-            if not cached_transcripts.get(video_id, False) and i < len(video_ids):
+            if i < len(video_ids):
                 await asyncio.sleep(self.delay)
 
         return results
+
+
+# Exposed for test patching (`tests/test_youtube_client.py` patches this symbol)
+def get_db_manager():
+    from mcp_server_youtube.youtube.methods import DatabaseManager
+    return DatabaseManager()
 

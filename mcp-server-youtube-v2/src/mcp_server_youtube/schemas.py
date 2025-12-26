@@ -44,6 +44,48 @@ class VideoResponse(BaseModel):
     is_auto_generated: Optional[bool] = None
     language: Optional[str] = None
 
+    @classmethod
+    def from_video(cls, video: dict, include_transcript_preview: bool = True) -> "VideoResponse":
+        """Create VideoResponse from video dictionary."""
+        transcript_preview = None
+        if include_transcript_preview and video.get("transcript"):
+            transcript = video["transcript"]
+            transcript_preview = (
+                transcript[:300] + "..." if len(transcript) > 300 else transcript
+            )
+
+        video_url = (
+            video.get("video_url")
+            or video.get("url")
+            or video.get("link")
+            or f"https://www.youtube.com/watch?v={video.get('video_id') or video.get('id')}"
+        )
+
+        prepared = {
+            "title": video.get("title", "Unknown"),
+            "channel": video.get("channel", "Unknown"),
+            "channel_id": video.get("channel_id"),
+            "channel_url": video.get("channel_url"),
+            "video_url": video_url,
+            "video_id": video.get("video_id") or video.get("id", ""),
+            "duration": video.get("duration"),
+            "views": video.get("views"),
+            "likes": video.get("likes"),
+            "comments": video.get("comments"),
+            "upload_date": video.get("upload_date"),
+            "description": video.get("description"),
+            "thumbnail": video.get("thumbnail"),
+            "transcript_success": video.get("transcript_success", False),
+            "transcript": video.get("transcript"),
+            "transcript_length": video.get("transcript_length"),
+            "transcript_preview": transcript_preview,
+            "error": video.get("error"),
+            "is_auto_generated": video.get("is_auto_generated"),
+            "language": video.get("language"),
+            **video,
+        }
+        return cls.model_validate(prepared)
+
 
 class VideoSearchResponse(BaseModel):
     """Video search result without transcript."""
@@ -73,20 +115,55 @@ class VideoSearchResponse(BaseModel):
     description: Optional[str] = None
     thumbnail: Optional[str] = None
 
+    @classmethod
+    def from_video(cls, video: dict) -> "VideoSearchResponse":
+        """Create VideoSearchResponse from video dictionary."""
+        video_url = (
+            video.get("url")
+            or video.get("link")
+            or f"https://www.youtube.com/watch?v={video.get('id') or video.get('video_id')}"
+        )
+        prepared = {
+            "title": video.get("title", "Unknown"),
+            "channel": video.get("channel", "Unknown"),
+            "channel_id": video.get("channel_id"),
+            "channel_url": video.get("channel_url"),
+            "video_url": video_url,
+            "video_id": video.get("id") or video.get("video_id", ""),
+            "duration": video.get("duration"),
+            "views": video.get("views"),
+            "likes": video.get("likes"),
+            "comments": video.get("comments"),
+            "upload_date": video.get("upload_date"),
+            "description": video.get("description"),
+            "thumbnail": video.get("thumbnail"),
+            **video,
+        }
+        return cls.model_validate(prepared)
 
-class SearchRequest(BaseModel):
-    """Request model for video search with transcript extraction."""
+
+class SearchVideosRequest(BaseModel):
+    """Request model for video search."""
     query: str = Field(..., description="Search query for YouTube videos")
-    num_videos: int = Field(5, ge=1, le=50, description="Number of videos to process (1-50)")
+    num_videos: int = Field(10, ge=1, le=50, description="Number of videos to process (1-50)")
+    include_transcripts: bool = Field(False, description="Whether to include transcripts in the response")
+    max_results: int | None = Field(None, ge=1, le=50, description="Alias for num_videos (deprecated)")
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "query": "quantum computing",
-                "num_videos": 5
+                "num_videos": 5,
+                "include_transcripts": False
             }
         }
     )
+
+    def __init__(self, **data):
+        """Handle backward compatibility with max_results."""
+        if "max_results" in data and "num_videos" not in data:
+            data["num_videos"] = data.pop("max_results")
+        super().__init__(**data)
 
 
 class ExtractTranscriptsRequest(BaseModel):
@@ -97,21 +174,6 @@ class ExtractTranscriptsRequest(BaseModel):
         json_schema_extra={
             "example": {
                 "video_ids": ["dQw4w9WgXcQ", "jNQXAC9IVRw"]
-            }
-        }
-    )
-
-
-class SearchOnlyRequest(BaseModel):
-    """Request model for video search without transcript extraction."""
-    query: str = Field(..., description="Search query for YouTube videos")
-    max_results: int = Field(10, ge=1, le=50, description="Maximum number of videos to return (1-50)")
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "query": "quantum computing",
-                "max_results": 10
             }
         }
     )
@@ -137,7 +199,8 @@ class ExtractTranscriptsResponse(BaseModel):
 class SearchOnlyResponse(BaseModel):
     """Response model for search only endpoint."""
     query: str
-    max_results: int
+    max_results: int  # Keep for backward compatibility
+    num_videos: int | None = None  # New field
     videos: List[VideoSearchResponse]
     total_found: int
 

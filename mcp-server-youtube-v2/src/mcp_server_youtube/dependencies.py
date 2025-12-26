@@ -2,17 +2,15 @@
 FastAPI dependencies for YouTube service.
 """
 
-from fastapi import HTTPException
+from functools import lru_cache
 
 from mcp_server_youtube.youtube import YouTubeVideoSearchAndTranscript, get_youtube_client
+from mcp_server_youtube.youtube.methods import DatabaseManager
 
 
 def get_youtube_service() -> YouTubeVideoSearchAndTranscript:
     """Dependency to get YouTube service instance."""
-    try:
-        return get_youtube_client()
-    except ValueError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return get_youtube_client()
 
 
 def get_youtube_service_search_only() -> YouTubeVideoSearchAndTranscript:
@@ -25,4 +23,11 @@ def get_youtube_service_search_only() -> YouTubeVideoSearchAndTranscript:
         apify_api_token=None,
         require_apify=False,
     )
+
+
+@lru_cache(maxsize=1)
+def get_db_manager() -> DatabaseManager:
+    """Dependency to get database manager instance."""
+    from mcp_server_youtube.youtube.methods import DatabaseManager
+    return DatabaseManager()
 
