@@ -1,6 +1,6 @@
 """
 MCP router for transcript extraction - available via MCP and also accessible via REST API.
-These endpoints are exposed as MCP tools and can also be called via REST at /api/v1/*.
+These endpoints are exposed as MCP tools and can also be called via REST at /api/*.
 """
 
 import asyncio
@@ -38,7 +38,7 @@ async def search_and_extract_transcripts(
     Search for YouTube videos and extract their transcripts.
 
     Available via:
-    - REST API: POST /api/v1/search-transcripts
+    - REST API: POST /api/search-transcripts
     - MCP: As a tool via /mcp endpoint
 
     This premium tool requires x402 payment when pricing is enabled.
@@ -174,7 +174,7 @@ async def extract_transcripts(
     Extract transcripts for a given list of YouTube video IDs.
 
     Available via:
-    - REST API: POST /api/v1/extract-transcripts
+    - REST API: POST /api/extract-transcripts
     - MCP: As a tool via /mcp endpoint
 
     This premium tool requires x402 payment when pricing is enabled.

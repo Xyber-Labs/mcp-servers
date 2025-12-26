@@ -4,6 +4,7 @@ Configuration module for the MCP YouTube server.
 
 from __future__ import annotations
 
+import os
 import logging
 from functools import lru_cache
 from pathlib import Path
@@ -11,15 +12,18 @@ from typing import Literal
 
 import yaml
 from cdp.x402 import create_facilitator_config
-from pydantic import BaseModel, Field, computed_field
 from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
+from pydantic import BaseModel, Field, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from x402.facilitator import FacilitatorConfig
 
 logger = logging.getLogger(__name__)
+
+# Load environment variables from the repo-root .env file (if present)
+# File location: <repo>/src/mcp_server_youtube/config.py -> repo root is 3 levels up
+_project_root = Path(__file__).resolve().parents[2]
+_env_file = _project_root / ".env"
+load_dotenv(dotenv_path=_env_file)
 
 
 class PaymentOption(BaseModel):
@@ -42,7 +46,7 @@ class X402Config(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="MCP_YOUTUBE_X402_",
-        env_file=".env",
+        env_file=_env_file,
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -153,9 +157,35 @@ class X402Config(BaseSettings):
                 )
 
 
+class DatabaseConfig(BaseModel):
+    """Database configuration."""
+    DB_NAME: str = os.getenv("DB_NAME", "mcp_youtube")
+    DB_USER: str = os.getenv("DB_USER", "postgres")
+    DB_PASSWORD: str = os.getenv("DB_PASSWORD", "postgres")
+    DB_HOST: str = os.getenv("DB_HOST", "localhost")
+    DB_PORT_RAW: str = os.getenv("DB_PORT", "5432")
+    DB_PORT: str = ""
+    DATABASE_URL: str = ""
+    
+    @model_validator(mode="after")
+    def compute_database_url(self):
+        """Compute DATABASE_URL and DB_PORT after fields are set."""
+        self.DB_PORT = self.DB_PORT_RAW.split(":")[0] if ":" in self.DB_PORT_RAW else self.DB_PORT_RAW
+        # Use postgresql+psycopg:// to use psycopg3 driver (not psycopg2)
+        self.DATABASE_URL = (
+            f"postgresql+psycopg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+        )
+        logger.info(f"DEBUG: Connecting to: {self.DATABASE_URL}")
+        return self
+
+
 class ApifyConfig(BaseModel):
     """Apify API configuration."""
-    apify_token: str | None = Field(default=None, env="APIFY_TOKEN")
+    # Loaded from process env (dotenv above ensures `.env` is applied).
+    # Prefer the common `APIFY_TOKEN`, but allow nested form too.
+    apify_token: str | None = os.getenv("APIFY_TOKEN") or os.getenv(
+        "MCP_YOUTUBE__APIFY__APIFY_TOKEN"
+    )
 
 
 class YouTubeConfig(BaseModel):
@@ -190,12 +220,10 @@ class AppSettings(BaseSettings):
     youtube: YouTubeConfig = YouTubeConfig()
     apify: ApifyConfig = ApifyConfig()
     logging: LoggingConfig = LoggingConfig()
-
-    # --- Database Settings ---
-    db_path: str = Field(default="videos.db", env="DB_PATH")
+    database: DatabaseConfig = DatabaseConfig()
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_env_file,
         env_file_encoding="utf-8",
         env_prefix="MCP_YOUTUBE_",
         env_nested_delimiter="__",

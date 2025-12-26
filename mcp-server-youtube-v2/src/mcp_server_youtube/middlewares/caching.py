@@ -42,9 +42,6 @@ class TranscriptCachingMiddleware(BaseHTTPMiddleware):
         but provides caching functionality that can be used by endpoints.
         The actual caching logic is handled by the service layer.
         """
-        # For now, this middleware is a placeholder that allows the service
-        # layer to access the database manager. The actual caching logic
-        # should be handled in the service layer or via dependency injection.
         response = await call_next(request)
         return response
 

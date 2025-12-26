@@ -16,7 +16,7 @@ echo "Waiting for server to start..."
 sleep 3
 
 # Check if server is running
-if ! curl -s http://localhost:8002/api/v1/health > /dev/null; then
+if ! curl -s http://localhost:8002/api/health > /dev/null; then
     echo "Error: Server failed to start"
     kill $SERVER_PID 2>/dev/null || true
     exit 1

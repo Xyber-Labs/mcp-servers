@@ -16,7 +16,7 @@ class TestHealthEndpoint:
 
     def test_health_endpoint_returns_200(self, client: TestClient):
         """Test that health endpoint returns 200 OK."""
-        response = client.get("/api/v1/health")
+        response = client.get("/api/health")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "healthy"
@@ -24,7 +24,7 @@ class TestHealthEndpoint:
 
     def test_health_endpoint_response_structure(self, client: TestClient):
         """Test health endpoint response structure."""
-        response = client.get("/api/v1/health")
+        response = client.get("/api/health")
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, dict)
@@ -45,7 +45,7 @@ class TestSearchEndpoint:
         client = TestClient(app)
         try:
             response = client.post(
-                "/api/v1/search",
+                "/api/search",
                 json={"query": "python tutorial", "max_results": 2}
             )
             
@@ -68,7 +68,7 @@ class TestSearchEndpoint:
         client = TestClient(app)
         try:
             response = client.post(
-                "/api/v1/search",
+                "/api/search",
                 json={"query": "nonexistent query", "max_results": 5}
             )
             
@@ -80,7 +80,7 @@ class TestSearchEndpoint:
     def test_search_endpoint_invalid_request(self, client: TestClient):
         """Test search endpoint with invalid request."""
         response = client.post(
-            "/api/v1/search",
+            "/api/search",
             json={"invalid": "data"}
         )
         
@@ -96,7 +96,7 @@ class TestSearchEndpoint:
         client = TestClient(app)
         try:
             response = client.post(
-                "/api/v1/search",
+                "/api/search",
                 json={"query": "test"}
             )
             
@@ -134,7 +134,7 @@ class TestSearchTranscriptsEndpoint:
             client = TestClient(app)
             try:
                 response = client.post(
-                    "/api/v1/search-transcripts",
+                    "/api/search-transcripts",
                     json={"query": "python tutorial", "num_videos": 2}
                 )
                 
@@ -159,7 +159,7 @@ class TestSearchTranscriptsEndpoint:
             client = TestClient(app)
             try:
                 response = client.post(
-                    "/api/v1/search-transcripts",
+                    "/api/search-transcripts",
                     json={"query": "nonexistent", "num_videos": 5}
                 )
                 
@@ -191,7 +191,7 @@ class TestExtractTranscriptsEndpoint:
             client = TestClient(app)
             try:
                 response = client.post(
-                    "/api/v1/extract-transcripts",
+                    "/api/extract-transcripts",
                     json={"video_ids": ["test_video_id", "test_video_id_2"]}
                 )
                 
@@ -215,7 +215,7 @@ class TestExtractTranscriptsEndpoint:
             client = TestClient(app)
             try:
                 response = client.post(
-                    "/api/v1/extract-transcripts",
+                    "/api/extract-transcripts",
                     json={"video_ids": ["nonexistent_id"]}
                 )
                 
@@ -227,7 +227,7 @@ class TestExtractTranscriptsEndpoint:
     def test_extract_transcripts_endpoint_invalid_request(self, client: TestClient):
         """Test extract-transcripts endpoint with invalid request."""
         response = client.post(
-            "/api/v1/extract-transcripts",
+            "/api/extract-transcripts",
             json={"invalid": "data"}
         )
         
@@ -253,7 +253,7 @@ class TestExtractSingleTranscriptEndpoint:
         client = TestClient(app)
         try:
             response = client.get(
-                "/api/v1/extract-transcript?video_id=test_video_id"
+                "/api/extract-transcript?video_id=test_video_id"
             )
             
             assert response.status_code == 200
@@ -265,7 +265,7 @@ class TestExtractSingleTranscriptEndpoint:
 
     def test_extract_single_transcript_missing_video_id(self, client: TestClient):
         """Test extract-transcript endpoint without video_id parameter."""
-        response = client.get("/api/v1/extract-transcript")
+        response = client.get("/api/extract-transcript")
         
         assert response.status_code == 422  # Validation error
 
@@ -279,7 +279,7 @@ class TestExtractSingleTranscriptEndpoint:
         client = TestClient(app)
         try:
             response = client.get(
-                "/api/v1/extract-transcript?video_id=nonexistent"
+                "/api/extract-transcript?video_id=nonexistent"
             )
             
             assert response.status_code == 404

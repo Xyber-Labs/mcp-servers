@@ -76,7 +76,7 @@ class TestCreateApp:
             
             # Check that health endpoint exists
             routes = [route.path for route in app.routes]
-            assert "/api/v1/health" in routes
+            assert "/api/health" in routes
 
     def test_create_app_includes_hybrid_routers(self):
         """Test that create_app includes hybrid routers."""

@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastmcp import FastMCP
 
 from mcp_server_youtube.api_routers import routers as api_routers
-from mcp_server_youtube.config import get_x402_settings
+from mcp_server_youtube.config import get_app_settings, get_x402_settings
 from mcp_server_youtube.hybrid_routers import routers as hybrid_routers
 from mcp_server_youtube.mcp_routers import routers as mcp_routers
 from mcp_server_youtube.middlewares import X402WrapperMiddleware
@@ -30,6 +30,14 @@ async def app_lifespan(app: FastAPI):
     - YouTubeVideoSearchAndTranscript client for API calls
     """
     logger.info("Lifespan: Initializing application services...")
+
+    settings = get_app_settings()
+    apify_token_loaded = bool(settings.apify.apify_token)
+    logger.info(
+        "Lifespan: Apify token %s (transcript extraction %s).",
+        "detected" if apify_token_loaded else "NOT detected",
+        "enabled" if apify_token_loaded else "disabled",
+    )
 
     # Initialize YouTube client
     youtube_client: YouTubeVideoSearchAndTranscript = get_youtube_client()
@@ -83,9 +91,9 @@ def create_app() -> FastAPI:
     )
 
     # --- Router Configuration ---
-    # API-only routes: accessible via /api/v1/* (REST only)
+    # API-only routes: accessible via /api/* (REST only)
     for router in api_routers:
-        app.include_router(router, prefix="/api/v1")
+        app.include_router(router, prefix="/api")
 
     # Hybrid routes: accessible via /hybrid/* (REST) and /mcp (MCP)
     for router in hybrid_routers:

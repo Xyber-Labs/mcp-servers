@@ -34,7 +34,7 @@ async def search_youtube_videos(
     Search for YouTube videos without extracting transcripts.
 
     Available via:
-    - REST API: POST /api/v1/search
+    - REST API: POST /api/search
     - Hybrid: POST /hybrid/search
     - MCP: As a tool via /mcp endpoint
 

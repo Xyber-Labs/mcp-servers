@@ -3,14 +3,13 @@ Database manager for YouTube video caching.
 """
 
 import logging
-from pathlib import Path
 from typing import Dict, List, Optional
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from mcp_server_youtube.config import get_app_settings
+from mcp_server_youtube.config import DatabaseConfig
 from mcp_server_youtube.youtube.models import Base, YouTubeVideo
 
 logger = logging.getLogger(__name__)
@@ -19,24 +18,45 @@ logger = logging.getLogger(__name__)
 class DatabaseManager:
     """Manages database connections and operations for YouTube video caching."""
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, database_url: Optional[str] = None):
         """
         Initialize database manager.
 
         Args:
-            db_path: Path to SQLite database file. Defaults to config value.
+            database_url: PostgreSQL connection URL. Defaults to DatabaseConfig.DATABASE_URL.
+        
+        Raises:
+            ValueError: If DATABASE_URL is not configured or connection cannot be established.
         """
-        settings = get_app_settings()
-        self.db_path = db_path or settings.db_path
-        db_file = Path(self.db_path)
-        db_file.parent.mkdir(parents=True, exist_ok=True)
-
-        self.engine = create_engine(
-            f"sqlite:///{self.db_path}",
-            echo=False,
-            connect_args={"check_same_thread": False},
-        )
-        self.SessionLocal = sessionmaker(bind=self.engine)
+        if database_url is None:
+            db_config = DatabaseConfig()
+            database_url = db_config.DATABASE_URL
+        
+        if not database_url:
+            raise ValueError(
+                "DATABASE_URL is required. Set DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, and DB_PORT environment variables."
+            )
+        
+        logger.info(f"Connecting to database: {database_url.split('@')[1] if '@' in database_url else '***'}")
+        
+        try:
+            self.engine = create_engine(
+                database_url,
+                echo=False,
+                pool_pre_ping=True,  # Verify connections before using
+            )
+            self.SessionLocal = sessionmaker(bind=self.engine)
+            
+            # Test connection immediately
+            with self.engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            
+            logger.info("Successfully connected to database")
+        except Exception as e:
+            logger.error(f"Failed to connect to database: {e}")
+            raise ValueError(
+                f"Database connection failed. Please verify DATABASE_URL and ensure PostgreSQL is running. Error: {e}"
+            ) from e
 
         self._create_tables()
 
@@ -44,7 +64,7 @@ class DatabaseManager:
         """Create database tables if they don't exist."""
         try:
             Base.metadata.create_all(self.engine)
-            logger.debug(f"Database tables created/verified at {self.db_path}")
+            logger.info("Database tables created/verified")
         except Exception as e:
             logger.error(f"Error creating database tables: {e}")
             raise

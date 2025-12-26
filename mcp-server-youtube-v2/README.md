@@ -4,18 +4,17 @@ A production-ready MCP (Model Context Protocol) server for searching YouTube vid
 
 ## Capabilities
 
-### 1. **API-Only Endpoints** (`/api/v1`)
+### 1. **API-Only Endpoints** (`/api`)
 
 Standard REST endpoints for traditional clients.
 
 | Method | Endpoint                    | Price    | Description                                    |
 | :----- | :-------------------------- | :------- | :--------------------------------------------- |
-| `GET`  | `/api/v1/health`            | **Free** | Health check                                   |
-| `GET`  | `/api/v1/admin/logs`        | **Paid** | Admin logs                                     |
-| `POST` | `/api/v1/search`            | **Free** | Search YouTube videos only                     |
-| `POST` | `/api/v1/search-transcripts`| **Free** | Search videos and extract transcripts          |
-| `POST` | `/api/v1/extract-transcripts`| **Free** | Extract transcripts from video IDs             |
-| `GET`  | `/api/v1/extract-transcript`| **Free** | Extract transcript for a single video ID       |
+| `GET`  | `/api/health`               | **Free** | Health check                                   |
+| `POST` | `/api/search`               | **Free** | Search YouTube videos only                     |
+| `POST` | `/api/search-transcripts`   | **Free** | Search videos and extract transcripts          |
+| `POST` | `/api/extract-transcripts`  | **Free** | Extract transcripts from video IDs             |
+| `GET`  | `/api/extract-transcript`   | **Free** | Extract transcript for a single video ID       |
 
 ### 2. **Hybrid Endpoints** (`/hybrid`)
 
@@ -47,6 +46,7 @@ Once the server is running, access the interactive API docs:
 
 - **Python 3.12+**
 - **UV** (for dependency management)
+- **PostgreSQL** (required for caching - must be running externally)
 - **Apify API token** (optional, for transcript extraction via `APIFY_TOKEN` env var)
 - **Docker** (optional, for containerization)
 
@@ -60,19 +60,56 @@ Once the server is running, access the interactive API docs:
    ```
    
    **Required Environment Variables:**
-   - `APIFY_TOKEN` - Get from https://console.apify.com/account/integrations
+   - `APIFY_TOKEN` - Get from https://console.apify.com/account/integrations (optional, for transcript extraction)
+   - `DB_NAME` - PostgreSQL database name (default: `mcp_youtube`)
+   - `DB_USER` - PostgreSQL username (default: `postgres`)
+   - `DB_PASSWORD` - PostgreSQL password (default: `postgres`)
+   - `DB_HOST` - PostgreSQL host (default: `localhost`)
+   - `DB_PORT` - PostgreSQL port (default: `5432`)
    
    **Optional Environment Variables:**
-   - `DB_PATH` - SQLite database path (default: `videos.db`)
    - `MCP_YOUTUBE_PORT` - Server port (default: `8002`)
    - `MCP_YOUTUBE__YOUTUBE__DELAY_BETWEEN_REQUESTS` - Delay between requests (default: `1.0`)
    - `MCP_YOUTUBE__LOGGING__LOG_LEVEL` - Log level (default: `INFO`)
    - See `.env.example` for all available options
+   
+   **Note:** The server will connect to PostgreSQL using the `DATABASE_URL` constructed from the `DB_*` environment variables. Ensure PostgreSQL is running and accessible before starting the server.
 
 2. **Install Dependencies**
    ```bash
    uv sync
    ```
+
+3. **Setup PostgreSQL Database**
+   
+   The server requires PostgreSQL for caching video metadata and transcripts. You can use a local PostgreSQL instance or a managed service.
+   
+   **Local PostgreSQL (using Docker):**
+   ```bash
+   # Run PostgreSQL in a container
+   docker run --rm -d \
+     --name postgres-youtube \
+     -e POSTGRES_DB=mcp_youtube \
+     -e POSTGRES_USER=postgres \
+     -e POSTGRES_PASSWORD=postgres \
+     -p 5432:5432 \
+     postgres:15
+   
+   # Verify connection
+   psql -h localhost -U postgres -d mcp_youtube -c "SELECT version();"
+   ```
+   
+   **Kubernetes Deployment:**
+   
+   For Kubernetes deployments, use a managed PostgreSQL service or a StatefulSet with persistent volumes:
+   
+   ```yaml
+   # Example: Using a managed PostgreSQL service
+   # Set DB_HOST to your PostgreSQL service endpoint
+   # DB_HOST: postgres-service.default.svc.cluster.local
+   ```
+   
+   **Important:** Ensure your PostgreSQL instance has persistent storage configured. In Kubernetes, use PersistentVolumes or a managed database service to prevent data loss on pod restarts.
 
 ## Running the Server
 
@@ -94,19 +131,16 @@ uv run python -m mcp_server_youtube --port 8002 --reload
 # Build the production image
 docker build --target prod -t mcp-server-youtube:latest .
 
-# Run the container (using .env file and bind mounts for local persistence)
-mkdir -p data logs
-
+# Run the container (ensure PostgreSQL is accessible from container)
 docker run --rm -d \
   --name mcp-youtube \
   -p 8002:8002 \
   --env-file .env \
-  -v $(pwd)/data:/data \
   -v $(pwd)/logs:/app/logs \
   mcp-server-youtube:latest
 ```
 
-**Database Location:** The database (`videos.db`) will be stored in `./data/videos.db` on your host machine and will persist across container restarts.
+**Database:** The server connects to an external PostgreSQL database. Ensure your PostgreSQL instance is accessible from the container (use `DB_HOST` to specify the host, or use Docker networking for container-to-container communication).
 
 #### Step-by-Step Guide
 
@@ -125,8 +159,7 @@ docker build --target dev -t mcp-server-youtube:dev .
 **2. Run with Named Volumes (Docker-Managed Storage)**
 
 ```bash
-# Create named volumes for data persistence
-docker volume create youtube-data
+# Create named volume for logs
 docker volume create youtube-logs
 
 # Run container with volumes (using .env file)
@@ -134,35 +167,31 @@ docker run --rm -d \
   --name mcp-youtube \
   -p 8002:8002 \
   --env-file .env \
-  -v youtube-data:/data \
   -v youtube-logs:/app/logs \
   mcp-server-youtube:latest
 ```
 
-**3. Run with Bind Mounts (Recommended - Database Persists on Host)**
+**3. Run with External PostgreSQL**
 
 ```bash
-# Create local directories
-mkdir -p data logs
+# Ensure PostgreSQL is running and accessible
+# Set DB_* environment variables in .env or pass them directly
 
-# Run container with bind mounts
-# Database will be stored at: ./data/videos.db (on your machine)
-# Logs will be stored at: ./logs/mcp_youtube.log (on your machine)
+# Run container (PostgreSQL must be accessible from container)
 docker run --rm -d \
   --name mcp-youtube \
   -p 8002:8002 \
   --env-file .env \
-  -v $(pwd)/data:/data \
   -v $(pwd)/logs:/app/logs \
   mcp-server-youtube:latest
 ```
 
-**Benefits of Bind Mounts:**
-- ✅ Database persists on your host machine at `./data/videos.db`
-- ✅ You can access the database file directly from your machine
-- ✅ Data survives container removal (`docker rm`)
-- ✅ Easy to backup (just copy the `data/` directory)
-- ✅ Can inspect database with SQLite tools on your host
+**PostgreSQL Setup:**
+- ✅ Use an external PostgreSQL instance (recommended for production)
+- ✅ For Docker Compose, ensure PostgreSQL service is accessible via network
+- ✅ For Kubernetes, use a managed PostgreSQL service or StatefulSet with persistent volumes
+- ✅ Data persists in PostgreSQL, not in container filesystem
+- ✅ Can inspect database with PostgreSQL tools (`psql`, pgAdmin, etc.)
 
 **4. Alternative: Manual Environment Variables**
 
@@ -174,7 +203,6 @@ docker run --rm -d \
   -p 8002:8002 \
   -e APIFY_TOKEN=your-token-here \
   -e MCP_YOUTUBE_PORT=8002 \
-  -v youtube-data:/data \
   -v youtube-logs:/app/logs \
   mcp-server-youtube:latest
 ```
@@ -196,7 +224,7 @@ docker start mcp-youtube
 # Restart the container
 docker restart mcp-youtube
 
-# Remove the container (data persists in ./data/ directory)
+# Remove the container
 docker rm -f mcp-youtube
 
 # Execute commands inside container
@@ -208,53 +236,44 @@ docker ps | grep mcp-youtube
 
 #### Testing Database Persistence
 
-To verify that videos are stored in the database and persist across container restarts:
+To verify that videos are stored in PostgreSQL and persist across container restarts:
 
 ```bash
 # 1. Process some videos (search and extract transcripts)
-curl -X POST http://localhost:8002/api/v1/search-transcripts \
+curl -X POST http://localhost:8002/api/search-transcripts \
   -H "Content-Type: application/json" \
   -d '{"query": "python tutorial", "num_videos": 2}'
 
-# 2. Check database file exists on your machine
-ls -lh ./data/videos.db
+# 2. Query PostgreSQL to see stored videos
+psql -h localhost -U postgres -d mcp_youtube -c "SELECT video_id, title, transcript_success FROM youtube_videos LIMIT 5;"
 
-# 3. Query database to see stored videos
-sqlite3 ./data/videos.db "SELECT video_id, title, transcript_success FROM youtube_videos LIMIT 5;"
+# 3. Count total videos in database
+psql -h localhost -U postgres -d mcp_youtube -c "SELECT COUNT(*) FROM youtube_videos;"
 
-# 4. Count total videos in database
-sqlite3 ./data/videos.db "SELECT COUNT(*) FROM youtube_videos;"
-
-# 5. Stop the container
+# 4. Stop the container
 docker stop mcp-youtube
 
-# 6. Verify database file still exists (it should!)
-ls -lh ./data/videos.db
-
-# 7. Restart the container
+# 5. Restart the container
 docker start mcp-youtube
 # OR recreate it:
 docker run --rm -d \
   --name mcp-youtube \
   -p 8002:8002 \
   --env-file .env \
-  -v $(pwd)/data:/data \
   -v $(pwd)/logs:/app/logs \
   mcp-server-youtube:latest
 
-# 8. Query database again - videos should still be there!
-sqlite3 ./data/videos.db "SELECT video_id, title, transcript_success FROM youtube_videos LIMIT 5;"
+# 6. Query database again - videos should still be there!
+psql -h localhost -U postgres -d mcp_youtube -c "SELECT video_id, title, transcript_success FROM youtube_videos LIMIT 5;"
 
-# 9. Test that cached videos are used (should be faster, no re-fetching)
-curl -X POST http://localhost:8002/api/v1/search-transcripts \
+# 7. Test that cached videos are used (should be faster, no re-fetching)
+curl -X POST http://localhost:8002/api/search-transcripts \
   -H "Content-Type: application/json" \
   -d '{"query": "python tutorial", "num_videos": 2}'
 # Check logs - you should see cached transcripts being used
-
-# Inspect volumes
-docker volume inspect youtube-data
-docker volume inspect youtube-logs
 ```
+
+**Note:** Replace `localhost`, `postgres`, and `mcp_youtube` with your actual PostgreSQL connection details from your `.env` file.
 
 #### Development Mode
 
@@ -270,7 +289,6 @@ docker run --rm -it \
   -p 8002:8002 \
   --env-file .env \
   -v $(pwd)/src:/app/src \
-  -v $(pwd)/data:/data \
   -v $(pwd)/logs:/app/logs \
   mcp-server-youtube:dev \
   python -m mcp_server_youtube --port 8002 --reload
@@ -280,7 +298,7 @@ docker run --rm -it \
 
 ```bash
 # Health check
-curl http://localhost:8002/api/v1/health
+curl http://localhost:8002/api/health
 
 # Check logs
 docker logs mcp-youtube
@@ -291,9 +309,9 @@ uv run python -m pytest tests/test_mcp_tools.py -v
 ```
 
 **Note:** 
-- The SQLite database (`videos.db`) is stored in `/data` inside the container
-- Logs are stored in `/app/logs` inside the container
-- Both directories are mounted as volumes to persist data across container restarts
+- The PostgreSQL database is external and must be accessible from the container
+- Logs are stored in `/app/logs` inside the container (mounted as volume)
+- Ensure `DB_*` environment variables are set correctly for PostgreSQL connection
 - The production image uses port 8002 by default
 - Use `--target prod` for production builds (smaller, optimized)
 - Use `--target dev` for development (includes dev tools)
@@ -325,18 +343,18 @@ uv run python -m pytest tests/test_app.py::TestAppLifespan::test_app_lifespan_su
 
 ```bash
 # Health check
-curl http://localhost:8002/api/v1/health
+curl http://localhost:8002/api/health
 
 # Search videos
-curl -X POST http://localhost:8002/api/v1/search \
+curl -X POST http://localhost:8002/api/search \
   -H "Content-Type: application/json" \
   -d '{"query": "python tutorial", "max_results": 3}'
 
 # Extract transcript for single video
-curl "http://localhost:8002/api/v1/extract-transcript?video_id=dQw4w9WgXcQ"
+curl "http://localhost:8002/api/extract-transcript?video_id=dQw4w9WgXcQ"
 
 # Extract transcripts for multiple videos
-curl -X POST http://localhost:8002/api/v1/extract-transcripts \
+curl -X POST http://localhost:8002/api/extract-transcripts \
   -H "Content-Type: application/json" \
   -d '{"video_ids": ["dQw4w9WgXcQ"]}'
 ```
