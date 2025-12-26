@@ -15,6 +15,31 @@ from mcp_server_youtube.youtube.models import Base, YouTubeVideo
 logger = logging.getLogger(__name__)
 
 
+class NullDatabaseManager:
+    """
+    No-op DB manager used when Postgres is unavailable.
+    This lets the server run in a degraded mode (no caching) instead of crashing.
+    """
+
+    def get_session(self) -> Session:  # pragma: no cover
+        raise RuntimeError("Database is unavailable (NullDatabaseManager).")
+
+    def get_video(self, video_id: str) -> Optional[YouTubeVideo]:
+        return None
+
+    def has_transcript(self, video_id: str) -> bool:
+        return False
+
+    def save_video(self, video_data: Dict) -> bool:
+        return False
+
+    def batch_get_videos(self, video_ids: List[str]) -> Dict[str, Optional[YouTubeVideo]]:
+        return {video_id: None for video_id in video_ids}
+
+    def batch_check_transcripts(self, video_ids: List[str]) -> Dict[str, bool]:
+        return {video_id: False for video_id in video_ids}
+
+
 class DatabaseManager:
     """Manages database connections and operations for YouTube video caching."""
 
@@ -205,6 +230,12 @@ def get_db_manager() -> DatabaseManager:
     """Get or create global database manager instance."""
     global _db_manager
     if _db_manager is None:
-        _db_manager = DatabaseManager()
+        try:
+            _db_manager = DatabaseManager()
+        except Exception as e:
+            logger.warning(
+                "Postgres unavailable; starting without caching. Error: %s", e
+            )
+            _db_manager = NullDatabaseManager()  # type: ignore[assignment]
     return _db_manager
 

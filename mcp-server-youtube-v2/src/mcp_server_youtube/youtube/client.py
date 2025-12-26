@@ -392,6 +392,9 @@ class YouTubeVideoSearchAndTranscript:
 
 # Exposed for test patching (`tests/test_youtube_client.py` patches this symbol)
 def get_db_manager():
-    from mcp_server_youtube.youtube.methods import DatabaseManager
-    return DatabaseManager()
+    # Delegate to the shared DB manager which can fall back to a no-op manager
+    # if Postgres is unavailable.
+    from mcp_server_youtube.youtube.methods import get_db_manager as _get_db_manager
+
+    return _get_db_manager()
 

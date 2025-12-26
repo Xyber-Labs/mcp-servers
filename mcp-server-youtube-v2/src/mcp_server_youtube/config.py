@@ -175,7 +175,14 @@ class DatabaseConfig(BaseModel):
         self.DATABASE_URL = (
             f"postgresql+psycopg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         )
-        logger.info(f"DEBUG: Connecting to: {self.DATABASE_URL}")
+        # Avoid leaking credentials in logs
+        logger.info(
+            "Database configured: postgresql+psycopg://%s:***@%s:%s/%s",
+            self.DB_USER,
+            self.DB_HOST,
+            self.DB_PORT,
+            self.DB_NAME,
+        )
         return self
 
 

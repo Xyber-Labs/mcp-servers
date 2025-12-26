@@ -43,6 +43,21 @@ async def app_lifespan(app: FastAPI):
     youtube_client: YouTubeVideoSearchAndTranscript = get_youtube_client()
     app.state.youtube_client = youtube_client
 
+    # Initialize database connection (fail fast if misconfigured/unreachable)
+    from mcp_server_youtube.dependencies import get_db_manager
+
+    try:
+        db_manager = get_db_manager()
+        app.state.db_manager = db_manager
+        logger.info("Lifespan: Database manager initialized.")
+    except Exception as e:
+        # Should be rare now (dependencies uses a NullDatabaseManager fallback),
+        # but keep this to guarantee the server starts.
+        app.state.db_manager = None
+        logger.warning(
+            "Lifespan: Database initialization failed; caching disabled. Error: %s", e
+        )
+
     logger.info("Lifespan: Services initialized successfully.")
     yield
     logger.info("Lifespan: Shutting down application services...")

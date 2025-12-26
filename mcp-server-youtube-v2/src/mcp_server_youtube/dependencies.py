@@ -5,7 +5,7 @@ FastAPI dependencies for YouTube service.
 from functools import lru_cache
 
 from mcp_server_youtube.youtube import YouTubeVideoSearchAndTranscript, get_youtube_client
-from mcp_server_youtube.youtube.methods import DatabaseManager
+from mcp_server_youtube.youtube.methods import DatabaseManager, get_db_manager as _get_db_manager
 
 
 def get_youtube_service() -> YouTubeVideoSearchAndTranscript:
@@ -28,6 +28,7 @@ def get_youtube_service_search_only() -> YouTubeVideoSearchAndTranscript:
 @lru_cache(maxsize=1)
 def get_db_manager() -> DatabaseManager:
     """Dependency to get database manager instance."""
-    from mcp_server_youtube.youtube.methods import DatabaseManager
-    return DatabaseManager()
+    # Delegates to youtube.methods.get_db_manager() which can fall back to a
+    # NullDatabaseManager when Postgres is unavailable.
+    return _get_db_manager()
 
