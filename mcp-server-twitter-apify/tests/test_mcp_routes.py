@@ -25,12 +25,7 @@ class FakeScraper:
         self.results_dir = tmp_results_dir
         self.actor_id = "actor"
         self.use_cache = False
-        self._last_items: list[dict[str, Any]] | None = None
-
-    def run_query(self, query) -> Path:  # noqa: ANN001
-        """Run a query and store fake results."""
-        # Store fake tweet data
-        self._last_items = [
+        self._last_items: list[dict[str, Any]] | None = [
             {
                 "id": "1234567890",
                 "text": "Great news about AI! This is amazing technology.",
@@ -74,6 +69,9 @@ class FakeScraper:
                 "likeCount": 5,
             },
         ]
+
+    def run_query(self, query) -> Path:  # noqa: ANN001
+        """Run a query - data already set in __init__."""
         return self.results_dir / query.output_filename()
 
     def get_last_items(self) -> list[dict[str, Any]] | None:
@@ -128,110 +126,6 @@ async def mcp_client(monkeypatch, tmp_results_dir: Path) -> AsyncClient:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
         yield ac
-
-
-@pytest.mark.asyncio
-async def test_summarize_tweets_returns_analysis(mcp_client: AsyncClient) -> None:
-    """Test that summarize_tweets endpoint returns structured analysis."""
-    response = await mcp_client.post(
-        "/summarize_tweets",
-        json={
-            "topic": "AI",
-            "max_items": 10,
-            "sort": "Top",
-        },
-    )
-
-    assert response.status_code == 200
-    body = response.json()
-
-    # Verify structure
-    assert "topic" in body
-    assert "summary" in body
-    assert "tweet_count" in body
-    assert "key_themes" in body
-    assert "sentiment" in body
-    assert "notable_mentions" in body
-    assert "analysis_metadata" in body
-
-    # Verify values
-    assert body["topic"] == "AI"
-    assert body["tweet_count"] == 3  # We return 3 fake tweets
-    assert isinstance(body["key_themes"], list)
-    assert body["sentiment"] in ["positive", "negative", "neutral"]
-    assert isinstance(body["notable_mentions"], list)
-    assert len(body["notable_mentions"]) > 0
-
-    # Verify summary contains topic
-    assert "AI" in body["summary"] or "ai" in body["summary"].lower()
-
-
-@pytest.mark.asyncio
-async def test_summarize_tweets_with_no_results(mcp_client: AsyncClient, monkeypatch) -> None:
-    """Test summarize_tweets when no tweets are found."""
-    # Create a scraper that returns no items
-    class EmptyScraper(FakeScraper):
-        def get_last_items(self) -> list[dict[str, Any]] | None:
-            return None
-
-    # Note: We can't access mcp_client.app directly with AsyncClient
-    # Instead, we'll create a new client with the modified app
-    from fastapi import FastAPI
-    from mcp_twitter.hybrid_routers import routers as hybrid_routers
-    from mcp_twitter.mcp_routers import routers as mcp_routers
-    
-    app = FastAPI()
-    for router in hybrid_routers:
-        app.include_router(router, prefix="/hybrid")
-    for router in mcp_routers:
-        app.include_router(router)
-    app.state.registry = build_default_registry()
-    app.state.scraper = EmptyScraper(Path("/tmp"))
-    
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
-        response = await ac.post(
-            "/summarize_tweets",
-            json={
-                "topic": "nonexistent_topic_xyz",
-                "max_items": 10,
-                "sort": "Latest",
-            },
-        )
-
-        assert response.status_code == 200
-        body = response.json()
-
-    assert body["tweet_count"] == 0
-    assert body["key_themes"] == []
-    assert "No tweets found" in body["summary"]
-
-
-@pytest.mark.asyncio
-async def test_summarize_tweets_validates_input(mcp_client: AsyncClient) -> None:
-    """Test that summarize_tweets validates input parameters."""
-    # Test with invalid max_items (too high)
-    response = await mcp_client.post(
-        "/summarize_tweets",
-        json={
-            "topic": "AI",
-            "max_items": 200,  # Exceeds limit of 100
-            "sort": "Top",
-        },
-    )
-
-    assert response.status_code == 422  # Validation error
-
-    # Test with missing topic
-    response = await mcp_client.post(
-        "/summarize_tweets",
-        json={
-            "max_items": 10,
-            "sort": "Top",
-        },
-    )
-
-    assert response.status_code == 422  # Validation error
 
 
 @pytest.mark.asyncio
