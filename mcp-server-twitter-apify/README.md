@@ -131,6 +131,109 @@ The API will be available at:
 - **ReDoc:** http://localhost:8002/redoc
 - **API Root:** http://localhost:8002/
 
+### Docker Deployment
+
+Build and run the server using Docker:
+
+**1. Build the Docker image:**
+
+```bash
+docker build -t mcp-twitter-apify:latest .
+```
+
+**2. Run the container:**
+
+```bash
+docker run -d \
+  --name mcp-twitter-server \
+  -p 8000:8000 \
+  --env-file .env \
+  --network host \
+  mcp-twitter-apify:latest
+```
+
+Or with environment variables directly:
+
+```bash
+docker run -d \
+  --name mcp-twitter-server \
+  -p 8000:8000 \
+  -e APIFY_TOKEN=your_token_here \
+  -e APIFY_ACTOR_NAME=apidojo/twitter-scraper-lite \
+  -e DB_NAME=mcp_twitter_apify \
+  -e DB_USER=postgres \
+  -e DB_PASSWORD=postgres \
+  -e DB_HOST=host.docker.internal \
+  -e DB_PORT=5432 \
+  --add-host=host.docker.internal:host-gateway \
+  mcp-twitter-apify:latest
+```
+
+**Note:** 
+- If PostgreSQL is running in Docker, use `--network host` or connect containers via Docker network
+- For Docker Desktop on Mac/Windows, use `host.docker.internal` as `DB_HOST`
+- For Linux, use `172.17.0.1` (default Docker bridge IP) or `--network host`
+
+**3. View logs:**
+
+```bash
+docker logs -f mcp-twitter-server
+```
+
+**4. Stop the container:**
+
+```bash
+docker stop mcp-twitter-server
+docker rm mcp-twitter-server
+docker restart mcp-twitter-server
+```
+
+**Using Docker Compose:**
+
+Create a `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: mcp-postgres
+    environment:
+      POSTGRES_DB: mcp_twitter_apify
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_mcp:/var/lib/postgresql/data
+
+  mcp-twitter:
+    build: .
+    container_name: mcp-twitter-server
+    ports:
+      - "8000:8000"
+    environment:
+      APIFY_TOKEN: ${APIFY_TOKEN}
+      APIFY_ACTOR_NAME: apidojo/twitter-scraper-lite
+      DB_NAME: mcp_twitter_apify
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata_mcp:
+```
+
+Then run:
+
+```bash
+docker-compose up -d
+```
+
 ### API Endpoints
 
 #### Search Endpoints

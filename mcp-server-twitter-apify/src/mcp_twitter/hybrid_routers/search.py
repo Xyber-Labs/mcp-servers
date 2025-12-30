@@ -55,7 +55,7 @@ class TopicSearchRequest(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "topic": "quantun computing",
+                "topic": "quantum computing",
                 "max_items": 10,
                 "sort": "Latest",
                 "only_verified": False,
@@ -66,7 +66,7 @@ class TopicSearchRequest(BaseModel):
         }
     )
 
-    topic: str = Field(..., description="Search keyword/topic", examples=["quantun computing"])
+    topic: str = Field(..., description="Search keyword/topic", examples=["quantum computing"])
     max_items: int = Field(100, ge=1, le=1000, description="Maximum items to fetch")
     sort: SortOrder = Field("Latest", description="Sort order: Latest or Top")
     only_verified: bool = Field(False, description="Only verified users")

@@ -2,7 +2,7 @@
 ## It can be used as is or edited to fit your needs
 
 
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-editable
 
 # --- Dev stage --- #
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS dev
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS dev
 
 WORKDIR /app
 
@@ -46,7 +46,7 @@ COPY tool_pricing.yaml .
 CMD ["tail", "-f", "/dev/null"]
 
 # --- Production stage --- #
-FROM python:3.12-slim-bookworm AS prod
+FROM python:3.13-slim-bookworm AS prod
 
 WORKDIR /app
 
