@@ -308,6 +308,38 @@ uv run pytest tests/test_scraper_cache.py -v
 uv run pytest tests/ --cov=src --cov-report=html
 ```
 
+### MCP E2E Tests
+
+The MCP tools tests (`tests/test_mcp_tools.py`) are end-to-end integration tests that require a running server. These tests verify that the MCP transport layer works correctly and that all MCP tools are accessible.
+
+**Prerequisites:**
+- Server must be running (see [API Server Mode](#api-server-mode))
+- `APIFY_TOKEN` environment variable must be set (for tests that make real API calls)
+
+**Running the MCP E2E tests:**
+
+1. **Start the server** in a separate terminal:
+   ```bash
+   uv run python -m mcp_twitter --host 0.0.0.0 --port 8003
+   ```
+
+2. **Run the E2E tests** (in another terminal):
+   ```bash
+   RUN_MCP_E2E=1 MCP_SERVER_URL=http://localhost:8003 uv run pytest tests/test_mcp_tools.py -v
+   ```
+
+   Or if the server is running on a different port:
+   ```bash
+   RUN_MCP_E2E=1 MCP_SERVER_URL=http://localhost:8002 uv run pytest tests/test_mcp_tools.py -v
+   ```
+
+**What these tests cover:**
+- MCP session negotiation and initialization
+- Listing available MCP tools
+- Calling MCP tools: `mcp_list_types`, `mcp_list_queries`, `mcp_search_topic`, `mcp_search_profile`, `mcp_search_replies`
+
+**Note:** If `APIFY_TOKEN` is not set, tests that make real API calls will be skipped automatically.
+
 ## Development
 
 ### Project Structure

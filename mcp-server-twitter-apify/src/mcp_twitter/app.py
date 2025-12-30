@@ -5,7 +5,6 @@ Main responsibility: Compose the FastAPI/MCP application and manage its lifecycl
 """
 
 import logging
-import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -113,18 +112,14 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def combined_lifespan(app: FastAPI):
         async with app_lifespan(app):
-            # Workaround for Python 3.14 compatibility issue with FastMCP's Docket initialization
-            # Skip MCP lifespan for Python 3.14+ due to asyncio compatibility issues
-            python_version = sys.version_info[:2]
-            if python_version >= (3, 14):
-                logger.warning(
-                    "Python 3.14+ detected. Skipping FastMCP lifespan due to compatibility issues. "
-                    "MCP functionality will work but Docket/Redis features may be unavailable."
-                )
+            # Copy state from main app to mcp_source_app so MCP endpoints can access it
+            # This is necessary because mcp_source_app is a separate FastAPI instance
+            if hasattr(app.state, "registry"):
+                mcp_source_app.state.registry = app.state.registry
+            if hasattr(app.state, "scraper"):
+                mcp_source_app.state.scraper = app.state.scraper
+            async with mcp_app.lifespan(app):
                 yield
-            else:
-                async with mcp_app.lifespan(app):
-                    yield
 
     # --- Main Application ---
     app = FastAPI(
@@ -157,13 +152,9 @@ def create_app() -> FastAPI:
     x402_settings.validate_against_routes(all_routes)
 
     # --- Middleware Configuration ---
-    # Skip x402 middleware on Python 3.14+ due to anyio compatibility issues
-    python_version = sys.version_info[:2]
-    if x402_settings.pricing_mode == "on" and python_version < (3, 14):
+    if x402_settings.pricing_mode == "on":
         app.add_middleware(X402WrapperMiddleware, tool_pricing=x402_settings.pricing)
         logger.info("x402 payment middleware enabled.")
-    elif x402_settings.pricing_mode == "on" and python_version >= (3, 14):
-        logger.warning("x402 payment middleware disabled on Python 3.14+ due to compatibility issues.")
     else:
         logger.info("x402 payment middleware disabled (pricing_mode='off').")
 

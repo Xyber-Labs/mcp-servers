@@ -6,7 +6,7 @@ authors = [
     { name = "XyManchick", email = "xymanchick@xyber.inc" },
 ]
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13,<3.14"
 
 dependencies = [
     "mcp>=1.8.0,<2.0.0",
@@ -53,7 +53,7 @@ packages = ["src/mcp_twitter", "src/db"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py312"
+target-version = "py313"
 select = [
     "E",   # pycodestyle errors
     "F",   # pyflakes
@@ -91,7 +91,7 @@ line-ending = "auto"
 "tests/**/*" = ["S101", "D"]  # Allow assert in tests, skip docstrings
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.13"
 files = ["src/**/*.py"]
 exclude = ["tests/", "__pycache__/"]
 strict = true
