@@ -214,7 +214,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     # Start API server if requested
     if args.serve:
         import uvicorn
-        from mcp_twitter.api import app
+        from mcp_twitter.app import create_app
+        from mcp_twitter.logging_config import get_logging_config
         
         print(f"🚀 Starting Twitter Scraper API server...")
         print(f"   Swagger docs: http://{args.host}:{args.port}/docs")
@@ -223,10 +224,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"\n   Press CTRL+C to stop\n")
         
         uvicorn.run(
-            app,
+            "mcp_twitter.app:create_app",
             host=args.host,
             port=args.port,
-            log_level="info",
+            log_config=get_logging_config(),
+            factory=True,
         )
         return 0
 

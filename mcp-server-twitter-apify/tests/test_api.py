@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-import mcp_twitter.api as api_mod
+from mcp_twitter.app import create_app
 from mcp_twitter.queries import build_default_registry
 
 
@@ -45,11 +45,18 @@ class FakeTwitterScraper(FakeScraper):
 
 @pytest.fixture
 def client(monkeypatch, tmp_results_dir: Path) -> TestClient:
-    # Avoid real lifespan startup (which requires APIFY_TOKEN + real Apify).
-    monkeypatch.setattr(api_mod, "registry", build_default_registry())
-    monkeypatch.setattr(api_mod, "scraper", FakeScraper(tmp_results_dir))
-    monkeypatch.setattr(api_mod, "TwitterScraper", FakeTwitterScraper)
-    return TestClient(api_mod.app)
+    # Create app and patch app state instead of module globals
+    app = create_app()
+    
+    # Patch app state for registry and scraper
+    app.state.registry = build_default_registry()
+    app.state.scraper = FakeScraper(tmp_results_dir)
+    
+    # Patch TwitterScraper class for tests
+    from mcp_twitter import scraper as scraper_mod
+    monkeypatch.setattr(scraper_mod, "TwitterScraper", FakeTwitterScraper)
+    
+    return TestClient(app)
 
 
 def test_health(client: TestClient) -> None:
@@ -80,7 +87,7 @@ def test_list_queries(client: TestClient) -> None:
 
 def test_search_topic_uses_fake_scraper_and_returns_items(client: TestClient) -> None:
     r = client.post(
-        "/api/v1/search/topic",
+        "/hybrid/v1/search/topic",
         json={
             "topic": "Quantum",
             "max_items": 2,
@@ -106,7 +113,7 @@ def test_list_results(client: TestClient) -> None:
 
 def test_search_profile_batch_returns_items_per_username(client: TestClient) -> None:
     r = client.post(
-        "/api/v1/search/profile/batch",
+        "/hybrid/v1/search/profile/batch",
         json={
             "usernames": ["elonmusk", "@jack"],
             "max_items": 2,
@@ -127,7 +134,8 @@ def test_search_profile_batch_returns_items_per_username(client: TestClient) -> 
 def test_search_profile_batch_continue_on_error_returns_error_entry(
     client: TestClient, monkeypatch
 ) -> None:
-    class ErroringFakeTwitterScraper(api_mod.TwitterScraper):  # type: ignore[misc]
+    from mcp_twitter.scraper import TwitterScraper
+    class ErroringFakeTwitterScraper(TwitterScraper):  # type: ignore[misc]
         def run_query(self, query) -> Path:  # noqa: ANN001
             term = ""
             try:
@@ -141,7 +149,7 @@ def test_search_profile_batch_continue_on_error_returns_error_entry(
     monkeypatch.setattr(api_mod, "TwitterScraper", ErroringFakeTwitterScraper)
 
     r = client.post(
-        "/api/v1/search/profile/batch",
+        "/hybrid/v1/search/profile/batch",
         json={
             "usernames": ["gooduser", "baduser"],
             "max_items": 2,
@@ -161,7 +169,7 @@ def test_search_profile_batch_continue_on_error_returns_error_entry(
 
 def test_search_profile_batch_splits_comma_separated_usernames(client: TestClient) -> None:
     r = client.post(
-        "/api/v1/search/profile/batch",
+        "/hybrid/v1/search/profile/batch",
         json={
             "usernames": ["elonmusk, xybrainz"],
             "max_items": 2,
@@ -177,7 +185,7 @@ def test_search_profile_batch_splits_comma_separated_usernames(client: TestClien
 
 def test_search_profile_latest_batch_returns_items_per_username(client: TestClient) -> None:
     r = client.post(
-        "/api/v1/search/profile/latest/batch",
+        "/hybrid/v1/search/profile/latest/batch",
         json={
             "usernames": ["elonmusk", "@jack"],
             "max_items": 2,
@@ -197,7 +205,7 @@ def test_search_profile_latest_batch_returns_items_per_username(client: TestClie
 
 def test_search_profile_latest_batch_splits_comma_separated_usernames(client: TestClient) -> None:
     r = client.post(
-        "/api/v1/search/profile/latest/batch",
+        "/hybrid/v1/search/profile/latest/batch",
         json={
             "usernames": ["elonmusk, xybrainz"],
             "max_items": 2,

@@ -6,13 +6,14 @@ from typing import Any
 
 from apify_client import ApifyClient
 
+import logging
+
 from mcp_twitter.config import AppSettings
-from mcp_twitter.logger import get_logger
 from mcp_twitter.models import OutputFormat, QueryDefinition, QueryType, TwitterScraperInput
 
 from db import Database, generate_query_key, get_db_instance
 
-log = get_logger("mcp_twitter.scraper")
+log = logging.getLogger(__name__)
 
 
 class TwitterScraper:

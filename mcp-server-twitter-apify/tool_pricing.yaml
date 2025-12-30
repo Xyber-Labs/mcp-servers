@@ -1,0 +1,19 @@
+# This file defines the payment options for all x402-protected endpoints.
+# The key for each entry is the endpoint's unique `operation_id`.
+# You can define one or more payment options for each tool, allowing for
+# flexibility with different tokens or networks.
+
+# --- Paid API-Only Endpoint ---
+get_admin_logs:
+  - token_amount: 1000  # ~0.001 USDC
+    chain_id: 8453 # Base 
+    token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" 
+    
+
+# Add your hybrid and MCP-only endpoint pricing here
+# Example:
+# get_twitter_search:
+#   - token_amount: 2000    # ~0.002 USDC 
+#     chain_id: 8453 # Base 
+#     token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+
