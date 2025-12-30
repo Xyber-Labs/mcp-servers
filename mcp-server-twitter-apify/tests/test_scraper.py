@@ -4,9 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-import mcp_twitter.scraper as scraper_mod
-from mcp_twitter.models import QueryDefinition, TwitterScraperInput
-from mcp_twitter.scraper import TwitterScraper
+import mcp_twitter.twitter.scraper as scraper_mod
+from mcp_twitter.twitter import QueryDefinition, TwitterScraper, TwitterScraperInput
 
 from tests.fakes import FakeApifyClient
 
@@ -47,15 +46,17 @@ def test_run_saves_json_and_minimizes_when_output_format_min(
     ]
     fake_client = FakeApifyClient(dataset_id="ds1", items=fake_items)
 
-    # Patch ApifyClient constructor inside scraper module
-    monkeypatch.setattr(scraper_mod, "ApifyClient", lambda token: fake_client)  # noqa: ARG005
-
     s = TwitterScraper(
         apify_token="token",
         results_dir=tmp_results_dir,
         actor_name="apidojo/twitter-scraper-lite",
         output_format="min",
+        use_cache=False,
     )
+
+    # Patch the client on the scraper instance after it's created
+    monkeypatch.setattr(s, "client", fake_client)
+
     out_path = s.run(TwitterScraperInput(searchTerms=["hi"], maxItems=2), output_filename="out")
     assert out_path.exists()
     assert out_path.name == "out.json"
@@ -71,14 +72,18 @@ def test_run_saves_json_and_minimizes_when_output_format_min(
 def test_run_saves_raw_when_output_format_max(monkeypatch, tmp_results_dir: Path) -> None:
     fake_items = [{"id": "1", "text": "hi", "extra": {"nested": True}}]
     fake_client = FakeApifyClient(dataset_id="ds1", items=fake_items)
-    monkeypatch.setattr(scraper_mod, "ApifyClient", lambda token: fake_client)  # noqa: ARG005
 
     s = TwitterScraper(
         apify_token="token",
         results_dir=tmp_results_dir,
         actor_name="actor",
         output_format="max",
+        use_cache=False,
     )
+
+    # Patch the client on the scraper instance after it's created
+    monkeypatch.setattr(s, "client", fake_client)
+
     out_path = s.run(TwitterScraperInput(searchTerms=["hi"]))
     data = json.loads(out_path.read_text(encoding="utf-8"))
     assert data == fake_items
@@ -86,7 +91,7 @@ def test_run_saves_raw_when_output_format_max(monkeypatch, tmp_results_dir: Path
 
 def test_run_query_uses_query_output_filename(monkeypatch, tmp_results_dir: Path) -> None:
     # Avoid Apify; just stub run()
-    s = TwitterScraper(apify_token="token", results_dir=tmp_results_dir, actor_name="actor")
+    s = TwitterScraper(apify_token="token", results_dir=tmp_results_dir, actor_name="actor", use_cache=False)
 
     def fake_run(
         run_input: TwitterScraperInput,

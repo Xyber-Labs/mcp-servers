@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from mcp_twitter.models import QueryDefinition, SortOrder, TwitterScraperInput
-from mcp_twitter.registry import QueryRegistry
+from mcp_twitter.twitter.models import QueryDefinition, SortOrder, TwitterScraperInput
+from mcp_twitter.twitter.registry import QueryRegistry
 
 
 def build_default_registry() -> QueryRegistry:

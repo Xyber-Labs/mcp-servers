@@ -10,10 +10,30 @@ get_admin_logs:
     token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" 
     
 
-# Add your hybrid and MCP-only endpoint pricing here
-# Example:
-# get_twitter_search:
-#   - token_amount: 2000    # ~0.002 USDC 
-#     chain_id: 8453 # Base 
-#     token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+# --- Paid MCP-Only Endpoints ---
+summarize_tweets:
+  - token_amount: 3000  # ~0.003 USDC
+    chain_id: 8453 # Base
+    token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+
+# MCP-only search endpoints (mirror hybrid router functionality)
+mcp_search_topic:
+  - token_amount: 2000  # ~0.002 USDC
+    chain_id: 8453 # Base
+    token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+
+mcp_search_profile:
+  - token_amount: 2000  # ~0.002 USDC
+    chain_id: 8453 # Base
+    token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+
+mcp_search_profile_latest:
+  - token_amount: 2000  # ~0.002 USDC
+    chain_id: 8453 # Base
+    token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+
+mcp_search_replies:
+  - token_amount: 2000  # ~0.002 USDC
+    chain_id: 8453 # Base
+    token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
 

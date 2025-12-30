@@ -15,13 +15,16 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from pydantic import ConfigDict
 
-from mcp_twitter.models import OutputFormat, QueryDefinition, QueryType, SortOrder
-from mcp_twitter.queries import (
+from mcp_twitter.twitter import (
+    OutputFormat,
+    QueryDefinition,
+    QueryType,
+    SortOrder,
+    TwitterScraper,
     create_profile_query,
     create_replies_query,
     create_topic_query,
 )
-from mcp_twitter.scraper import TwitterScraper
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

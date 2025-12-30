@@ -16,13 +16,15 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
+import logging
 from mcp_twitter.config import AppSettings, DatabaseConfig
-from mcp_twitter.logger import get_logger
-from mcp_twitter.models import OutputFormat, QueryType
+
+logger = logging.getLogger(__name__)
+from mcp_twitter.twitter import OutputFormat, QueryType
 
 from .models import Base, QueryCacheEntry, QueryCacheItem, Tweet, TweetAuthor
 
-log = get_logger("mcp_twitter.db")
+log = logging.getLogger("mcp_twitter.db")
 
 _db_instance: Database | None = None
 

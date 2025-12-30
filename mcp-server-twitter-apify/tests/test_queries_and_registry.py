@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import mcp_twitter.queries as queries
-from mcp_twitter.registry import QueryRegistry
+import mcp_twitter.twitter.queries as queries
+from mcp_twitter.twitter import QueryRegistry
 
 
 def test_build_default_registry_has_expected_types_and_ids() -> None:

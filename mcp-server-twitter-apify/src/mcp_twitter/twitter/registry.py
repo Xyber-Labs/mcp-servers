@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from mcp_twitter.models import QueryDefinition, QueryType
+from mcp_twitter.twitter.models import QueryDefinition, QueryType
 
 
 class QueryRegistry:

@@ -10,8 +10,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
-from mcp_twitter.models import QueryType
-from mcp_twitter.registry import QueryRegistry
+from mcp_twitter.twitter import QueryRegistry, QueryType
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

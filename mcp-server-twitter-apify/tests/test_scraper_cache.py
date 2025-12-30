@@ -11,11 +11,11 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-import mcp_twitter.scraper as scraper_mod
+import mcp_twitter.twitter.scraper as scraper_mod
 from db import Database
 from db.models import Base
-from mcp_twitter.models import QueryDefinition, TwitterScraperInput
-from mcp_twitter.scraper import TwitterScraper
+from mcp_twitter.twitter.models import QueryDefinition, TwitterScraperInput
+from mcp_twitter.twitter.scraper import TwitterScraper
 
 from tests.fakes import FakeApifyClient
 

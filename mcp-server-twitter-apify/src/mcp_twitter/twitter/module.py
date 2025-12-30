@@ -18,7 +18,7 @@ from mcp_twitter.twitter.errors import TwitterApiError, TwitterClientError
 from mcp_twitter.twitter.models import TwitterData
 
 # Import the existing scraper to wrap it
-from mcp_twitter.scraper import TwitterScraper
+from mcp_twitter.twitter.scraper import TwitterScraper
 
 # --- Logger Setup --- #
 

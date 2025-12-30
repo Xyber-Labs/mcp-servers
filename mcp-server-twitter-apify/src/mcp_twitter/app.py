@@ -15,9 +15,11 @@ from mcp_twitter.config import get_x402_settings
 from mcp_twitter.hybrid_routers import routers as hybrid_routers
 from mcp_twitter.mcp_routers import routers as mcp_routers
 from mcp_twitter.middlewares import X402WrapperMiddleware
-from mcp_twitter.queries import build_default_registry
-from mcp_twitter.registry import QueryRegistry
-from mcp_twitter.scraper import TwitterScraper
+from mcp_twitter.twitter import (
+    QueryRegistry,
+    TwitterScraper,
+    build_default_registry,
+)
 
 logger = logging.getLogger(__name__)
 

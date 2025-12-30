@@ -1,8 +1,16 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
+
+# Add src to sys.path so that mcp_twitter and db can be imported
+# This is necessary because the tests are outside the src directory
+# and the package might not be installed in editable mode in the current environment.
+src_path = Path(__file__).parent.parent / "src"
+if str(src_path) not in sys.path:
+    sys.path.insert(0, str(src_path))
 
 
 class FixedDatetime:

@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from db import Database, generate_query_key
 from db.models import Base, QueryCacheEntry, QueryCacheItem, Tweet, TweetAuthor
-from mcp_twitter.models import OutputFormat, QueryType
+from mcp_twitter.twitter import OutputFormat, QueryType
 
 
 @pytest.fixture

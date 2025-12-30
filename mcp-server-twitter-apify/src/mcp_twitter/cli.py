@@ -5,15 +5,17 @@ from pathlib import Path
 from typing import Iterable, Sequence
 
 from mcp_twitter.config import AppSettings
-from mcp_twitter.models import OutputFormat, QueryDefinition, QueryType
-from mcp_twitter.queries import (
+from mcp_twitter.twitter import (
+    OutputFormat,
+    QueryDefinition,
+    QueryType,
+    QueryRegistry,
+    TwitterScraper,
     build_default_registry,
     create_profile_query,
     create_replies_query,
     create_topic_query,
 )
-from mcp_twitter.registry import QueryRegistry
-from mcp_twitter.scraper import TwitterScraper
 
 
 def _print_types(registry: QueryRegistry) -> None:

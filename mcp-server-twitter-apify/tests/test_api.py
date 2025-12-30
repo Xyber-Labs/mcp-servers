@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from mcp_twitter.app import create_app
-from mcp_twitter.queries import build_default_registry
+from mcp_twitter.twitter import build_default_registry
 
 
 class FakeScraper:
@@ -53,7 +53,7 @@ def client(monkeypatch, tmp_results_dir: Path) -> TestClient:
     app.state.scraper = FakeScraper(tmp_results_dir)
     
     # Patch TwitterScraper class for tests
-    from mcp_twitter import scraper as scraper_mod
+    from mcp_twitter.twitter import scraper as scraper_mod
     monkeypatch.setattr(scraper_mod, "TwitterScraper", FakeTwitterScraper)
     
     return TestClient(app)
@@ -134,7 +134,9 @@ def test_search_profile_batch_returns_items_per_username(client: TestClient) -> 
 def test_search_profile_batch_continue_on_error_returns_error_entry(
     client: TestClient, monkeypatch
 ) -> None:
-    from mcp_twitter.scraper import TwitterScraper
+    from mcp_twitter.twitter import TwitterScraper
+    from mcp_twitter.twitter import scraper as scraper_mod
+    
     class ErroringFakeTwitterScraper(TwitterScraper):  # type: ignore[misc]
         def run_query(self, query) -> Path:  # noqa: ANN001
             term = ""
@@ -146,7 +148,7 @@ def test_search_profile_batch_continue_on_error_returns_error_entry(
                 raise ValueError("boom")
             return super().run_query(query)
 
-    monkeypatch.setattr(api_mod, "TwitterScraper", ErroringFakeTwitterScraper)
+    monkeypatch.setattr(scraper_mod, "TwitterScraper", ErroringFakeTwitterScraper)
 
     r = client.post(
         "/hybrid/v1/search/profile/batch",

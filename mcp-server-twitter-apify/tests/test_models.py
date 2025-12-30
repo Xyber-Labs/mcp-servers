@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import re
 
-import mcp_twitter.models as models
-from mcp_twitter.models import QueryDefinition, TwitterScraperInput
+import mcp_twitter.twitter.models as models
+from mcp_twitter.twitter import QueryDefinition, TwitterScraperInput
 
 
 def test_output_filename_uses_explicit_output_and_adds_json_extension() -> None:
