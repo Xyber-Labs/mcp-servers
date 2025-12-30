@@ -1,14 +1,84 @@
-# MCP Twitter Scraper
+# MCP Twitter Scraper (mcp-twitter-apify)
 
-A FastAPI-based Twitter scraper service using Apify's `apidojo/twitter-scraper-lite` actor with Postgres-backed caching to reduce API costs.
+A production-ready, multi-protocol Twitter scraping service that provides seamless access to Twitter data through REST API, MCP (Model Context Protocol), and x402 payment-enabled endpoints. Built on FastAPI and powered by Apify's `apidojo/twitter-scraper-lite` actor, with intelligent PostgreSQL-backed caching to minimize API costs and improve response times.
 
-## Features
+## Overview
 
-- **REST API**: FastAPI-based API with interactive Swagger documentation
-- **Database Caching**: Postgres-backed cache to reduce Apify API calls and costs
-- **Query Types**: Support for topic searches, profile searches, and reply threads
-- **Flexible Output**: Min/max output formats for tweets
-- **Query Registry**: Predefined queries with custom query support
+`mcp-twitter-apify` is a hybrid server that combines three access patterns in a single application:
+
+- **REST API** (`/api/*`, `/hybrid/*`): Traditional HTTP endpoints for direct integration
+- **MCP Protocol** (`/mcp`): Model Context Protocol endpoints for AI agent integration via FastMCP
+- **x402 Payment Middleware**: Optional pay-per-use functionality for monetized API access
+
+The server intelligently caches Twitter search results in PostgreSQL, dramatically reducing Apify API costs while maintaining data freshness through configurable TTLs per query type.
+
+## Key Features
+
+### 🔍 **Search Capabilities**
+- **Topic Search**: Search tweets by keyword/topic with sorting (Latest/Top), verified user filtering, and image-only filtering
+- **Profile Search**: Retrieve tweets from specific users with optional date range filtering
+- **Profile Latest**: Get the most recent tweets from users without date constraints
+- **Batch Operations**: Process multiple profile searches in parallel with error handling
+- **Reply Threads**: Fetch conversation threads via conversation IDs
+
+### 💾 **Intelligent Caching**
+- **PostgreSQL-Backed Cache**: Persistent, normalized storage of tweets and authors
+- **Configurable TTLs**: Different cache durations per query type:
+  - Topic (Latest): 15 minutes
+  - Topic (Top): 24 hours
+  - Profile: 30 minutes
+  - Replies: 1 hour
+- **Automatic Cache Management**: Deterministic cache keys ensure consistent results
+- **Cost Optimization**: Reduces Apify API calls by serving cached results when available
+
+### 🛠️ **Query Management**
+- **Query Registry**: Predefined queries for common use cases
+- **Custom Queries**: Support for ad-hoc searches with full parameter control
+- **Query Types**: Organized by topic, profile, and replies
+- **Query Execution**: Run predefined queries by ID with timeout control
+
+### 📊 **Output Formats**
+- **Min Format**: Compact JSON with essential tweet data
+- **Max Format**: Full tweet metadata including extended fields
+- **Normalized Data**: Consistent structure across all endpoints
+
+### 🔐 **Enterprise Features**
+- **x402 Payment Integration**: Optional pay-per-use API access via Coinbase Developer Platform
+- **Pricing Configuration**: YAML-based tool pricing with validation
+- **Admin Endpoints**: Log access and system monitoring
+- **Health Checks**: Built-in health monitoring endpoints
+
+### 🚀 **Developer Experience**
+- **Interactive Documentation**: Swagger UI and ReDoc for API exploration
+- **Docker Support**: Production-ready Docker images with multi-stage builds
+- **Comprehensive Testing**: Unit tests, integration tests, and MCP E2E tests
+- **Structured Logging**: Separate log files for different components
+- **Type Safety**: Full type hints and Pydantic validation
+
+## Architecture
+
+The server uses a hybrid architecture pattern:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    FastAPI Application                   │
+├─────────────────────────────────────────────────────────┤
+│  REST Routes (/api/*)  │  Hybrid Routes (/hybrid/*)    │
+│                        │  MCP Routes (/mcp)             │
+├─────────────────────────────────────────────────────────┤
+│              x402 Payment Middleware (Optional)         │
+├─────────────────────────────────────────────────────────┤
+│              TwitterScraper (Apify Client)             │
+├─────────────────────────────────────────────────────────┤
+│         PostgreSQL Cache (Query Results Storage)        │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Key Components:**
+- **FastMCP**: Converts FastAPI routes to MCP protocol endpoints
+- **TwitterScraper**: Wraps Apify actor with retry logic and caching
+- **Database Layer**: SQLAlchemy models with automatic table creation
+- **Query Registry**: Predefined query management system
 
 ## Installation
 
