@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from fastapi.testclient import TestClient
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
 
 from mcp_twitter.app import create_app
 from mcp_twitter.twitter import build_default_registry
@@ -94,12 +95,28 @@ class FakeTwitterScraper(FakeScraper):
         super().__init__(results_dir or Path("/tmp"))
 
 
-@pytest.fixture
-def mcp_client(monkeypatch, tmp_results_dir: Path) -> TestClient:
+@pytest_asyncio.fixture
+async def mcp_client(monkeypatch, tmp_results_dir: Path) -> AsyncClient:
     """Create test client with mocked scraper."""
-    app = create_app()
+    # Create app without lifespan to avoid anyio/Python 3.14 compatibility issues
+    from fastapi import FastAPI
+    from mcp_twitter.hybrid_routers import routers as hybrid_routers
+    from mcp_twitter.mcp_routers import routers as mcp_routers
+    
+    # Create app without lifespan for testing
+    app = FastAPI(
+        title="Twitter MCP Server - Test",
+        description="Test app without lifespan",
+        version="2.0.0",
+    )
+    
+    # Mount routers
+    for router in hybrid_routers:
+        app.include_router(router, prefix="/hybrid")
+    for router in mcp_routers:
+        app.include_router(router)
 
-    # Patch app state for registry and scraper
+    # Set up app state manually (bypassing lifespan)
     app.state.registry = build_default_registry()
     app.state.scraper = FakeScraper(tmp_results_dir)
 
@@ -108,13 +125,15 @@ def mcp_client(monkeypatch, tmp_results_dir: Path) -> TestClient:
 
     monkeypatch.setattr(scraper_mod, "TwitterScraper", FakeTwitterScraper)
 
-    return TestClient(app)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
+        yield ac
 
 
 @pytest.mark.asyncio
-async def test_summarize_tweets_returns_analysis(mcp_client: TestClient) -> None:
+async def test_summarize_tweets_returns_analysis(mcp_client: AsyncClient) -> None:
     """Test that summarize_tweets endpoint returns structured analysis."""
-    response = mcp_client.post(
+    response = await mcp_client.post(
         "/summarize_tweets",
         json={
             "topic": "AI",
@@ -148,27 +167,40 @@ async def test_summarize_tweets_returns_analysis(mcp_client: TestClient) -> None
 
 
 @pytest.mark.asyncio
-async def test_summarize_tweets_with_no_results(mcp_client: TestClient, monkeypatch) -> None:
+async def test_summarize_tweets_with_no_results(mcp_client: AsyncClient, monkeypatch) -> None:
     """Test summarize_tweets when no tweets are found."""
     # Create a scraper that returns no items
     class EmptyScraper(FakeScraper):
         def get_last_items(self) -> list[dict[str, Any]] | None:
             return None
 
-    app = mcp_client.app
+    # Note: We can't access mcp_client.app directly with AsyncClient
+    # Instead, we'll create a new client with the modified app
+    from fastapi import FastAPI
+    from mcp_twitter.hybrid_routers import routers as hybrid_routers
+    from mcp_twitter.mcp_routers import routers as mcp_routers
+    
+    app = FastAPI()
+    for router in hybrid_routers:
+        app.include_router(router, prefix="/hybrid")
+    for router in mcp_routers:
+        app.include_router(router)
+    app.state.registry = build_default_registry()
     app.state.scraper = EmptyScraper(Path("/tmp"))
+    
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
+        response = await ac.post(
+            "/summarize_tweets",
+            json={
+                "topic": "nonexistent_topic_xyz",
+                "max_items": 10,
+                "sort": "Latest",
+            },
+        )
 
-    response = mcp_client.post(
-        "/summarize_tweets",
-        json={
-            "topic": "nonexistent_topic_xyz",
-            "max_items": 10,
-            "sort": "Latest",
-        },
-    )
-
-    assert response.status_code == 200
-    body = response.json()
+        assert response.status_code == 200
+        body = response.json()
 
     assert body["tweet_count"] == 0
     assert body["key_themes"] == []
@@ -176,10 +208,10 @@ async def test_summarize_tweets_with_no_results(mcp_client: TestClient, monkeypa
 
 
 @pytest.mark.asyncio
-async def test_summarize_tweets_validates_input(mcp_client: TestClient) -> None:
+async def test_summarize_tweets_validates_input(mcp_client: AsyncClient) -> None:
     """Test that summarize_tweets validates input parameters."""
     # Test with invalid max_items (too high)
-    response = mcp_client.post(
+    response = await mcp_client.post(
         "/summarize_tweets",
         json={
             "topic": "AI",
@@ -191,7 +223,7 @@ async def test_summarize_tweets_validates_input(mcp_client: TestClient) -> None:
     assert response.status_code == 422  # Validation error
 
     # Test with missing topic
-    response = mcp_client.post(
+    response = await mcp_client.post(
         "/summarize_tweets",
         json={
             "max_items": 10,
@@ -203,9 +235,9 @@ async def test_summarize_tweets_validates_input(mcp_client: TestClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_mcp_search_topic_returns_items(mcp_client: TestClient) -> None:
+async def test_mcp_search_topic_returns_items(mcp_client: AsyncClient) -> None:
     """Test that MCP search_topic endpoint returns tweet items."""
-    response = mcp_client.post(
+    response = await mcp_client.post(
         "/search_topic",
         json={
             "topic": "AI",
@@ -226,9 +258,9 @@ async def test_mcp_search_topic_returns_items(mcp_client: TestClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_mcp_search_profile_returns_items(mcp_client: TestClient) -> None:
+async def test_mcp_search_profile_returns_items(mcp_client: AsyncClient) -> None:
     """Test that MCP search_profile endpoint returns tweet items."""
-    response = mcp_client.post(
+    response = await mcp_client.post(
         "/search_profile",
         json={
             "username": "testuser",
@@ -246,9 +278,9 @@ async def test_mcp_search_profile_returns_items(mcp_client: TestClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_mcp_search_profile_latest_returns_items(mcp_client: TestClient) -> None:
+async def test_mcp_search_profile_latest_returns_items(mcp_client: AsyncClient) -> None:
     """Test that MCP search_profile_latest endpoint returns tweet items."""
-    response = mcp_client.post(
+    response = await mcp_client.post(
         "/search_profile_latest",
         json={
             "username": "testuser",
@@ -266,9 +298,9 @@ async def test_mcp_search_profile_latest_returns_items(mcp_client: TestClient) -
 
 
 @pytest.mark.asyncio
-async def test_mcp_search_replies_returns_items(mcp_client: TestClient) -> None:
+async def test_mcp_search_replies_returns_items(mcp_client: AsyncClient) -> None:
     """Test that MCP search_replies endpoint returns tweet items."""
-    response = mcp_client.post(
+    response = await mcp_client.post(
         "/search_replies",
         json={
             "conversation_id": "1234567890",

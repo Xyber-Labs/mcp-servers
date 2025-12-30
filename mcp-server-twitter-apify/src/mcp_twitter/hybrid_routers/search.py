@@ -10,7 +10,7 @@ import logging
 from datetime import date
 from typing import Any
 
-import anyio
+import asyncio
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from pydantic import ConfigDict
@@ -197,7 +197,7 @@ async def search_topic(
             only_image=request.only_image,
             lang=request.lang,
         )
-        
+
         temp_scraper = TwitterScraper(
             apify_token=scraper.apify_token,
             results_dir=None,
@@ -205,9 +205,8 @@ async def search_topic(
             output_format=request.output_format,
             use_cache=True,
         )
-        
-        with anyio.fail_after(timeout_seconds):
-            items = await anyio.to_thread.run_sync(_run_query_and_read, temp_scraper, query)
+
+        items = await asyncio.to_thread(_run_query_and_read, temp_scraper, query)
         logger.info("topic search done topic=%r items=%d", request.topic, len(items))
         return items
     except Exception as e:
@@ -261,8 +260,7 @@ async def search_profile(
             use_cache=True,
         )
 
-        with anyio.fail_after(timeout_seconds):
-            items = await anyio.to_thread.run_sync(_run_query_and_read, temp_scraper, query)
+        items = await asyncio.to_thread(_run_query_and_read, temp_scraper, query)
         logger.info("profile search done user=%r items=%d", request.username, len(items))
         return items
     except Exception as e:
@@ -314,8 +312,7 @@ async def search_profile_latest(
             use_cache=True,
         )
 
-        with anyio.fail_after(timeout_seconds):
-            items = await anyio.to_thread.run_sync(_run_query_and_read, temp_scraper, query)
+        items = await asyncio.to_thread(_run_query_and_read, temp_scraper, query)
         logger.info("profile latest done user=%r items=%d", request.username, len(items))
         return items
     except Exception as e:
@@ -365,8 +362,7 @@ async def search_replies(
             use_cache=True,
         )
 
-        with anyio.fail_after(timeout_seconds):
-            items = await anyio.to_thread.run_sync(_run_query_and_read, temp_scraper, query)
+        items = await asyncio.to_thread(_run_query_and_read, temp_scraper, query)
         logger.info(
             "replies search done conversation_id=%r items=%d",
             request.conversation_id,
@@ -418,35 +414,34 @@ async def search_profile_batch(
     )
 
     results: list[ProfileBatchResult] = []
-    with anyio.fail_after(timeout_seconds):
-        for username in usernames:
-            try:
-                logger.info(
-                    "profile batch item start user=%r max_items=%s since=%r until=%r lang=%s format=%s",
-                    username,
-                    request.max_items,
-                    request.since,
-                    request.until,
-                    request.lang,
-                    request.output_format,
+    for username in usernames:
+        try:
+            logger.info(
+                "profile batch item start user=%r max_items=%s since=%r until=%r lang=%s format=%s",
+                username,
+                request.max_items,
+                request.since,
+                request.until,
+                request.lang,
+                request.output_format,
+            )
+            query = create_profile_query(
+                username,
+                max_items=request.max_items,
+                since=request.since.isoformat() if request.since else None,
+                until=request.until.isoformat() if request.until else None,
+                lang=request.lang,
+            )
+            items = await asyncio.to_thread(_run_query_and_read, temp_scraper, query)
+            results.append(ProfileBatchResult(username=username, items=items, error=None))
+        except Exception as e:
+            logger.exception("profile batch item failed user=%r error=%s", username, e)
+            if not request.continue_on_error:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Batch search failed for username={username!r}: {str(e)}",
                 )
-                query = create_profile_query(
-                    username,
-                    max_items=request.max_items,
-                    since=request.since.isoformat() if request.since else None,
-                    until=request.until.isoformat() if request.until else None,
-                    lang=request.lang,
-                )
-                items = await anyio.to_thread.run_sync(_run_query_and_read, temp_scraper, query)
-                results.append(ProfileBatchResult(username=username, items=items, error=None))
-            except Exception as e:
-                logger.exception("profile batch item failed user=%r error=%s", username, e)
-                if not request.continue_on_error:
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"Batch search failed for username={username!r}: {str(e)}",
-                    )
-                results.append(ProfileBatchResult(username=username, items=[], error=str(e)))
+            results.append(ProfileBatchResult(username=username, items=[], error=str(e)))
 
     return results
 
@@ -491,33 +486,32 @@ async def search_profile_latest_batch(
     )
 
     results: list[ProfileBatchResult] = []
-    with anyio.fail_after(timeout_seconds):
-        for username in usernames:
-            try:
-                logger.info(
-                    "profile latest batch item start user=%r max_items=%s lang=%s format=%s",
-                    username,
-                    request.max_items,
-                    request.lang,
-                    request.output_format,
+    for username in usernames:
+        try:
+            logger.info(
+                "profile latest batch item start user=%r max_items=%s lang=%s format=%s",
+                username,
+                request.max_items,
+                request.lang,
+                request.output_format,
+            )
+            query = create_profile_query(
+                username,
+                max_items=request.max_items,
+                since=None,
+                until=None,
+                lang=request.lang,
+            )
+            items = await asyncio.to_thread(_run_query_and_read, temp_scraper, query)
+            results.append(ProfileBatchResult(username=username, items=items, error=None))
+        except Exception as e:
+            logger.exception("profile latest batch item failed user=%r error=%s", username, e)
+            if not request.continue_on_error:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Batch latest search failed for username={username!r}: {str(e)}",
                 )
-                query = create_profile_query(
-                    username,
-                    max_items=request.max_items,
-                    since=None,
-                    until=None,
-                    lang=request.lang,
-                )
-                items = await anyio.to_thread.run_sync(_run_query_and_read, temp_scraper, query)
-                results.append(ProfileBatchResult(username=username, items=items, error=None))
-            except Exception as e:
-                logger.exception("profile latest batch item failed user=%r error=%s", username, e)
-                if not request.continue_on_error:
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"Batch latest search failed for username={username!r}: {str(e)}",
-                    )
-                results.append(ProfileBatchResult(username=username, items=[], error=str(e)))
+            results.append(ProfileBatchResult(username=username, items=[], error=str(e)))
 
     return results
 
@@ -551,8 +545,7 @@ async def run_query(
     
     try:
         logger.info("preset run start id=%s type=%s name=%r timeout=%ss", query.id, query.type, query.name, timeout_seconds)
-        with anyio.fail_after(timeout_seconds):
-            items = await anyio.to_thread.run_sync(_run_query_and_read, scraper, query)
+        items = await asyncio.to_thread(_run_query_and_read, scraper, query)
         logger.info("preset run done id=%s items=%d", query.id, len(items))
         return items
     except Exception as e:

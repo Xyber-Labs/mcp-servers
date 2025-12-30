@@ -5,7 +5,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from fastapi.testclient import TestClient
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
 
 from mcp_twitter.app import create_app
 from mcp_twitter.twitter import build_default_registry
@@ -43,12 +44,28 @@ class FakeTwitterScraper(FakeScraper):
         super().__init__(results_dir or Path("/tmp"))
 
 
-@pytest.fixture
-def client(monkeypatch, tmp_results_dir: Path) -> TestClient:
-    # Create app and patch app state instead of module globals
-    app = create_app()
+@pytest_asyncio.fixture
+async def client(monkeypatch, tmp_results_dir: Path) -> AsyncClient:
+    # Create app without lifespan to avoid anyio/Python 3.14 compatibility issues
+    from fastapi import FastAPI
+    from mcp_twitter.api_routers import routers as api_routers
+    from mcp_twitter.hybrid_routers import routers as hybrid_routers
+    from mcp_twitter.mcp_routers import routers as mcp_routers
     
-    # Patch app state for registry and scraper
+    # Create app without lifespan for testing
+    app = FastAPI(
+        title="Twitter MCP Server (Hybrid) - Test",
+        description="Test app without lifespan",
+        version="2.0.0",
+    )
+    
+    # Mount routers
+    for router in api_routers:
+        app.include_router(router, prefix="/api")
+    for router in hybrid_routers:
+        app.include_router(router, prefix="/hybrid")
+    
+    # Set up app state manually (bypassing lifespan)
     app.state.registry = build_default_registry()
     app.state.scraper = FakeScraper(tmp_results_dir)
     
@@ -56,37 +73,44 @@ def client(monkeypatch, tmp_results_dir: Path) -> TestClient:
     from mcp_twitter.twitter import scraper as scraper_mod
     monkeypatch.setattr(scraper_mod, "TwitterScraper", FakeTwitterScraper)
     
-    return TestClient(app)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
+        yield ac
 
 
-def test_health(client: TestClient) -> None:
-    r = client.get("/health")
+@pytest.mark.asyncio
+async def test_health(client: AsyncClient) -> None:
+    r = await client.get("/api/health")
     assert r.status_code == 200
-    assert r.json()["status"] == "healthy"
+    assert r.json()["status"] == "ok"
 
 
-def test_root(client: TestClient) -> None:
-    r = client.get("/")
+@pytest.mark.asyncio
+async def test_root(client: AsyncClient) -> None:
+    r = await client.get("/api/")
     assert r.status_code == 200
     body = r.json()
     assert body["service"] == "Twitter Scraper API"
 
 
-def test_list_types(client: TestClient) -> None:
-    r = client.get("/api/v1/types")
+@pytest.mark.asyncio
+async def test_list_types(client: AsyncClient) -> None:
+    r = await client.get("/api/v1/types")
     assert r.status_code == 200
     types = {t["type"] for t in r.json()}
     assert {"topic", "profile", "replies"} <= types
 
 
-def test_list_queries(client: TestClient) -> None:
-    r = client.get("/api/v1/queries")
+@pytest.mark.asyncio
+async def test_list_queries(client: AsyncClient) -> None:
+    r = await client.get("/api/v1/queries")
     assert r.status_code == 200
     assert any(q["id"] == "1" for q in r.json())
 
 
-def test_search_topic_uses_fake_scraper_and_returns_items(client: TestClient) -> None:
-    r = client.post(
+@pytest.mark.asyncio
+async def test_search_topic_uses_fake_scraper_and_returns_items(client: AsyncClient) -> None:
+    r = await client.post(
         "/hybrid/v1/search/topic",
         json={
             "topic": "Quantum",
@@ -103,16 +127,18 @@ def test_search_topic_uses_fake_scraper_and_returns_items(client: TestClient) ->
     assert items and items[0]["id"] == "1"
 
 
-def test_list_results(client: TestClient) -> None:
+@pytest.mark.asyncio
+async def test_list_results(client: AsyncClient) -> None:
     """Test that results endpoint returns cache status."""
-    r = client.get("/api/v1/results")
+    r = await client.get("/api/v1/results")
     assert r.status_code == 200
     result = r.json()
     assert "message" in result or "cache_enabled" in result
 
 
-def test_search_profile_batch_returns_items_per_username(client: TestClient) -> None:
-    r = client.post(
+@pytest.mark.asyncio
+async def test_search_profile_batch_returns_items_per_username(client: AsyncClient) -> None:
+    r = await client.post(
         "/hybrid/v1/search/profile/batch",
         json={
             "usernames": ["elonmusk", "@jack"],
@@ -131,8 +157,9 @@ def test_search_profile_batch_returns_items_per_username(client: TestClient) -> 
     assert body[0]["error"] is None
 
 
-def test_search_profile_batch_continue_on_error_returns_error_entry(
-    client: TestClient, monkeypatch
+@pytest.mark.asyncio
+async def test_search_profile_batch_continue_on_error_returns_error_entry(
+    client: AsyncClient, monkeypatch
 ) -> None:
     from mcp_twitter.twitter import TwitterScraper
     from mcp_twitter.twitter import scraper as scraper_mod
@@ -150,7 +177,7 @@ def test_search_profile_batch_continue_on_error_returns_error_entry(
 
     monkeypatch.setattr(scraper_mod, "TwitterScraper", ErroringFakeTwitterScraper)
 
-    r = client.post(
+    r = await client.post(
         "/hybrid/v1/search/profile/batch",
         json={
             "usernames": ["gooduser", "baduser"],
@@ -169,8 +196,9 @@ def test_search_profile_batch_continue_on_error_returns_error_entry(
     assert body[1]["error"] == "boom"
 
 
-def test_search_profile_batch_splits_comma_separated_usernames(client: TestClient) -> None:
-    r = client.post(
+@pytest.mark.asyncio
+async def test_search_profile_batch_splits_comma_separated_usernames(client: AsyncClient) -> None:
+    r = await client.post(
         "/hybrid/v1/search/profile/batch",
         json={
             "usernames": ["elonmusk, xybrainz"],
@@ -185,8 +213,9 @@ def test_search_profile_batch_splits_comma_separated_usernames(client: TestClien
     assert [row["username"] for row in body] == ["elonmusk", "xybrainz"]
 
 
-def test_search_profile_latest_batch_returns_items_per_username(client: TestClient) -> None:
-    r = client.post(
+@pytest.mark.asyncio
+async def test_search_profile_latest_batch_returns_items_per_username(client: AsyncClient) -> None:
+    r = await client.post(
         "/hybrid/v1/search/profile/latest/batch",
         json={
             "usernames": ["elonmusk", "@jack"],
@@ -205,8 +234,9 @@ def test_search_profile_latest_batch_returns_items_per_username(client: TestClie
     assert body[0]["error"] is None
 
 
-def test_search_profile_latest_batch_splits_comma_separated_usernames(client: TestClient) -> None:
-    r = client.post(
+@pytest.mark.asyncio
+async def test_search_profile_latest_batch_splits_comma_separated_usernames(client: AsyncClient) -> None:
+    r = await client.post(
         "/hybrid/v1/search/profile/latest/batch",
         json={
             "usernames": ["elonmusk, xybrainz"],
@@ -221,9 +251,10 @@ def test_search_profile_latest_batch_splits_comma_separated_usernames(client: Te
     assert [row["username"] for row in body] == ["elonmusk", "xybrainz"]
 
 
-def test_get_results_deprecated(client: TestClient) -> None:
+@pytest.mark.asyncio
+async def test_get_results_deprecated(client: AsyncClient) -> None:
     """Test that file-based results endpoint is deprecated."""
-    r = client.get("/api/v1/results/test.json")
+    r = await client.get("/api/v1/results/test.json")
     assert r.status_code == 410  # Gone
 
 

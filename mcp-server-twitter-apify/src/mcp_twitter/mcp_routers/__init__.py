@@ -6,11 +6,9 @@ Main responsibility: Collect MCP-only FastAPI routers into a single list for inc
 
 from fastapi import APIRouter
 
-from .analysis import router as analysis_router
 from .search import router as search_router
 
 routers: list[APIRouter] = [
     search_router,
-    analysis_router,
 ]
 

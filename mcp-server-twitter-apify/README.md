@@ -5,7 +5,6 @@ A FastAPI-based Twitter scraper service using Apify's `apidojo/twitter-scraper-l
 ## Features
 
 - **REST API**: FastAPI-based API with interactive Swagger documentation
-- **CLI Tool**: Command-line interface for running queries
 - **Database Caching**: Postgres-backed cache to reduce Apify API calls and costs
 - **Query Types**: Support for topic searches, profile searches, and reply threads
 - **Flexible Output**: Min/max output formats for tweets
@@ -95,43 +94,6 @@ jdbc:postgresql://localhost:5432/mcp_twitter_apify
 ```
 
 ## Usage
-
-### CLI Mode
-
-**List available query types:**
-```bash
-python -m mcp_twitter --list-types
-```
-
-**List all queries:**
-```bash
-python -m mcp_twitter --list
-```
-
-**Run a topic search:**
-```bash
-python -m mcp_twitter --topic "AI news" --max-items 50 --sort Top
-```
-
-**Run a profile search:**
-```bash
-python -m mcp_twitter --profile elonmusk --max-items 100
-```
-
-**Run a profile search with date range:**
-```bash
-python -m mcp_twitter --profile elonmusk --since 2025-12-01 --until 2025-12-31
-```
-
-**Run a replies search:**
-```bash
-python -m mcp_twitter --replies 1728108619189874825
-```
-
-**Run specific queries by ID:**
-```bash
-python -m mcp_twitter 1 3 5
-```
 
 ### API Server Mode
 
@@ -290,7 +252,7 @@ CACHE_TTL_REPLIES=3600          # 1 hour
 2. Check cache → If valid and not expired, return cached results
 3. If cache miss → Call Apify API
 4. Save results → Store tweets/authors in Postgres with TTL
-5. Return results → Serve to API/CLI
+5. Return results → Serve to API
 
 ## Database Schema
 
@@ -331,8 +293,6 @@ uv run pytest tests/ --cov=src --cov-report=html
 mcp-twitter/
 ├── src/
 │   ├── mcp_twitter/      # Main application package
-│   │   ├── api.py        # FastAPI routes
-│   │   ├── cli.py        # CLI interface
 │   │   ├── config.py     # Configuration
 │   │   ├── scraper.py    # Apify scraper wrapper
 │   │   └── ...
