@@ -95,12 +95,35 @@ jdbc:postgresql://localhost:5432/mcp_twitter_apify
 
 ## Usage
 
+**⚠️ Important:** Before starting the server, ensure PostgreSQL is running. If you haven't started it yet, run:
+
+```bash
+docker run -d --name mcp-postgres \
+  -e POSTGRES_DB=mcp_twitter_apify \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -p 5432:5432 \
+  -v pgdata_mcp:/var/lib/postgresql/data \
+  postgres:15-alpine
+```
+
+If the container already exists, start it with:
+```bash
+docker start mcp-postgres
+```
+
 ### API Server Mode
 
 Start the FastAPI server:
 
 ```bash
-python -m mcp_twitter --serve --host 0.0.0.0 --port 8002
+uv run python -m mcp_twitter --host 0.0.0.0 --port 8002
+```
+
+Or with hot reload for development:
+
+```bash
+uv run python -m mcp_twitter --host 0.0.0.0 --port 8002 --reload
 ```
 
 The API will be available at:

@@ -161,10 +161,9 @@ async def test_search_profile_batch_returns_items_per_username(client: AsyncClie
 async def test_search_profile_batch_continue_on_error_returns_error_entry(
     client: AsyncClient, monkeypatch
 ) -> None:
-    from mcp_twitter.twitter import TwitterScraper
     from mcp_twitter.twitter import scraper as scraper_mod
     
-    class ErroringFakeTwitterScraper(TwitterScraper):  # type: ignore[misc]
+    class ErroringFakeTwitterScraper(FakeTwitterScraper):  # type: ignore[misc]
         def run_query(self, query) -> Path:  # noqa: ANN001
             term = ""
             try:

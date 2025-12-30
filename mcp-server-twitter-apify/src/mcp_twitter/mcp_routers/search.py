@@ -11,7 +11,6 @@ import logging
 from datetime import date
 from typing import Any
 
-import asyncio
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -26,6 +25,7 @@ from mcp_twitter.twitter import (
     create_replies_query,
     create_topic_query,
 )
+from mcp_twitter.twitter import scraper as scraper_mod
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -43,36 +43,32 @@ def _get_scraper(request: Request) -> TwitterScraper:
 
 def _run_query_and_read(temp_scraper: TwitterScraper, query: QueryDefinition) -> list[dict[str, Any]]:
     """Run query and return items directly from scraper (which uses DB cache)."""
-    # Check for test error condition
-    if hasattr(query.input, 'searchTerms') and query.input.searchTerms:
-        term = query.input.searchTerms[0]
-        if "from:baduser" in term:
-            raise ValueError("boom")
-
-    # For MCP tests, return the fake data
-    return [
-        {
-            "id": "1234567890",
-            "text": "Great news about AI! This is amazing technology.",
-            "fullText": "Great news about AI! This is amazing technology. #AI #Tech",
-            "author": {
-                "id": "user123",
-                "userName": "techuser",
-                "name": "Tech User",
-                "url": "https://x.com/techuser",
-            },
-            "retweetCount": 10,
-            "replyCount": 5,
-            "likeCount": 50,
-        }
-    ]
+    temp_scraper.run_query(query)
+    items = temp_scraper.get_last_items()
+    if items is None:
+        return []
+    return [i for i in items if isinstance(i, dict)]
 
 
 # Request Models (same as hybrid routers)
 class TopicSearchRequest(BaseModel):
     """Request model for topic/keyword search."""
 
-    topic: str = Field(..., description="Search keyword/topic")
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "topic": "quantun computing",
+                "max_items": 10,
+                "sort": "Latest",
+                "only_verified": False,
+                "only_image": False,
+                "lang": "en",
+                "output_format": "min",
+            }
+        }
+    )
+
+    topic: str = Field(..., description="Search keyword/topic", examples=["quantun computing"])
     max_items: int = Field(100, ge=1, le=1000, description="Maximum items to fetch")
     sort: SortOrder = Field("Latest", description="Sort order: Latest or Top")
     only_verified: bool = Field(False, description="Only verified users")
@@ -247,7 +243,7 @@ async def search_topic(
             lang=request.lang,
         )
 
-        temp_scraper = TwitterScraper(
+        temp_scraper = scraper_mod.TwitterScraper(
             apify_token=scraper.apify_token,
             results_dir=None,
             actor_name=scraper.actor_id,
@@ -306,7 +302,7 @@ async def search_profile(
             lang=request.lang,
         )
 
-        temp_scraper = TwitterScraper(
+        temp_scraper = scraper_mod.TwitterScraper(
             apify_token=scraper.apify_token,
             results_dir=None,
             actor_name=scraper.actor_id,
@@ -363,7 +359,7 @@ async def search_profile_latest(
             lang=request.lang,
         )
 
-        temp_scraper = TwitterScraper(
+        temp_scraper = scraper_mod.TwitterScraper(
             apify_token=scraper.apify_token,
             results_dir=None,
             actor_name=scraper.actor_id,
@@ -418,7 +414,7 @@ async def search_replies(
             lang=request.lang,
         )
 
-        temp_scraper = TwitterScraper(
+        temp_scraper = scraper_mod.TwitterScraper(
             apify_token=scraper.apify_token,
             results_dir=None,
             actor_name=scraper.actor_id,
@@ -470,7 +466,7 @@ async def search_profile_batch(
     if not usernames:
         raise HTTPException(status_code=422, detail="usernames must contain at least one non-empty username")
 
-    temp_scraper = TwitterScraper(
+    temp_scraper = scraper_mod.TwitterScraper(
         apify_token=scraper.apify_token,
         results_dir=None,
         actor_name=scraper.actor_id,
@@ -547,7 +543,7 @@ async def search_profile_latest_batch(
     if not usernames:
         raise HTTPException(status_code=422, detail="usernames must contain at least one non-empty username")
 
-    temp_scraper = TwitterScraper(
+    temp_scraper = scraper_mod.TwitterScraper(
         apify_token=scraper.apify_token,
         results_dir=None,
         actor_name=scraper.actor_id,
