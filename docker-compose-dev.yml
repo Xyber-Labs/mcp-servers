@@ -1,0 +1,104 @@
+x-qdrant-config: &qdrant-config
+  # Qdrant connection settings for debugging
+  QDRANT_HOST: qdrant
+  QDRANT_PORT: 6333
+  QDRANT_GRPC_PORT: 6334
+  QDRANT_API_KEY: ""  # No API key needed for local development
+
+x-postgres-config: &postgres-config
+  # Postgres environment variables for the postgres service itself
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_DB: mcpdb
+
+x-db-config: &db-config
+  # Database connection settings for services that connect to postgres
+  DB_HOST: postgres
+  DB_PORT: 5432
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+
+services:
+
+  mcp_server_arxiv:
+    build:
+      context: ./mcp-server-arxiv
+      dockerfile: Dockerfile
+    image: mcp_server_arxiv
+    container_name: mcp_server_arxiv
+    command: ["python", "-m", "mcp_server_arxiv", "--port", "8100"]
+    ports:
+      - "8100:8100"
+    env_file:
+      - ./mcp-server-arxiv/.env
+    restart: unless-stopped
+
+  mcp_server_tavily:
+    build:
+      context: ./mcp-server-tavily
+      dockerfile: Dockerfile
+    image: mcp_server_tavily
+    container_name: mcp_server_tavily
+    command: ["python", "-m", "mcp_server_tavily", "--port", "8106"]
+    ports:
+      - "8106:8106"
+    env_file:
+      - ./mcp-server-tavily/.env
+    restart: unless-stopped
+
+  mcp_server_youtube_v2:
+    build:
+      context: ./mcp-server-youtube-v2
+      dockerfile: Dockerfile
+    image: mcp_server_youtube_v2
+    container_name: mcp_server_youtube_v2
+    command: ["python", "-m", "mcp_server_youtube_v2", "--port", "8111"]
+    ports:
+      - "8111:8111"
+    env_file:
+      - ./mcp-server-youtube-v2/.env
+    environment:
+      <<: *db-config
+      DB_NAME: mcp_youtube
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  mcp_server_twitter_apify:
+    build:
+      context: ./mcp-server-twitter-apify
+      dockerfile: Dockerfile
+    image: mcp_server_twitter_apify
+    container_name: mcp_server_twitter_apify
+    command: ["python", "-m", "mcp_server_twitter_apify", "--port", "8109"]
+    ports:
+      - "8109:8109"
+    env_file:
+      - ./mcp-server-twitter-apify/.env
+    environment:
+      <<: *db-config
+      DB_NAME: mcp_twitter_apify
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres_db
+    environment:
+      <<: *postgres-config
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  qdrant-data:
+  postgres-data:
