@@ -85,7 +85,7 @@ def create_app() -> FastAPI:
     Create and configure the main FastAPI application.
 
     This factory function:
-    1. Creates an MCP server from hybrid and MCP-only routers
+    1. Creates an MCP server from MCP-only routers (hybrid routers are REST-only)
     2. Combines lifespans for proper resource management
     3. Configures API routes with appropriate prefixes
     4. Sets up x402 payment middleware
@@ -98,8 +98,7 @@ def create_app() -> FastAPI:
     # --- MCP Server Generation ---
     # Create a FastAPI app containing only MCP-exposed endpoints
     mcp_source_app = FastAPI(title="MCP Source")
-    for router in hybrid_routers:
-        mcp_source_app.include_router(router)
+    # Only include MCP-only routers (not hybrid routers which are REST + MCP)
     for router in mcp_routers:
         mcp_source_app.include_router(router)
 
@@ -134,7 +133,7 @@ def create_app() -> FastAPI:
     for router in api_routers:
         app.include_router(router, prefix="/api")
 
-    # Hybrid routes: accessible via /hybrid/* (REST) and /mcp (MCP)
+    # Hybrid routes: accessible via /hybrid/* (REST only, not exposed as MCP tools)
     for router in hybrid_routers:
         app.include_router(router, prefix="/hybrid")
 
