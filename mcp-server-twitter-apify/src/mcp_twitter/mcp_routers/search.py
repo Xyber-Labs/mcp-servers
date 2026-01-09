@@ -58,9 +58,9 @@ class TopicSearchRequest(BaseModel):
         json_schema_extra={
             "example": {
                 "topic": "quantum computing",
-                "max_items": 10,
+                "max_items": 50,
                 "sort": "Latest",
-                "only_verified": False,
+                "only_verified": True,
                 "only_image": False,
                 "lang": "en",
                 "output_format": "min",
@@ -69,9 +69,9 @@ class TopicSearchRequest(BaseModel):
     )
 
     topic: str = Field(..., description="Search keyword/topic", examples=["quantum computing"])
-    max_items: int = Field(100, ge=1, le=1000, description="Maximum items to fetch")
+    max_items: int = Field(50, ge=1, le=1000, description="Maximum items to fetch")
     sort: SortOrder = Field("Latest", description="Sort order: Latest or Top")
-    only_verified: bool = Field(False, description="Only verified users")
+    only_verified: bool = Field(True, description="Only verified users")
     only_image: bool = Field(False, description="Only tweets with images")
     lang: str = Field("en", description="Tweet language code")
     output_format: OutputFormat = Field("min", description="Output format: min or max")
