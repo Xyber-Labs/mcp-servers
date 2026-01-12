@@ -14,6 +14,31 @@ docker run -d \
 # If you need to recreate them, stop and remove the container and volume:
 # docker stop mcp-postgres && docker rm mcp-postgres && docker volume rm mcp-postgres-data
 
+# Connect to Postgres in DBeaver:
+# 1. Open DBeaver
+# 2. Click "New Database Connection" (or Database > New Database Connection)
+# 3. Select "PostgreSQL" and click Next
+# 4. Enter connection details:
+#    - Host: localhost
+#    - Port: 5432
+#    - Database: mcpdb (or mcp_youtube, mcp_twitter_apify)
+#    - Username: postgres
+#    - Password: postgres
+# 5. Click "Test Connection" to verify
+# 6. Click "Finish" to save
+#
+# Available databases:
+#   - mcpdb (default database)
+#   - mcp_youtube (for YouTube service)
+#   - mcp_twitter_apify (for Twitter service)
+#
+# Note: Tables are created automatically when services start:
+#   - YouTube: youtube_videos table (created when mcp_server_youtube_v2 starts)
+#   - Twitter: twitter_tweets, twitter_authors, twitter_query_cache, twitter_query_cache_items
+#              (created when mcp_server_twitter_apify starts)
+# If you don't see tables, make sure the services are running:
+#   docker-compose -f docker-compose-dev.yml up -d mcp_server_youtube_v2 mcp_server_twitter_apify
+
 # Start only arxiv MCP service (for testing)
 docker-compose -f docker-compose-dev.yml up -d mcp_server_arxiv
 
