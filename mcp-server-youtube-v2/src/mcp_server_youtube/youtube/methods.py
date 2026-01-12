@@ -38,6 +38,12 @@ class NullDatabaseManager:
 
     def batch_check_transcripts(self, video_ids: List[str]) -> Dict[str, bool]:
         return {video_id: False for video_id in video_ids}
+    
+    def video_exists(self, video_id: str) -> bool:
+        return False
+    
+    def batch_check_video_exists(self, video_ids: List[str]) -> Dict[str, bool]:
+        return {video_id: False for video_id in video_ids}
 
 
 class DatabaseManager:
@@ -206,18 +212,49 @@ class DatabaseManager:
     def batch_check_transcripts(self, video_ids: List[str]) -> Dict[str, bool]:
         """
         Check which videos have transcripts in database.
+        Also checks if video exists (even with failed transcript) to avoid retrying.
 
         Args:
             video_ids: List of YouTube video IDs
 
         Returns:
-            Dictionary mapping video_id to boolean (True if transcript exists)
+            Dictionary mapping video_id to boolean (True if transcript exists and is successful)
         """
         videos = self.batch_get_videos(video_ids)
         return {
             video_id: (
                 video is not None and video.transcript_success and video.transcript is not None
             )
+            for video_id, video in videos.items()
+        }
+    
+    def video_exists(self, video_id: str) -> bool:
+        """
+        Check if video exists in database (regardless of transcript success).
+
+        Args:
+            video_id: YouTube video ID
+
+        Returns:
+            True if video exists in database, False otherwise
+        """
+        video = self.get_video(video_id)
+        return video is not None
+    
+    def batch_check_video_exists(self, video_ids: List[str]) -> Dict[str, bool]:
+        """
+        Check which videos exist in database (regardless of transcript success).
+        Used to avoid retrying transcript extraction for videos we've already attempted.
+
+        Args:
+            video_ids: List of YouTube video IDs
+
+        Returns:
+            Dictionary mapping video_id to boolean (True if video exists in DB)
+        """
+        videos = self.batch_get_videos(video_ids)
+        return {
+            video_id: video is not None
             for video_id, video in videos.items()
         }
 

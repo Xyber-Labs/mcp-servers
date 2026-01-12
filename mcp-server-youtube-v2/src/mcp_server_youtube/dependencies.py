@@ -14,15 +14,11 @@ def get_youtube_service() -> YouTubeVideoSearchAndTranscript:
 
 
 def get_youtube_service_search_only() -> YouTubeVideoSearchAndTranscript:
-    """Dependency to get YouTube service instance for search-only (no Apify required)."""
-    from mcp_server_youtube.config import get_app_settings
+    """Dependency to get YouTube service instance for search-only.
     
-    settings = get_app_settings()
-    return YouTubeVideoSearchAndTranscript(
-        delay_between_requests=settings.youtube.delay_between_requests,
-        apify_api_token=None,
-        require_apify=False,
-    )
+    Note: Search now requires Apify API token, so this uses the same service as get_youtube_service().
+    """
+    return get_youtube_client()
 
 
 @lru_cache(maxsize=1)

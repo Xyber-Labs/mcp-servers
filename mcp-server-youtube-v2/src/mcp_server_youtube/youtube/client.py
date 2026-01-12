@@ -9,8 +9,8 @@ import logging
 from functools import lru_cache
 from datetime import datetime
 
-import yt_dlp
 from apify_client import ApifyClient
+from apify_client.errors import ApifyApiError
 
 from mcp_server_youtube.config import get_app_settings
 from mcp_server_youtube.youtube.api_models import YouTubeSearchResult, ApifyTranscriptResult
@@ -47,6 +47,7 @@ class YouTubeVideoSearchAndTranscript:
             delay_between_requests: Seconds to wait between API calls. Defaults to config value.
             apify_api_token: Apify API token. Defaults to config value if not provided.
             require_apify: If False, skip Apify initialization (for search-only mode).
+                          Note: Search now requires Apify, so this only affects transcript extraction.
         """
         settings = get_app_settings()
         self.delay = delay_between_requests or settings.youtube.delay_between_requests
@@ -59,11 +60,10 @@ class YouTubeVideoSearchAndTranscript:
 
         if require_apify and not self.apify_api_token:
             # Keep initialization non-fatal so the server can still run for
-            # search-only use cases and so request validation (422) isn't masked
-            # by dependency resolution errors in tests.
+            # request validation (422) isn't masked by dependency resolution errors in tests.
             logger.warning(
-                "Apify API token is not configured. Transcript features will be unavailable. "
-                "Set APIFY_TOKEN in your environment to enable transcript extraction."
+                "Apify API token is not configured. Search and transcript features will be unavailable. "
+                "Set APIFY_TOKEN in your environment to enable YouTube search and transcript extraction."
             )
 
         if self.apify_api_token:
@@ -89,13 +89,29 @@ class YouTubeVideoSearchAndTranscript:
         # ApifyTranscriptResult is made dict-like in api_models.py, so __getitem__ works too.
         return getattr(transcript_result, field, default)
 
-    async def search_videos(self, query: str, max_results: int | None = None) -> list[YouTubeSearchResult]:
+    async def search_videos(
+        self,
+        query: str,
+        max_results: int | None = None,
+        exclude_shorts: bool = False,
+        shorts_only: bool = False,
+        upload_date_filter: str = "",
+        sort_by: str = "relevance",
+        sleep_interval: int = 2,
+        max_retries: int = 3,
+    ) -> list[YouTubeSearchResult]:
         """
-        Search YouTube for videos matching a query using yt-dlp.
+        Search YouTube for videos matching a query using Apify YouTube Search actor.
 
         Args:
             query: Search topic (e.g., "quantum computing")
             max_results: Number of videos to return (defaults to config value)
+            exclude_shorts: Exclude YouTube Shorts from results
+            shorts_only: Return only YouTube Shorts
+            upload_date_filter: Filter by upload date (e.g., 'today', 'week', 'month', 'year')
+            sort_by: Sort order: 'relevance', 'rating', 'upload_date', 'view_count'
+            sleep_interval: Sleep interval between requests (seconds)
+            max_retries: Maximum number of retries for failed requests
 
         Returns:
             List of YouTubeSearchResult BaseModels
@@ -104,79 +120,128 @@ class YouTubeVideoSearchAndTranscript:
         if max_results is None:
             max_results = settings.youtube.max_results
 
+        if not self.apify_client:
+            logger.error("❌ Apify client not initialized. APIFY_TOKEN is required for search.")
+            return []
+
+        actor_id = "qoA27OkGHoMSJGBtf"
         logger.info(f"🔍 Searching YouTube for: '{query}' (max_results: {max_results})")
+        logger.info(f"📡 Using Apify Actor: {actor_id} (maged120/youtube-search)")
 
         try:
+            # Prepare the Actor input
+            run_input = {
+                "query": query,
+                "max_results": max_results,
+                "shorts_only": shorts_only,
+                "exclude_shorts": exclude_shorts,
+                "upload_date_filter": upload_date_filter,
+                "sort_by": sort_by,
+                "sleep_interval": sleep_interval,
+                "max_retries": max_retries,
+            }
+            logger.debug(f"📤 Actor input: {run_input}")
 
-            def search_with_ytdlp():
-                ydl_opts = {
-                    "quiet": True,
-                    "no_warnings": True,
-                    "extract_flat": False,
-                    "default_search": "ytsearch",
-                    "noplaylist": True,
-                    "writesubtitles": False,
-                    "writeautomaticsub": False,
-                    "skip_download": True,
+            # Run the Actor and wait for it to finish
+            def run_apify_search():
+                logger.info(f"🚀 Calling Apify Actor: {actor_id}")
+                run = self.apify_client.actor(actor_id).call(run_input=run_input)
+                
+                # Fetch Actor results from the run's dataset
+                items = []
+                for item in self.apify_client.dataset(run["defaultDatasetId"]).iterate_items():
+                    items.append(item)
+                return items
+
+            dataset_items = await asyncio.to_thread(run_apify_search)
+
+            if not dataset_items:
+                logger.warning("No video entries found in search results")
+                return []
+
+            logger.info(f"Found {len(dataset_items)} video entries, processing...")
+
+            results = []
+            for item in dataset_items:
+                if not item:
+                    continue
+
+                # Map Apify response fields to YouTubeSearchResult format
+                # Apify response format may vary, so we handle multiple possible field names
+                video_id = item.get("videoId") or item.get("video_id") or item.get("id")
+                if not video_id:
+                    continue
+
+                # Extract video URL
+                video_url = item.get("url") or item.get("videoUrl") or f"https://www.youtube.com/watch?v={video_id}"
+
+                # Normalize upload_date format if present
+                upload_date = item.get("uploadDate") or item.get("upload_date") or item.get("publishedAt") or item.get("published_at")
+                if upload_date and isinstance(upload_date, str):
+                    # Try to parse various date formats
+                    try:
+                        if "T" in upload_date:
+                            upload_date_obj = datetime.fromisoformat(upload_date.replace("Z", "+00:00"))
+                            upload_date = upload_date_obj.strftime("%Y-%m-%d")
+                        elif len(upload_date) == 8 and upload_date.isdigit():
+                            upload_date_obj = datetime.strptime(upload_date, "%Y%m%d")
+                            upload_date = upload_date_obj.strftime("%Y-%m-%d")
+                    except (ValueError, TypeError):
+                        pass
+
+                # Build normalized entry dict
+                entry = {
+                    "id": video_id,
+                    "video_id": video_id,
+                    "display_id": video_id,
+                    "title": item.get("title", "Unknown"),
+                    "channel": item.get("channelName") or item.get("channel") or item.get("channel_name") or "Unknown",
+                    "channel_id": item.get("channelId") or item.get("channel_id"),
+                    "channel_url": item.get("channelUrl") or item.get("channel_url"),
+                    "uploader": item.get("channelName") or item.get("channel") or item.get("channel_name"),
+                    "uploader_id": item.get("channelId") or item.get("channel_id"),
+                    "webpage_url": video_url,
+                    "url": video_url,
+                    "link": video_url,
+                    "link_suffix": f"/watch?v={video_id}",
+                    "duration": item.get("duration") or item.get("durationSeconds"),
+                    "view_count": item.get("viewCount") or item.get("views") or item.get("view_count"),
+                    "views": item.get("viewCount") or item.get("views") or item.get("view_count"),
+                    "like_count": item.get("likeCount") or item.get("likes") or item.get("like_count"),
+                    "likes": item.get("likeCount") or item.get("likes") or item.get("like_count"),
+                    "comment_count": item.get("commentCount") or item.get("comments") or item.get("comment_count"),
+                    "comments": item.get("commentCount") or item.get("comments") or item.get("comment_count"),
+                    "upload_date": upload_date,
+                    "description": item.get("description", ""),
+                    "thumbnail": item.get("thumbnailUrl") or item.get("thumbnail") or item.get("thumbnail_url"),
                 }
 
-                results = []
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    search_query = f"ytsearch{max_results}:{query}"
-                    logger.debug(f"Executing yt-dlp search: {search_query}")
-                    search_results = ydl.extract_info(search_query, download=False)
+                result = YouTubeSearchResult.from_dict(entry)
+                results.append(result)
 
-                    entries = search_results.get("entries", [])
-                    if not entries:
-                        logger.warning("No video entries found in search results")
-                        return results
-
-                    logger.info(f"Found {len(entries)} video entries, processing...")
-
-                    for entry in entries:
-                        if entry is None:
-                            continue
-
-                        video_id = entry.get("id") or entry.get("display_id")
-                        if not video_id:
-                            continue
-
-                        # Normalize upload_date format
-                        upload_date = entry.get("upload_date")
-                        if upload_date:
-                            try:
-                                upload_date_obj = datetime.strptime(upload_date, "%Y%m%d")
-                                entry["upload_date"] = upload_date_obj.strftime("%Y-%m-%d")
-                            except (ValueError, TypeError):
-                                pass
-
-                        # Normalize field names for BaseModel
-                        entry["video_id"] = video_id
-                        entry["views"] = entry.get("view_count")
-                        entry["likes"] = entry.get("like_count")
-                        entry["comments"] = entry.get("comment_count")
-                        entry["url"] = entry.get("webpage_url", f"https://www.youtube.com/watch?v={video_id}")
-                        entry["link"] = entry.get("webpage_url", f"https://www.youtube.com/watch?v={video_id}")
-                        entry["link_suffix"] = f"/watch?v={video_id}"
-                        
-                        # Handle thumbnail
-                        if not entry.get("thumbnail") and entry.get("thumbnails"):
-                            entry["thumbnail"] = entry.get("thumbnails", [{}])[0].get("url", "")
-
-                        result = YouTubeSearchResult.from_dict(entry)
-                        results.append(result)
-
-                return results
-
-            results = await asyncio.to_thread(search_with_ytdlp)
+            # Sort by likes (descending)
             results.sort(key=lambda x: (x.likes or 0), reverse=True)
             logger.info(f"✅ Search completed: {len(results)} videos found (sorted by likes)")
             if results:
                 logger.debug(f"Top result: {results[0].title or 'Unknown'} - {results[0].likes or 0} likes")
             return results
+        except ApifyApiError as e:
+            error_msg = str(e)
+            actor_id = "qoA27OkGHoMSJGBtf"
+            logger.error(f"❌ Apify API error from Actor {actor_id} (maged120/youtube-search): {error_msg}")
+            
+            if "Monthly usage hard limit exceeded" in error_msg or "usage limit" in error_msg.lower():
+                logger.error(f"🚫 Actor {actor_id} blocked: Monthly usage limit exceeded. Please upgrade your Apify plan or wait for the limit to reset.")
+                raise RuntimeError(f"Apify Actor {actor_id} (maged120/youtube-search) monthly usage limit exceeded. Please upgrade your Apify plan or wait for the limit to reset.")
+            elif "authentication" in error_msg.lower() or "token" in error_msg.lower() or "unauthorized" in error_msg.lower():
+                logger.error(f"🔐 Actor {actor_id} authentication error: {error_msg}")
+                raise RuntimeError(f"Apify Actor {actor_id} (maged120/youtube-search) authentication failed: {error_msg}. Please check your APIFY_TOKEN.")
+            else:
+                logger.error(f"❌ Actor {actor_id} error: {error_msg}", exc_info=True)
+                raise RuntimeError(f"Apify Actor {actor_id} (maged120/youtube-search) error: {error_msg}")
         except Exception as e:
             logger.error(f"❌ Search error: {e}", exc_info=True)
-            return []
+            raise RuntimeError(f"Search failed: {str(e)}")
 
     async def get_transcript_safe(
         self, video_id: str, language: str = "en", max_retries: int = 0

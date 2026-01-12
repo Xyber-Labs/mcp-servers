@@ -148,13 +148,27 @@ class SearchVideosRequest(BaseModel):
     num_videos: int = Field(10, ge=1, le=50, description="Number of videos to process (1-50)")
     include_transcripts: bool = Field(False, description="Whether to include transcripts in the response")
     max_results: int | None = Field(None, ge=1, le=50, description="Alias for num_videos (deprecated)")
+    
+    # Apify YouTube Search Actor parameters
+    exclude_shorts: bool = Field(False, description="Exclude YouTube Shorts from results")
+    shorts_only: bool = Field(False, description="Return only YouTube Shorts")
+    upload_date_filter: str = Field("", description="Filter by upload date (e.g., 'today', 'week', 'month', 'year')")
+    sort_by: str = Field("relevance", description="Sort order: 'relevance', 'rating', 'upload_date', 'view_count'")
+    sleep_interval: int = Field(2, ge=0, le=10, description="Sleep interval between requests (seconds)")
+    max_retries: int = Field(3, ge=0, le=10, description="Maximum number of retries for failed requests")
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "query": "quantum computing",
                 "num_videos": 5,
-                "include_transcripts": False
+                "include_transcripts": False,
+                "exclude_shorts": False,
+                "shorts_only": False,
+                "upload_date_filter": "",
+                "sort_by": "relevance",
+                "sleep_interval": 2,
+                "max_retries": 3
             }
         }
     )
