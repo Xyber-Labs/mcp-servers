@@ -7,7 +7,7 @@ from typing import Optional, List
 
 
 class YouTubeSearchResult(BaseModel):
-    """BaseModel for YouTube search result from yt-dlp."""
+    """BaseModel for YouTube search result from Apify YouTube Search actor."""
     id: Optional[str] = None
     video_id: Optional[str] = None
     display_id: Optional[str] = None
@@ -36,7 +36,7 @@ class YouTubeSearchResult(BaseModel):
 
     @classmethod
     def from_dict(cls, entry: dict) -> "YouTubeSearchResult":
-        """Create YouTubeSearchResult from yt-dlp entry dictionary."""
+        """Create YouTubeSearchResult from Apify YouTube Search actor response dictionary."""
         return cls.model_validate(entry)
 
     # --- Dict-like compatibility (tests + legacy callers) ---

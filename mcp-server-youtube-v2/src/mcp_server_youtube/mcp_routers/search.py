@@ -43,7 +43,16 @@ async def search_youtube_videos(
     try:
         logger.info(f"MCP: Search only - query: '{request.query}', num_videos: {request.num_videos}")
 
-        videos = await service.search_videos(request.query, max_results=request.num_videos)
+        videos = await service.search_videos(
+            request.query,
+            max_results=request.num_videos,
+            exclude_shorts=request.exclude_shorts,
+            shorts_only=request.shorts_only,
+            upload_date_filter=request.upload_date_filter,
+            sort_by=request.sort_by,
+            sleep_interval=request.sleep_interval,
+            max_retries=request.max_retries,
+        )
 
         if not videos:
             raise HTTPException(status_code=404, detail="No videos found")
@@ -57,6 +66,16 @@ async def search_youtube_videos(
             videos=video_responses,
             total_found=len(videos),
         )
+    except HTTPException:
+        raise
+    except RuntimeError as e:
+        error_msg = str(e)
+        if "usage limit" in error_msg.lower():
+            raise HTTPException(status_code=429, detail=error_msg)
+        elif "authentication" in error_msg.lower() or "token" in error_msg.lower():
+            raise HTTPException(status_code=401, detail=error_msg)
+        else:
+            raise HTTPException(status_code=500, detail=error_msg)
     except Exception as e:
         logger.error(f"Error in search endpoint: {e}")
         raise HTTPException(status_code=500, detail=str(e))
