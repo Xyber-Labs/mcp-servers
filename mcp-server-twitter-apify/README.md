@@ -315,7 +315,7 @@ Content-Type: application/json
 
 {
   "topic": "starlink",
-  "max_items": 50,
+  "max_items": 10,
   "sort": "Top",
   "only_verified": false,
   "only_image": false,
