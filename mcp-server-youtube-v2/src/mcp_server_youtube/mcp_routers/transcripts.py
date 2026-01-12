@@ -50,12 +50,32 @@ async def search_and_extract_transcripts(
         )
 
         # Check cache first
-        videos = await service.search_videos(request.query, max_results=request.num_videos)
+        try:
+            videos = await service.search_videos(
+                request.query,
+                max_results=request.num_videos,
+                exclude_shorts=request.exclude_shorts,
+                shorts_only=request.shorts_only,
+                upload_date_filter=request.upload_date_filter,
+                sort_by=request.sort_by,
+                sleep_interval=request.sleep_interval,
+                max_retries=request.max_retries,
+            )
+        except RuntimeError as e:
+            error_msg = str(e)
+            if "usage limit" in error_msg.lower():
+                raise HTTPException(status_code=429, detail=error_msg)
+            elif "authentication" in error_msg.lower() or "token" in error_msg.lower():
+                raise HTTPException(status_code=401, detail=error_msg)
+            else:
+                raise HTTPException(status_code=500, detail=error_msg)
+        
         if not videos:
             raise HTTPException(status_code=404, detail="No videos found")
 
         video_ids = [v.video_id or v.id or v.display_id for v in videos if v.video_id or v.id or v.display_id]
         cached_transcripts = await asyncio.to_thread(db_manager.batch_check_transcripts, video_ids)
+        existing_videos = await asyncio.to_thread(db_manager.batch_check_video_exists, video_ids)
 
         # Get transcripts with caching
         results = []
@@ -73,6 +93,19 @@ async def search_and_extract_transcripts(
                         "success": cached_video.transcript_success,
                         "transcript": cached_video.transcript,
                         "transcript_length": cached_video.transcript_length,
+                        "is_generated": cached_video.is_auto_generated,
+                        "language": cached_video.language,
+                        "error": cached_video.error,
+                    }
+            elif existing_videos.get(video_id, False):
+                # Video exists in DB but transcript failed - load from cache to avoid retrying
+                logger.info(f"💾 Loading failed transcript attempt from cache for video {video_id} - skipping retry")
+                cached_video = await asyncio.to_thread(db_manager.get_video, video_id)
+                if cached_video:
+                    transcript_result = {
+                        "success": cached_video.transcript_success,
+                        "transcript": cached_video.transcript,
+                        "transcript_length": cached_video.transcript_length or 0,
                         "is_generated": cached_video.is_auto_generated,
                         "language": cached_video.language,
                         "error": cached_video.error,
@@ -184,6 +217,7 @@ async def extract_transcripts(
         logger.info(f"MCP: Extract transcripts for {len(request.video_ids)} video IDs")
 
         cached_transcripts = await asyncio.to_thread(db_manager.batch_check_transcripts, request.video_ids)
+        existing_videos = await asyncio.to_thread(db_manager.batch_check_video_exists, request.video_ids)
 
         results = []
         for video_id in request.video_ids:
@@ -202,6 +236,19 @@ async def extract_transcripts(
                         "language": cached_video.language,
                         "error": cached_video.error,
                     }
+            elif existing_videos.get(video_id, False):
+                # Video exists in DB but transcript failed - load from cache to avoid retrying
+                logger.info(f"💾 Loading failed transcript attempt from cache for video {video_id} - skipping retry")
+                cached_video = await asyncio.to_thread(db_manager.get_video, video_id)
+                if cached_video:
+                    transcript_result = {
+                        "success": cached_video.transcript_success,
+                        "transcript": cached_video.transcript,
+                        "transcript_length": cached_video.transcript_length or 0,
+                        "is_generated": cached_video.is_auto_generated,
+                        "language": cached_video.language,
+                        "error": cached_video.error,
+                    }
 
             if transcript_result is None:
                 logger.info(f"🌐 Fetching transcript from API for video {video_id}")
@@ -215,32 +262,36 @@ async def extract_transcripts(
                     "error": transcript_api_result.error,
                 }
                 
-                # Save to cache
-                if transcript_result["success"]:
-                    video_data = {
-                        "video_id": video_id,
-                        "title": cached_video.title if cached_video else "Unknown",
-                        "channel": cached_video.channel if cached_video else "Unknown",
-                        "channel_id": cached_video.channel_id if cached_video else None,
-                        "channel_url": cached_video.channel_url if cached_video else None,
-                        "video_url": cached_video.video_url if cached_video else f"https://www.youtube.com/watch?v={video_id}",
-                        "duration": cached_video.duration if cached_video else None,
-                        "views": cached_video.views if cached_video else None,
-                        "likes": cached_video.likes if cached_video else None,
-                        "comments": cached_video.comments if cached_video else None,
-                        "upload_date": cached_video.upload_date if cached_video else None,
-                        "description": cached_video.description or "" if cached_video else "",
-                        "thumbnail": cached_video.thumbnail if cached_video else None,
-                        "transcript_success": transcript_result["success"],
-                        "transcript": transcript_result["transcript"],
-                        "transcript_length": transcript_result["transcript_length"],
-                        "error": transcript_result["error"],
-                        "is_auto_generated": transcript_result["is_generated"],
-                        "language": transcript_result["language"],
-                    }
-                    await asyncio.to_thread(db_manager.save_video, video_data)
-                    # Reload cached_video after saving
-                    cached_video = await asyncio.to_thread(db_manager.get_video, video_id)
+                # Save to cache (both successful and failed attempts to avoid retrying)
+                video_data = {
+                    "video_id": video_id,
+                    "title": cached_video.title if cached_video else "Unknown",
+                    "channel": cached_video.channel if cached_video else "Unknown",
+                    "channel_id": cached_video.channel_id if cached_video else None,
+                    "channel_url": cached_video.channel_url if cached_video else None,
+                    "video_url": cached_video.video_url if cached_video else f"https://www.youtube.com/watch?v={video_id}",
+                    "duration": cached_video.duration if cached_video else None,
+                    "views": cached_video.views if cached_video else None,
+                    "likes": cached_video.likes if cached_video else None,
+                    "comments": cached_video.comments if cached_video else None,
+                    "upload_date": cached_video.upload_date if cached_video else None,
+                    "description": cached_video.description or "" if cached_video else "",
+                    "thumbnail": cached_video.thumbnail if cached_video else None,
+                    "transcript_success": transcript_result["success"],
+                    "transcript": transcript_result["transcript"] if transcript_result["success"] else None,
+                    "transcript_length": transcript_result["transcript_length"] if transcript_result["success"] else 0,
+                    "error": transcript_result["error"],
+                    "is_auto_generated": transcript_result["is_generated"],
+                    "language": transcript_result["language"],
+                }
+                saved = await asyncio.to_thread(db_manager.save_video, video_data)
+                if saved:
+                    if transcript_result["success"]:
+                        logger.info(f"💾 Saved transcript to cache for video {video_id}")
+                    else:
+                        logger.info(f"💾 Cached failed transcript attempt for video {video_id} (error: {transcript_result.get('error')}) - will not retry")
+                # Reload cached_video after saving
+                cached_video = await asyncio.to_thread(db_manager.get_video, video_id)
 
             # Use cached_video if available, otherwise use defaults
             combined = {
