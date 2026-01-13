@@ -204,15 +204,15 @@ async def test_list_mcp_tools(base_url: str, mcp_session: str):
         tool_names = {t.get("name") for t in tools}
         # Core tools exposed by this server
         expected = {
-            "mcp_search_topic",
-            "mcp_search_profile",
-            "mcp_search_profile_latest",
-            "mcp_search_replies",
-            "mcp_search_profile_batch",
-            "mcp_search_profile_latest_batch",
-            "mcp_run_query",
-            "mcp_list_types",
-            "mcp_list_queries",
+            "twitter_search_topic",
+            "twitter_search_profile",
+            "twitter_search_profile_latest",
+            "twitter_search_replies",
+            "twitter_search_profile_batch",
+            "twitter_search_profile_latest_batch",
+            "twitter_run_query",
+            "twitter_list_types",
+            "twitter_list_queries",
         }
         assert expected.issubset(tool_names), f"Missing tools: {expected - tool_names}"
     except httpx.ConnectError:
@@ -222,9 +222,9 @@ async def test_list_mcp_tools(base_url: str, mcp_session: str):
 @pytest.mark.asyncio
 @pytest.mark.integration
 async def test_mcp_list_types(base_url: str, mcp_session: str):
-    """Test mcp_list_types tool."""
+    """Test twitter_list_types tool."""
     try:
-        response = await call_mcp_tool(base_url, mcp_session, name="mcp_list_types", arguments={})
+        response = await call_mcp_tool(base_url, mcp_session, name="twitter_list_types", arguments={})
         response.raise_for_status()
         payload = parse_sse_response(response.text)
         _assert_tool_ok(payload)
@@ -235,13 +235,13 @@ async def test_mcp_list_types(base_url: str, mcp_session: str):
 @pytest.mark.asyncio
 @pytest.mark.integration
 async def test_mcp_list_queries(base_url: str, mcp_session: str):
-    """Test mcp_list_queries tool."""
+    """Test twitter_list_queries tool."""
     try:
         # Query type is optional; use topic to keep response bounded
         response = await call_mcp_tool(
             base_url,
             mcp_session,
-            name="mcp_list_queries",
+            name="twitter_list_queries",
             arguments={"query_type": "topic"},
         )
         response.raise_for_status()
@@ -254,12 +254,12 @@ async def test_mcp_list_queries(base_url: str, mcp_session: str):
 @pytest.mark.asyncio
 @pytest.mark.integration
 async def test_mcp_search_topic_tool(base_url: str, mcp_session: str):
-    """Smoke test mcp_search_topic tool."""
+    """Smoke test twitter_search_topic tool."""
     try:
         response = await call_mcp_tool(
             base_url,
             mcp_session,
-            name="mcp_search_topic",
+            name="twitter_search_topic",
             arguments={
                 "topic": "quantum computing",
                 "max_items": 5,
@@ -280,12 +280,12 @@ async def test_mcp_search_topic_tool(base_url: str, mcp_session: str):
 @pytest.mark.asyncio
 @pytest.mark.integration
 async def test_mcp_search_profile_tool(base_url: str, mcp_session: str):
-    """Smoke test mcp_search_profile tool."""
+    """Smoke test twitter_search_profile tool."""
     try:
         response = await call_mcp_tool(
             base_url,
             mcp_session,
-            name="mcp_search_profile",
+            name="twitter_search_profile",
             arguments={
                 "username": "jack",
                 "max_items": 5,
@@ -303,12 +303,12 @@ async def test_mcp_search_profile_tool(base_url: str, mcp_session: str):
 @pytest.mark.asyncio
 @pytest.mark.integration
 async def test_mcp_search_replies_tool(base_url: str, mcp_session: str):
-    """Smoke test mcp_search_replies tool."""
+    """Smoke test twitter_search_replies tool."""
     try:
         response = await call_mcp_tool(
             base_url,
             mcp_session,
-            name="mcp_search_replies",
+            name="twitter_search_replies",
             arguments={
                 "conversation_id": "1728108619189874825",
                 "max_items": 5,
@@ -372,29 +372,29 @@ async def main():
         print(f"  Response: {response.text[:500] if 'response' in locals() else 'N/A'}")
     
     # Step 4: List types
-    print("\n4. Testing mcp_list_types tool...")
+    print("\n4. Testing twitter_list_types tool...")
     try:
         response = await call_mcp_tool(
             base_url,
             session_id,
-            name="mcp_list_types",
+            name="twitter_list_types",
             arguments={},
         )
         response.raise_for_status()
         result = parse_sse_response(response.text)
-        print(f"✓ mcp_list_types: {response.status_code}")
+        print(f"✓ twitter_list_types: {response.status_code}")
         _assert_tool_ok(result)
     except Exception as e:
-        print(f"✗ Failed to call mcp_list_types: {e}")
+        print(f"✗ Failed to call twitter_list_types: {e}")
         print(f"  Response: {response.text[:500] if 'response' in locals() else 'N/A'}")
     
     # Step 5: Search topic
-    print("\n5. Testing mcp_search_topic tool...")
+    print("\n5. Testing twitter_search_topic tool...")
     try:
         response = await call_mcp_tool(
             base_url,
             session_id,
-            name="mcp_search_topic",
+            name="twitter_search_topic",
             arguments={
                 "topic": "quantum computing",
                 "max_items": 5,
@@ -409,11 +409,11 @@ async def main():
         print(f"  Status: {response.status_code}")
         if response.status_code == 200:
             _assert_tool_ok(result)
-            print("✓ mcp_search_topic successful")
+            print("✓ twitter_search_topic successful")
         else:
             print(f"  Response: {json.dumps(result, indent=2)[:500]}...")
     except Exception as e:
-        print(f"✗ Failed to call mcp_search_topic: {e}")
+        print(f"✗ Failed to call twitter_search_topic: {e}")
         print(f"  Response: {response.text[:500] if 'response' in locals() else 'N/A'}")
     
     print("\n" + "=" * 60)

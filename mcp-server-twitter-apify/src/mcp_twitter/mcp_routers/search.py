@@ -11,6 +11,7 @@ import logging
 from datetime import date
 from typing import Any
 
+import anyio
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -201,7 +202,7 @@ def _get_registry(request: Request) -> QueryRegistry:
 @router.post(
     "/search_topic",
     tags=["Agent Search"],
-    operation_id="mcp_search_topic",
+    operation_id="twitter_search_topic",
     response_model=list[dict[str, Any]],
 )
 async def search_topic(
@@ -259,12 +260,13 @@ async def search_topic(
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 
-@router.post(
-    "/search_profile",
-    tags=["Agent Search"],
-    operation_id="mcp_search_profile",
-    response_model=list[dict[str, Any]],
-)
+# TEMPORARILY DISABLED - keeping only twitter_search_topic enabled
+# @router.post(
+#     "/search_profile",
+#     tags=["Agent Search"],
+#     operation_id="twitter_search_profile",
+#     response_model=list[dict[str, Any]],
+# )
 async def search_profile(
     request: ProfileSearchRequest,
     http_request: Request,
@@ -318,12 +320,13 @@ async def search_profile(
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 
-@router.post(
-    "/search_profile_latest",
-    tags=["Agent Search"],
-    operation_id="mcp_search_profile_latest",
-    response_model=list[dict[str, Any]],
-)
+# TEMPORARILY DISABLED - keeping only twitter_search_topic enabled
+# @router.post(
+#     "/search_profile_latest",
+#     tags=["Agent Search"],
+#     operation_id="twitter_search_profile_latest",
+#     response_model=list[dict[str, Any]],
+# )
 async def search_profile_latest(
     request: ProfileLatestRequest,
     http_request: Request,
@@ -375,12 +378,13 @@ async def search_profile_latest(
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 
-@router.post(
-    "/search_replies",
-    tags=["Agent Search"],
-    operation_id="mcp_search_replies",
-    response_model=list[dict[str, Any]],
-)
+# TEMPORARILY DISABLED - keeping only twitter_search_topic enabled
+# @router.post(
+#     "/search_replies",
+#     tags=["Agent Search"],
+#     operation_id="twitter_search_replies",
+#     response_model=list[dict[str, Any]],
+# )
 async def search_replies(
     request: RepliesSearchRequest,
     http_request: Request,
@@ -430,12 +434,13 @@ async def search_replies(
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 
-@router.post(
-    "/search_profile_batch",
-    tags=["Agent Search"],
-    operation_id="mcp_search_profile_batch",
-    response_model=list[ProfileBatchResult],
-)
+# TEMPORARILY DISABLED - keeping only twitter_search_topic enabled
+# @router.post(
+#     "/search_profile_batch",
+#     tags=["Agent Search"],
+#     operation_id="twitter_search_profile_batch",
+#     response_model=list[ProfileBatchResult],
+# )
 async def search_profile_batch(
     request: ProfileBatchSearchRequest,
     http_request: Request,
@@ -507,12 +512,13 @@ async def search_profile_batch(
     return results
 
 
-@router.post(
-    "/search_profile_latest_batch",
-    tags=["Agent Search"],
-    operation_id="mcp_search_profile_latest_batch",
-    response_model=list[ProfileBatchResult],
-)
+# TEMPORARILY DISABLED - keeping only twitter_search_topic enabled
+# @router.post(
+#     "/search_profile_latest_batch",
+#     tags=["Agent Search"],
+#     operation_id="twitter_search_profile_latest_batch",
+#     response_model=list[ProfileBatchResult],
+# )
 async def search_profile_latest_batch(
     request: ProfileLatestBatchRequest,
     http_request: Request,
@@ -582,12 +588,13 @@ async def search_profile_latest_batch(
     return results
 
 
-@router.post(
-    "/run_query/{query_id}",
-    tags=["Agent Search"],
-    operation_id="mcp_run_query",
-    response_model=list[dict[str, Any]],
-)
+# TEMPORARILY DISABLED - keeping only twitter_search_topic enabled
+# @router.post(
+#     "/run_query/{query_id}",
+#     tags=["Agent Search"],
+#     operation_id="twitter_run_query",
+#     response_model=list[dict[str, Any]],
+# )
 async def run_query(
     query_id: str,
     http_request: Request,
@@ -621,12 +628,13 @@ async def run_query(
         raise HTTPException(status_code=500, detail=f"Query execution failed: {str(e)}")
 
 
-@router.get(
-    "/list_types",
-    tags=["Agent Queries"],
-    operation_id="mcp_list_types",
-    response_model=list[QueryTypeInfo],
-)
+# TEMPORARILY DISABLED - keeping only twitter_search_topic enabled
+# @router.get(
+#     "/list_types",
+#     tags=["Agent Queries"],
+#     operation_id="twitter_list_types",
+#     response_model=list[QueryTypeInfo],
+# )
 async def list_types(http_request: Request) -> list[QueryTypeInfo]:
     """
     List all available query types with descriptions (MCP-only).
@@ -658,12 +666,13 @@ async def list_types(http_request: Request) -> list[QueryTypeInfo]:
     ]
 
 
-@router.get(
-    "/list_queries",
-    tags=["Agent Queries"],
-    operation_id="mcp_list_queries",
-    response_model=list[QueryInfo],
-)
+# TEMPORARILY DISABLED - keeping only twitter_search_topic enabled
+# @router.get(
+#     "/list_queries",
+#     tags=["Agent Queries"],
+#     operation_id="twitter_list_queries",
+#     response_model=list[QueryInfo],
+# )
 async def list_queries(
     http_request: Request,
     query_type: QueryType | None = Query(None, description="Filter by query type"),
