@@ -6,11 +6,9 @@ Main responsibility: Collect MCP-only FastAPI routers into a single list for inc
 
 from fastapi import APIRouter
 
-# Import MCP-only routers here when you create them
-# from .example_mcp_tool import router as example_mcp_tool_router
+from .research_analyzer import router as research_analyzer_router
 
 routers: list[APIRouter] = [
-    # Add MCP-only routers here
-    # example_mcp_tool_router,
+    research_analyzer_router,
 ]
 

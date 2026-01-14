@@ -137,7 +137,7 @@ def create_app() -> FastAPI:
     Create and configure the main FastAPI application.
 
     This factory function:
-    1. Creates an MCP server from hybrid routers
+    1. Creates an MCP server from hybrid and MCP-only routers
     2. Combines lifespans for proper resource management
     3. Configures API routes with appropriate prefixes
     4. Sets up x402 payment middleware
@@ -162,7 +162,14 @@ def create_app() -> FastAPI:
     # This correctly manages both our app's resources and FastMCP's internal state.
     @asynccontextmanager
     async def combined_lifespan(app: FastAPI):
-        async with app_lifespan(app):
+        async with app_lifespan(app) as _:
+            # Share app state with mcp_source_app so MCP-only routers can access resources
+            # FastMCP makes internal HTTP calls to mcp_source_app, so it needs the same state
+            mcp_source_app.state.llm = app.state.llm
+            mcp_source_app.state.llm_thinking = app.state.llm_thinking
+            mcp_source_app.state.mcp_tools = app.state.mcp_tools
+            mcp_source_app.state.tools_description = app.state.tools_description
+            
             async with mcp_app.lifespan(app):
                 yield
 
