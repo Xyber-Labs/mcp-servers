@@ -22,6 +22,7 @@ def get_research_resources(request: Request) -> dict[str, Any]:
     llm_thinking = getattr(app_state, "llm_thinking", None)
     mcp_tools = getattr(app_state, "mcp_tools", [])
     tools_description = getattr(app_state, "tools_description", [])
+    mcp_connection_error = getattr(app_state, "mcp_connection_error", None)
     
     # If resources are not available, try to get them from the main app
     # This handles the case where FastMCP calls mcp_source_app internally
@@ -41,6 +42,8 @@ def get_research_resources(request: Request) -> dict[str, Any]:
                     mcp_tools = getattr(main_app_state, "mcp_tools", [])
                 if not tools_description:
                     tools_description = getattr(main_app_state, "tools_description", [])
+                if not mcp_connection_error:
+                    mcp_connection_error = getattr(main_app_state, "mcp_connection_error", None)
         except Exception:
             # If we can't access the main app, just use what we have
             pass
@@ -50,5 +53,6 @@ def get_research_resources(request: Request) -> dict[str, Any]:
         "llm_thinking": llm_thinking,
         "mcp_tools": mcp_tools,
         "tools_description": tools_description,
+        "mcp_connection_error": mcp_connection_error,
     }
 

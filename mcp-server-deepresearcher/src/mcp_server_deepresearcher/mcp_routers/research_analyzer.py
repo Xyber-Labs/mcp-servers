@@ -47,13 +47,37 @@ async def deep_research_mcp(
 
     llm = resources.get("llm")
     llm_thinking = resources.get("llm_thinking")
-    mcp_tools = resources.get("mcp_tools")
+    mcp_tools = resources.get("mcp_tools", [])
     tools_description = resources.get("tools_description", [])
+    mcp_connection_error = resources.get("mcp_connection_error")
 
-    if not llm or not mcp_tools:
+    # Check for required resources with detailed error messages
+    if not llm:
         raise HTTPException(
             status_code=503,
-            detail="Shared resources (LLM, tools) not available. The server may have failed to initialize properly."
+            detail="LLM not available. The server may have failed to initialize properly. Please check server logs."
+        )
+    
+    if not mcp_tools:
+        error_detail = (
+            "No MCP tools are available. "
+            "Research functionality requires at least one MCP server to be connected. "
+        )
+        if mcp_connection_error:
+            error_detail += f"Connection errors: {mcp_connection_error}"
+        else:
+            error_detail += "Please check that MCP servers are running and accessible."
+        
+        raise HTTPException(
+            status_code=503,
+            detail=error_detail
+        )
+    
+    # Log warning if some servers failed but we have tools
+    if mcp_connection_error and mcp_tools:
+        logger.warning(
+            f"Some MCP servers failed to connect, but proceeding with {len(mcp_tools)} available tools. "
+            f"Failed servers: {mcp_connection_error}"
         )
     
     if not llm_thinking:

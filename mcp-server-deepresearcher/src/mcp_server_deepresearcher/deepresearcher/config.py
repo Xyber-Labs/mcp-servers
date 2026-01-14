@@ -54,6 +54,11 @@ class LLM_Config(BaseModel):
     MODEL_VALIDATION_NAME: Optional[str] = "gemini-2.0-flash"
 
 
+class DeepResearcherConfig(BaseModel):
+    """Configuration settings for the Deep Researcher."""
+    MAX_WEB_RESEARCH_LOOPS: int = Field(default=5, ge=1, le=10, description="Maximum number of web research loops to perform (1-10)")
+
+
 class SearchMCP_Config(BaseModel):
     """Configuration settings for the dependent search MCP servers."""
     APIFY_TOKEN: Optional[str] = os.getenv("APIFY_TOKEN")

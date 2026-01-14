@@ -79,31 +79,100 @@ async def app_lifespan(app: FastAPI):
             mcp_telegram_parser_url=search_mcp_config.MCP_TELEGRAM_PARSER_URL,
         )
 
-        client = MultiServerMCPClient(mcp_servers_config)
-
         logger.info("Connecting to dependent MCPs to fetch tools...")
-        try:
-            # Add timeout to prevent hanging if MCP servers are not available
-            mcp_tools = await asyncio.wait_for(
-                client.get_tools(),
-                timeout=30.0  # 30 second timeout per server
-            )
+        mcp_tools = []
+        failed_servers = []
+        successful_servers = []
+        mcp_connection_errors = []
+        
+        # Connect to each MCP server individually for better error handling
+        # This allows us to collect tools from servers that succeed even if others fail
+        for server_name, server_config in mcp_servers_config.items():
+            try:
+                url = server_config.get('url', 'No URL')
+                logger.info(f"Connecting to {server_name} MCP server at {url}...")
+                
+                # Create a single-server client for this server
+                single_server_config = {server_name: server_config}
+                single_client = MultiServerMCPClient(single_server_config)
+                
+                # Try to get tools from this specific server with timeout
+                server_tools = await asyncio.wait_for(
+                    single_client.get_tools(),
+                    timeout=30.0  # 30 second timeout per server
+                )
+                
+                if server_tools:
+                    mcp_tools.extend(server_tools)
+                    successful_servers.append(server_name)
+                    logger.info(
+                        f"✓ Successfully connected to {server_name} and fetched {len(server_tools)} tools"
+                    )
+                else:
+                    successful_servers.append(server_name)
+                    logger.warning(f"✓ Connected to {server_name} but no tools returned")
+                    
+            except asyncio.TimeoutError:
+                error_msg = f"Timeout connecting to {server_name} MCP server after 30 seconds"
+                logger.error(f"✗ {error_msg}")
+                failed_servers.append(server_name)
+                mcp_connection_errors.append(f"{server_name}: {error_msg}")
+                continue
+            except Exception as e:
+                error_type = type(e).__name__
+                error_msg = str(e)
+                
+                # Extract more details from exception groups if available
+                if hasattr(e, '__cause__') and e.__cause__:
+                    error_msg = f"{error_msg} (caused by: {str(e.__cause__)})"
+                
+                # Extract underlying connection error if available
+                if hasattr(e, 'exceptions') and e.exceptions:
+                    # ExceptionGroup - extract first exception details
+                    first_exc = e.exceptions[0] if e.exceptions else None
+                    if first_exc:
+                        if hasattr(first_exc, '__cause__') and first_exc.__cause__:
+                            underlying_error = str(first_exc.__cause__)
+                            if "ConnectError" in underlying_error or "TLS" in underlying_error:
+                                error_msg = f"Connection failed: {underlying_error}"
+                
+                full_error_msg = f"{server_name}: {error_type} - {error_msg}"
+                logger.error(f"✗ Failed to connect to {server_name}: {full_error_msg}", exc_info=False)
+                failed_servers.append(server_name)
+                mcp_connection_errors.append(full_error_msg)
+                continue
+        
+        # Log summary
+        if successful_servers:
             logger.info(
-                f"Successfully fetched {len(mcp_tools)} tools for the agent to use."
+                f"Successfully connected to {len(successful_servers)} MCP server(s): {', '.join(successful_servers)}"
             )
-        except asyncio.TimeoutError:
+            logger.info(f"Total tools fetched: {len(mcp_tools)}")
+        
+        if failed_servers:
             logger.warning(
-                "Timeout connecting to MCP servers. Continuing with empty tools list. "
-                "Some features may not be available."
+                f"Failed to connect to {len(failed_servers)} MCP server(s): {', '.join(failed_servers)}"
             )
-            mcp_tools = []
-        except Exception as e:
-            logger.error(
-                f"Error connecting to MCP servers: {e}. Continuing with empty tools list. "
-                "Some features may not be available.",
-                exc_info=True
+            mcp_connection_error = (
+                f"Failed to connect to {len(failed_servers)} MCP server(s): {', '.join(failed_servers)}. "
+                f"Errors: {'; '.join(mcp_connection_errors)}. "
+                f"Research functionality may be limited. "
+                f"Please verify that MCP server URLs are correct and servers are running."
             )
-            mcp_tools = []
+        else:
+            mcp_connection_error = None
+        
+        # Only fail completely if no tools were fetched at all
+        if not mcp_tools:
+            error_summary = (
+                "No MCP tools available. All MCP servers failed to connect. "
+                "Research functionality requires at least one MCP server to be available. "
+            )
+            if mcp_connection_errors:
+                error_summary += f"Connection errors: {'; '.join(mcp_connection_errors)}"
+            logger.error(error_summary)
+            if not mcp_connection_error:
+                mcp_connection_error = error_summary
         
         # Construct tools_description from mcp_tools
         tools_description_yaml = construct_tools_description_yaml(mcp_tools)
@@ -115,8 +184,14 @@ async def app_lifespan(app: FastAPI):
         app.state.llm_thinking = llm_thinking
         app.state.mcp_tools = mcp_tools
         app.state.tools_description = tools_description_objects
+        app.state.mcp_connection_error = mcp_connection_error  # Store error for better error messages
 
-        logger.info("Lifespan: Services initialized successfully.")
+        if mcp_connection_error:
+            logger.warning(
+                "MCP tools unavailable. Research requests will fail until MCP servers are connected."
+            )
+        else:
+            logger.info("Lifespan: Services initialized successfully.")
         yield
         
     except Exception as startup_err:
@@ -169,6 +244,7 @@ def create_app() -> FastAPI:
             mcp_source_app.state.llm_thinking = app.state.llm_thinking
             mcp_source_app.state.mcp_tools = app.state.mcp_tools
             mcp_source_app.state.tools_description = app.state.tools_description
+            mcp_source_app.state.mcp_connection_error = getattr(app.state, "mcp_connection_error", None)
             
             async with mcp_app.lifespan(app):
                 yield

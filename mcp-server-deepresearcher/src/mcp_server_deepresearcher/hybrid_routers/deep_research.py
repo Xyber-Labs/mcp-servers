@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from langchain_core.runnables import RunnableConfig
 
 from mcp_server_deepresearcher.dependencies import get_research_resources
-from mcp_server_deepresearcher.deepresearcher.config import LangfuseConfig
+from mcp_server_deepresearcher.deepresearcher.config import LangfuseConfig, DeepResearcherConfig
 from mcp_server_deepresearcher.deepresearcher.graph import DeepResearcher
 from mcp_server_deepresearcher.schemas import DeepResearchRequest
 
@@ -49,13 +49,37 @@ async def deep_research(
 
     llm = resources.get("llm")
     llm_thinking = resources.get("llm_thinking")
-    mcp_tools = resources.get("mcp_tools")
+    mcp_tools = resources.get("mcp_tools", [])
     tools_description = resources.get("tools_description", [])
+    mcp_connection_error = resources.get("mcp_connection_error")
 
-    if not llm or not mcp_tools:
+    # Check for required resources with detailed error messages
+    if not llm:
         raise HTTPException(
             status_code=503,
-            detail="Shared resources (LLM, tools) not available. The server may have failed to initialize properly."
+            detail="LLM not available. The server may have failed to initialize properly. Please check server logs."
+        )
+    
+    if not mcp_tools:
+        error_detail = (
+            "No MCP tools are available. "
+            "Research functionality requires at least one MCP server to be connected. "
+        )
+        if mcp_connection_error:
+            error_detail += f"Connection errors: {mcp_connection_error}"
+        else:
+            error_detail += "Please check that MCP servers are running and accessible."
+        
+        raise HTTPException(
+            status_code=503,
+            detail=error_detail
+        )
+    
+    # Log warning if some servers failed but we have tools
+    if mcp_connection_error and mcp_tools:
+        logger.warning(
+            f"Some MCP servers failed to connect, but proceeding with {len(mcp_tools)} available tools. "
+            f"Failed servers: {mcp_connection_error}"
         )
     
     if not llm_thinking:
@@ -80,13 +104,16 @@ async def perform_deep_research(
     """
     Core research logic extracted from server.py for reuse.
     """
+    # Get configuration for deep researcher
+    deep_researcher_config = DeepResearcherConfig()
+    
     # Create a new, stateless agent for each request
     agent = DeepResearcher(
         LLM=llm,
         LLM_THINKING=llm_thinking,
         tools=mcp_tools,
         research_topic=request.research_topic,
-        research_loop_max=request.max_web_research_loops,
+        research_loop_max=deep_researcher_config.MAX_WEB_RESEARCH_LOOPS,
         tools_description=tools_description,
     )
     logger.info("Created new stateless agent for this request.")
@@ -127,7 +154,7 @@ async def perform_deep_research(
                     "session_id": session_id,
                     "run_id": run_id,
                     "research_topic": request.research_topic,
-                    "max_web_research_loops": request.max_web_research_loops,
+                    "max_web_research_loops": deep_researcher_config.MAX_WEB_RESEARCH_LOOPS,
                 }
             }
             
@@ -143,7 +170,7 @@ async def perform_deep_research(
 
     try:
         # Build config with configurable parameters
-        configurable_params = {"max_web_research_loops": request.max_web_research_loops}
+        configurable_params = {"max_web_research_loops": deep_researcher_config.MAX_WEB_RESEARCH_LOOPS}
         
         # If runnable_config exists, merge configurable parameters with it
         # Note: RunnableConfig is a TypedDict, so we can't use dot notation or isinstance()

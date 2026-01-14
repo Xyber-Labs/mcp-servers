@@ -9,7 +9,7 @@ from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_core.runnables import RunnableConfig
-from mcp_server_deepresearcher.deepresearcher.config import LLM_Config, SearchMCP_Config, LangfuseConfig
+from mcp_server_deepresearcher.deepresearcher.config import LLM_Config, SearchMCP_Config, LangfuseConfig, DeepResearcherConfig
 from mcp_server_deepresearcher.deepresearcher.graph import DeepResearcher
 from mcp_server_deepresearcher.deepresearcher.utils import (
     load_mcp_servers_config,
@@ -46,7 +46,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[Dict[str, Any]]:
         # Load configurations
         llm_config = LLM_Config()
         search_mcp_config = SearchMCP_Config()
-
+        deep_researcher_config = DeepResearcherConfig()
         # Initialize LLMs
         llm = setup_llm(llm_config)
         llm_spare = setup_spare_llm(llm_config)
@@ -132,13 +132,16 @@ async def deep_research(
     if not llm_thinking:
         llm_thinking = llm
 
+    # Get configuration for deep researcher
+    deep_researcher_config = DeepResearcherConfig()
+
     # Create a new, stateless agent for each request
     agent = DeepResearcher(
         LLM=llm,
         LLM_THINKING=llm_thinking,
         tools=mcp_tools,
         research_topic=request.research_topic,
-        research_loop_max=request.max_web_research_loops,
+        research_loop_max=deep_researcher_config.MAX_WEB_RESEARCH_LOOPS,
         tools_description=tools_description,
     )
     logger.info("Created new stateless agent for this request.")
