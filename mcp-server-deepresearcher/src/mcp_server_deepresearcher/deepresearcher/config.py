@@ -24,10 +24,10 @@ _env_file = _project_root / ".env"
 class DatabaseConfig(BaseModel):
     """Database configuration for Postgres cache."""
 
-    DB_NAME: str = os.getenv("DB_NAME", "mcp_deep_research")
+    DB_NAME: str = os.getenv("DB_NAME", "mcp_deep_research_postgres")
     DB_USER: str = os.getenv("DB_USER", "postgres")
     DB_PASSWORD: str = os.getenv("DB_PASSWORD", "postgres")
-    DB_HOST: str = os.getenv("DB_HOST", "172.17.0.1")
+    DB_HOST: str = os.getenv("DB_HOST", "localhost")
     DB_PORT_RAW: str = os.getenv("DB_PORT", "5432")
     DB_PORT: str = (
         DB_PORT_RAW.split(":")[0] if ":" in DB_PORT_RAW else DB_PORT_RAW
@@ -79,21 +79,25 @@ class LangfuseConfig(BaseModel):
 
 class Settings(BaseSettings):
     # For host-container path mapping
-    MEDIA_HOST_DIR: Optional[str] = Field(default=None, env="MEDIA_HOST_DIR")
+    MEDIA_HOST_DIR: Optional[str] = Field(default=None)
 
     # API Keys
-    GOOGLE_API_KEY: str | None = Field(default=None, env="GOOGLE_API_KEY")
-    TAVILY_API_KEY: str | None = Field(default=None, env="TAVILY_API_KEY")
-    MISTRAL_API_KEY: str | None = Field(default=None, env="MISTRAL_API_KEY")
-    TOGETHER_API_KEY: str | None = Field(default=None, env="TOGETHER_API_KEY")
-    APIFY_TOKEN: str | None = Field(default=None, env="APIFY_TOKEN")
+    GOOGLE_API_KEY: str | None = Field(default=None)
+    TAVILY_API_KEY: str | None = Field(default=None)
+    MISTRAL_API_KEY: str | None = Field(default=None)
+    TOGETHER_API_KEY: str | None = Field(default=None)
+    APIFY_TOKEN: str | None = Field(default=None)
 
     langfuse: LangfuseConfig = LangfuseConfig()
     search_mcp: SearchMCP_Config = SearchMCP_Config()
     llm: LLM_Config = LLM_Config()
     database: DatabaseConfig = DatabaseConfig()
     model_config = SettingsConfigDict(
-        env_file=_env_file, env_file_encoding="utf-8", extra="ignore"
+        env_file=_env_file,
+        env_file_encoding="utf-8",
+        extra="ignore",
+        # BaseSettings automatically reads from env vars matching field names
+        # No need for explicit env parameter in Field()
     )
 
 

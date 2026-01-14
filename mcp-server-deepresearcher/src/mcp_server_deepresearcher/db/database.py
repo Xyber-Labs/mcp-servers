@@ -53,7 +53,7 @@ class Database:
             retry_delay: Initial delay between retries in seconds (exponential backoff)
         """
         if db_url is None:
-            from config.config import Settings
+            from mcp_server_deepresearcher.deepresearcher.config import Settings
             settings = Settings()
             db_config = settings.database
             db_url = db_config.DATABASE_URL

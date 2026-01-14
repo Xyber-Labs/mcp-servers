@@ -105,6 +105,7 @@ line-ending = "auto"
 
 [tool.mypy]
 python_version = "3.12"
+warn_unreachable = true
 files = ["src/**/*.py"]
 exclude = ["tests/", "__pycache__/"]
 strict = true
@@ -120,9 +121,14 @@ testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+pythonpath = ["."]
 addopts = [
     "--strict-markers",
     "--strict-config",
     "--disable-warnings",
     "-v",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
 ]

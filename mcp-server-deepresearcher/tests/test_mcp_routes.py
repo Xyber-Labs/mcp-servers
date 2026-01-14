@@ -9,8 +9,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastmcp import Context
 from fastmcp.exceptions import ToolError
 
-from mcp_server_deepresearcher.server import deep_research as mcp_deep_research
+from mcp_server_deepresearcher.server import mcp_server
 from mcp_server_deepresearcher.schemas import DeepResearchRequest
+
+
+async def get_deep_research_func():
+    """Get the deep_research function from mcp_server tools."""
+    tools = await mcp_server.get_tools()
+    if 'deep_research' in tools:
+        return tools['deep_research'].fn
+    raise ValueError("deep_research tool not found")
 
 
 @pytest.fixture
@@ -47,7 +55,8 @@ async def test_mcp_deep_research_success(mock_mcp_context):
         mock_agent.graph.ainvoke = AsyncMock(return_value=mock_result)
         mock_agent_class.return_value = mock_agent
         
-        result = await mcp_deep_research(mock_mcp_context, request)
+        deep_research_func = await get_deep_research_func()
+        result = await deep_research_func(mock_mcp_context, request)
         
         # Result should be JSON string
         import json
@@ -67,8 +76,9 @@ async def test_mcp_deep_research_missing_llm():
     
     request = DeepResearchRequest(research_topic="test")
     
+    deep_research_func = await get_deep_research_func()
     with pytest.raises(ToolError) as exc_info:
-        await mcp_deep_research(ctx, request)
+        await deep_research_func(ctx, request)
     
     assert "Shared resources" in str(exc_info.value)
 
@@ -84,8 +94,9 @@ async def test_mcp_deep_research_missing_tools():
     
     request = DeepResearchRequest(research_topic="test")
     
+    deep_research_func = await get_deep_research_func()
     with pytest.raises(ToolError) as exc_info:
-        await mcp_deep_research(ctx, request)
+        await deep_research_func(ctx, request)
     
     assert "Shared resources" in str(exc_info.value)
 
@@ -100,8 +111,9 @@ async def test_mcp_deep_research_agent_error(mock_mcp_context):
         mock_agent.graph.ainvoke = AsyncMock(side_effect=Exception("Agent error"))
         mock_agent_class.return_value = mock_agent
         
+        deep_research_func = await get_deep_research_func()
         with pytest.raises(ToolError) as exc_info:
-            await mcp_deep_research(mock_mcp_context, request)
+            await deep_research_func(mock_mcp_context, request)
         
         assert "unexpected error" in str(exc_info.value).lower()
 
@@ -119,7 +131,8 @@ async def test_mcp_deep_research_default_loops(mock_mcp_context):
         mock_agent.graph.ainvoke = AsyncMock(return_value=mock_result)
         mock_agent_class.return_value = mock_agent
         
-        await mcp_deep_research(mock_mcp_context, request)
+        deep_research_func = await get_deep_research_func()
+        await deep_research_func(mock_mcp_context, request)
         
         call_args = mock_agent.graph.ainvoke.call_args
         config = call_args[1].get("config", {})
@@ -143,7 +156,8 @@ async def test_mcp_deep_research_custom_loops(mock_mcp_context, max_loops):
         mock_agent.graph.ainvoke = AsyncMock(return_value=mock_result)
         mock_agent_class.return_value = mock_agent
         
-        await mcp_deep_research(mock_mcp_context, request)
+        deep_research_func = await get_deep_research_func()
+        await deep_research_func(mock_mcp_context, request)
         
         call_args = mock_agent.graph.ainvoke.call_args
         config = call_args[1].get("config", {})
@@ -166,7 +180,8 @@ async def test_mcp_deep_research_empty_summary(mock_mcp_context):
         mock_agent.graph.ainvoke = AsyncMock(return_value=mock_result)
         mock_agent_class.return_value = mock_agent
         
-        result = await mcp_deep_research(mock_mcp_context, request)
+        deep_research_func = await get_deep_research_func()
+        result = await deep_research_func(mock_mcp_context, request)
         
         import json
         parsed_result = json.loads(result)
@@ -202,7 +217,8 @@ async def test_mcp_deep_research_langfuse_integration(mock_mcp_context, monkeypa
         mock_handler.flush = MagicMock()
         mock_handler_class.return_value = mock_handler
         
-        await mcp_deep_research(mock_mcp_context, request)
+        deep_research_func = await get_deep_research_func()
+        await deep_research_func(mock_mcp_context, request)
         
         # Verify Langfuse handler was created
         mock_handler_class.assert_called_once()

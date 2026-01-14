@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # --- Uvicorn Runner ---
 if __name__ == "__main__":
     default_host = os.getenv("MCP_DEEP_RESEARCHER_HOST", "0.0.0.0")
-    default_port = int(os.getenv("MCP_DEEP_RESEARCHER_PORT", "8006"))
+    default_port = int(os.getenv("MCP_DEEP_RESEARCHER_PORT", "8003"))
     default_reload = os.getenv("DEEP_RESEARCHER_HOT_RELOAD", "false").lower() in ("true", "1", "t")
     
     parser = argparse.ArgumentParser(description="Run the Deep Researcher MCP Server.")

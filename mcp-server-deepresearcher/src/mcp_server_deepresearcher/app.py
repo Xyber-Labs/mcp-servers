@@ -2,6 +2,7 @@
 Main FastAPI application factory with REST API, MCP, and x402 payment support.
 """
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -75,10 +76,28 @@ async def app_lifespan(app: FastAPI):
         client = MultiServerMCPClient(mcp_servers_config)
 
         logger.info("Connecting to dependent MCPs to fetch tools...")
-        mcp_tools = await client.get_tools()
-        logger.info(
-            f"Successfully fetched {len(mcp_tools)} tools for the agent to use."
-        )
+        try:
+            # Add timeout to prevent hanging if MCP servers are not available
+            mcp_tools = await asyncio.wait_for(
+                client.get_tools(),
+                timeout=30.0  # 30 second timeout per server
+            )
+            logger.info(
+                f"Successfully fetched {len(mcp_tools)} tools for the agent to use."
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "Timeout connecting to MCP servers. Continuing with empty tools list. "
+                "Some features may not be available."
+            )
+            mcp_tools = []
+        except Exception as e:
+            logger.error(
+                f"Error connecting to MCP servers: {e}. Continuing with empty tools list. "
+                "Some features may not be available.",
+                exc_info=True
+            )
+            mcp_tools = []
         
         # Construct tools_description from mcp_tools
         tools_description_yaml = construct_tools_description_yaml(mcp_tools)

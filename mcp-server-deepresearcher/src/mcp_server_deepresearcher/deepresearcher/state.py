@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import List, Annotated, Optional
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, ConfigDict
 
 
 class ToolDescription(BaseModel):
@@ -12,9 +12,7 @@ class ToolDescription(BaseModel):
     description: str
     server: Optional[str] = None
     
-    class Config:
-        """Pydantic config."""
-        frozen = True  # Make immutable
+    model_config = ConfigDict(frozen=True)  # Make immutable
     
     def to_prompt_format(self) -> str:
         """Format tool description for use in prompts."""

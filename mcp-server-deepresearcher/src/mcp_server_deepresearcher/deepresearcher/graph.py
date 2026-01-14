@@ -60,7 +60,7 @@ class ResearchGraph:
 
     def _build_graph(self) -> StateGraph:
         # Add nodes and edges
-        builder = StateGraph(ResearchState, input=ResearchState, output=ResearchState)
+        builder = StateGraph(ResearchState, input_schema=ResearchState, output_schema=ResearchState)
         # Add nodes
         builder.add_node("generate_query", self.generate_query)
         builder.add_node("web_research", self.web_research)
