@@ -199,10 +199,23 @@ async def perform_deep_research(
                 logger.warning(f"Could not retrieve trace ID or flush handler: {e}")
                 logger.exception(e)
 
-        final_report = result_dict.get("running_summary", {})
-        report_data = result_dict.get("report", {})
+        # Extract data from result_dict (ResearchState)
+        # The state uses 'summary' not 'running_summary'
+        running_summary = result_dict.get("summary") or result_dict.get("running_summary")
+        report_data = result_dict.get("report")
+        
+        # Convert summary to dict format if it's a string
+        if isinstance(running_summary, str):
+            final_report = {"content": running_summary}
+        elif isinstance(running_summary, dict):
+            final_report = running_summary
+        else:
+            final_report = {}
         
         logger.info("Successfully completed deep research.")
+        logger.debug(f"Result keys: {result_dict.keys()}")
+        logger.debug(f"Report data type: {type(report_data)}, value: {report_data}")
+        logger.debug(f"Summary type: {type(running_summary)}, value: {running_summary[:100] if isinstance(running_summary, str) else running_summary}")
         
         # Return comprehensive result
         return {

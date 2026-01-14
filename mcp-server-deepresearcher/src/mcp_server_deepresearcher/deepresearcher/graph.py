@@ -624,7 +624,8 @@ class ResearchGraph:
             report_data["sources"] = formatted_sources
             logger.info(f"Added {len(unique_sources)} unique sources to final report (from {len(all_sources)} total accumulated)")
 
-
+        # Set the report in state so it's returned in the result
+        state.report = report_data
 
         # Save report to database
         try:
