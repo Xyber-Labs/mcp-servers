@@ -17,53 +17,7 @@ from mcp_server_deepresearcher.deepresearcher.config import LLM_Config
 logger = logging.getLogger(__name__)
 
 
-def load_news_memory(file_path: str, limit: int = None, titles_only: bool = False):
-    if not os.path.exists(file_path):
-        logger.info(f"News memory file not found at {file_path}. Creating it.")
-        # Create directory if it doesn't exist
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        with open(file_path, "w") as f:
-            json.dump({}, f)
 
-    with open(file_path) as f:
-        data = json.load(f)
-
-    # Get the last N items from the dictionary
-    keys = list(data.keys())
-    if limit is not None:
-        last_keys = keys[-limit:] if len(keys) >= limit else keys
-        data = {key: data[key] for key in last_keys}
-
-    # If titles_only is True, extract only the article titles
-    if titles_only:
-        titles = []
-        for key, article in data.items():
-            # Handle different article structures
-            if isinstance(article, dict):
-                title = article.get("news_article_title")
-                if title:
-                    titles.append(title)
-        return titles
-
-    return data
-
-
-def load_agent_personality(file_path: str):
-    with open(file_path) as f:
-        data = json.load(f)
-    return data
-
-
-def load_memory(file_path: str):
-    """Loads a JSON file, returning an empty dict if the file is empty."""
-    try:
-        with open(file_path) as f:
-            content = f.read()
-            if not content:
-                return {}
-            return json.loads(content)
-    except (json.JSONDecodeError, FileNotFoundError):
-        return {}
 
 
 def load_json(file_path, create_file=False):
@@ -131,43 +85,6 @@ def load_yaml(file_path):
     except Exception as e:
         logger.error(f"Error loading YAML file {file_path}: {e}")
         return []
-
-
-def save_news_memory(new_article: dict, file_path: str):
-    """Add a new article to the news memory, preserving existing articles.
-
-    Args:
-        new_article: Dictionary containing news_article_title, news_article_summary, news_article_content
-        file_path: Path to the news memory JSON file
-    """
-    # Load existing memory or create empty dict
-    if os.path.exists(file_path):
-        try:
-            with open(file_path) as f:
-                existing_memory = json.load(f)
-        except (json.JSONDecodeError, FileNotFoundError):
-            existing_memory = {}
-    else:
-        existing_memory = {}
-
-    # Generate a unique key for the new article
-    # Use timestamp to ensure uniqueness
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    new_key = f"news_article_{timestamp}"
-
-    # Ensure the key is unique (in case of rapid successive calls)
-    counter = 1
-    original_key = new_key
-    while new_key in existing_memory:
-        new_key = f"{original_key}_{counter}"
-        counter += 1
-
-    # Add the new article to the memory
-    existing_memory[new_key] = new_article
-
-    # Save the updated memory
-    with open(file_path, "w") as f:
-        json.dump(existing_memory, f, indent=2)
 
 
 # ------------------------------------------------------------------------------------------------
@@ -472,68 +389,6 @@ def clean_response(response_text: str) -> str:
             pass
         return response_text
 
-
-def clean_for_voice(text: str) -> str:
-    """Clean text for voice generation by removing emojis, problematic Unicode, and excessive newlines."""
-    import re
-
-    try:
-        # Remove emojis and other symbols
-        # This regex matches most emoji characters
-        emoji_pattern = re.compile(
-            "["
-            "\U0001f600-\U0001f64f"  # emoticons
-            "\U0001f300-\U0001f5ff"  # symbols & pictographs
-            "\U0001f680-\U0001f6ff"  # transport & map symbols
-            "\U0001f1e0-\U0001f1ff"  # flags (iOS)
-            "\U00002702-\U000027b0"  # dingbats
-            "\U000024c2-\U0001f251"
-            "]+",
-            flags=re.UNICODE,
-        )
-        text = emoji_pattern.sub("", text)
-
-        # Replace problematic Unicode characters with readable alternatives
-        unicode_replacements = {
-            "\u2019": "'",  # Right single quotation mark
-            "\u2018": "'",  # Left single quotation mark
-            "\u201c": '"',  # Left double quotation mark
-            "\u201d": '"',  # Right double quotation mark
-            "\u2013": "-",  # En dash
-            "\u2014": "-",  # Em dash
-            "\u2026": "...",  # Horizontal ellipsis
-            "\u00a0": " ",  # Non-breaking space
-            "\u2022": "*",  # Bullet point
-            "\u00b7": "*",  # Middle dot
-            "\u00ae": "(R)",  # Registered trademark
-            "\u00a9": "(C)",  # Copyright
-            "\u2122": "(TM)",  # Trademark
-        }
-
-        for unicode_char, replacement in unicode_replacements.items():
-            text = text.replace(unicode_char, replacement)
-
-        # Remove any remaining problematic Unicode characters
-        # Keep only ASCII printable characters, spaces, and basic punctuation
-        text = "".join(char for char in text if ord(char) < 127 or char.isspace())
-
-        # Clean up excessive newlines and whitespace
-        text = re.sub(r"\n{3,}", "\n\n", text)  # Replace 3+ newlines with 2
-        # Replace multiple spaces with single space
-        text = re.sub(r"\s{2,}", " ", text)
-        text = re.sub(r"\t+", " ", text)  # Replace tabs with spaces
-
-        # Remove special characters that might cause TTS issues
-        text = re.sub(r"[^\w\s.,!?;:@$%\-\n]", "", text)
-
-        # Clean up any remaining multiple spaces
-        text = re.sub(r" {2,}", " ", text)
-
-        return text.strip()
-
-    except Exception as e:
-        logger.error(f"Error cleaning text for voice: {e}")
-        return text
 
 
 def load_mcp_servers_config(
