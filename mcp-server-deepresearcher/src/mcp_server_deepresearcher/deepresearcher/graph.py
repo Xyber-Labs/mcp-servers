@@ -4,6 +4,7 @@ import json
 import logging
 import re
 from typing import List, Union, Literal
+import os
 
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.output_parsers import JsonOutputParser
@@ -79,24 +80,24 @@ class ResearchGraph:
 
         # Script to save the graph as an image file
         # Save the graph visualization as an image file
-        # logger.info("Saving graph as image")
-        # try:
-        #     # Get the directory of the current file
-        #     output_dir = os.path.dirname(os.path.abspath(__file__))
-        #     output_path = os.path.join(output_dir, "agent_research_graph.png")
+        logger.info("Saving graph as image")
+        try:
+            # Get the directory of the current file
+            output_dir = os.path.dirname(os.path.abspath(__file__))
+            output_path = os.path.join(output_dir, "agent_research_graph.png")
 
-        #     # Save the graph visualization as a PNG file
-        #     try:
-        #         # Use the appropriate method to save the graph
-        #         # The get_graph() method accesses the internal graph representation
-        #         graph_image = graph.get_graph().draw_mermaid_png()
-        #         with open(output_path, "wb") as f:
-        #             f.write(graph_image)
-        #         logger.info(f"Graph saved to {output_path}")
-        #     except Exception as e:
-        #         logger.error(f"Error saving graph: {e}")
-        # except Exception as e:
-        #     logger.error(f"Error saving graph: {e}")
+            # Save the graph visualization as a PNG file
+            try:
+                # Use the appropriate method to save the graph
+                # The get_graph() method accesses the internal graph representation
+                graph_image = graph.get_graph().draw_mermaid_png()
+                with open(output_path, "wb") as f:
+                    f.write(graph_image)
+                logger.info(f"Graph saved to {output_path}")
+            except Exception as e:
+                logger.error(f"Error saving graph: {e}")
+        except Exception as e:
+            logger.error(f"Error saving graph: {e}")
 
         return graph
 

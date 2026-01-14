@@ -5,6 +5,8 @@ from unittest.mock import MagicMock, AsyncMock
 from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 
+from mcp_server_deepresearcher.schemas import DeepResearchRequest
+
 
 @pytest.fixture
 def mock_llm():
@@ -225,3 +227,33 @@ def mock_agent_factory():
     
     create_agent.created_agents = created_agents
     return create_agent
+
+
+# Additional fixtures for new test structure
+
+@pytest.fixture
+def mock_app_state():
+    """Create mock app state with research resources."""
+    state = MagicMock()
+    state.llm = MagicMock()
+    state.llm_thinking = MagicMock()
+    state.mcp_tools = [MagicMock(name="tool1"), MagicMock(name="tool2")]
+    state.tools_description = []
+    return state
+
+
+@pytest.fixture
+def mock_fastapi_app(mock_app_state):
+    """Create a mock FastAPI app with state."""
+    app = MagicMock()
+    app.state = mock_app_state
+    return app
+
+
+@pytest.fixture
+def mock_research_request():
+    """Create a mock research request."""
+    return DeepResearchRequest(
+        research_topic="test topic",
+        max_web_research_loops=3
+    )
