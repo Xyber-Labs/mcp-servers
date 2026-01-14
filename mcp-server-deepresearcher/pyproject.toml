@@ -33,6 +33,10 @@ dependencies = [
     "langchain-mistralai",
     "langchain-mcp-adapters",
     "langfuse>=2.0.0",
+    # x402 Payment Dependencies
+    "x402==0.2.1",
+    "cdp-sdk>=1.33.2",
+    "pyyaml",
 ]
 
 [dependency-groups]

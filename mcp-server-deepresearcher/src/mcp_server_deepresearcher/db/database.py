@@ -10,13 +10,15 @@ import time
 from datetime import datetime, timezone
 from typing import Any
 
+import logging
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
-from app_logging.logger import logger
+from mcp_server_deepresearcher.db.models import Base, ResearchReport
 
-from .models import Base, ResearchReport
+logger = logging.getLogger(__name__)
 
 _db_instance: Database | None = None
 

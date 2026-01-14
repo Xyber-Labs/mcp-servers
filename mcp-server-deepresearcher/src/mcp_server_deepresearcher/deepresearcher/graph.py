@@ -1,6 +1,7 @@
 import asyncio
 import concurrent.futures
 import json
+import logging
 import re
 from typing import List, Union, Literal
 
@@ -10,9 +11,16 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import StructuredTool, Tool
 from langgraph.graph import END, START, StateGraph
 
-from app_logging.logger import logger
-from utils.utils import clean_response, create_mcp_tasks
-from agents.agent_research.graph.prompts import (
+from mcp_server_deepresearcher.deepresearcher.utils import (
+    clean_response,
+    create_mcp_tasks,
+    extract_source_info,
+    extract_sources_from_raw_content,
+    format_sources,
+    clean_apify_tweet_data,
+    deduplicate_sources,
+)
+from mcp_server_deepresearcher.deepresearcher.prompts import (
     get_current_date,
     query_writer_instructions,
     summarizer_instructions,
@@ -20,15 +28,10 @@ from agents.agent_research.graph.prompts import (
     final_report_instructions,
     web_research_instructions,
 )
-from agents.agent_research.graph.state import ResearchState, ToolDescription
-from agents.agent_research.db.database import get_db_instance
-from utils.utils import (
-    extract_source_info,
-    extract_sources_from_raw_content,
-    format_sources,
-    clean_apify_tweet_data,
-    deduplicate_sources,
-)
+from mcp_server_deepresearcher.deepresearcher.state import ResearchState, ToolDescription
+from mcp_server_deepresearcher.db.database import get_db_instance
+
+logger = logging.getLogger(__name__)
 
 
 current_date = get_current_date()
@@ -36,6 +39,7 @@ current_date = get_current_date()
 
 # Nodes
 class ResearchGraph:
+    """Research graph for performing deep research on topics."""
     def __init__(
         self,
         LLM,
@@ -677,4 +681,8 @@ class ResearchGraph:
             f"Research loop count: {state.research_loop_count} is less than max loops: {self.research_loop_max}, continuing research"
         )
         return "web_research"
+
+
+# Alias for backward compatibility
+DeepResearcher = ResearchGraph
 

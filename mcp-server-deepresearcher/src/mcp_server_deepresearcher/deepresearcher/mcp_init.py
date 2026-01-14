@@ -1,9 +1,12 @@
 import asyncio
+import logging
 import sys
-from app_logging.logger import logger
+
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from utils.utils import load_mcp_servers_config
-from config.config import Settings
+from mcp_server_deepresearcher.deepresearcher.utils import load_mcp_servers_config
+from mcp_server_deepresearcher.deepresearcher.config import Settings
+
+logger = logging.getLogger(__name__)
 
 
 

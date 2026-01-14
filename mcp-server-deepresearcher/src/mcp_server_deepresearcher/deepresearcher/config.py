@@ -1,4 +1,5 @@
 import os
+import logging
 
 from dotenv import load_dotenv
 from pydantic import BaseModel
@@ -9,7 +10,8 @@ from pydantic_settings import (
     SettingsConfigDict,
 )
 from pathlib import Path
-from app_logging.logger import logger
+
+logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -54,6 +56,7 @@ class LLM_Config(BaseModel):
 
 class SearchMCP_Config(BaseModel):
     """Configuration settings for the dependent search MCP servers."""
+    APIFY_TOKEN: Optional[str] = os.getenv("APIFY_TOKEN")
     MCP_TAVILY_URL: str = os.getenv("MCP_TAVILY_URL")
     MCP_ARXIV_URL: str = os.getenv("MCP_ARXIV_URL")
     MCP_TWITTER_APIFY_URL: str = os.getenv("MCP_TWITTER_APIFY_URL")

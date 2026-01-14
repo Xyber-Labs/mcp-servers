@@ -1,5 +1,6 @@
 # Libraries for different LLMs
 import json
+import logging
 import yaml
 from logging import LoggerAdapter
 import os
@@ -7,12 +8,13 @@ import re
 from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
 from functools import lru_cache
-from app_logging.logger import logger
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_mistralai import ChatMistralAI
 from langchain_core.output_parsers import JsonOutputParser
 
-from config.config import LLM_Config
+from mcp_server_deepresearcher.deepresearcher.config import LLM_Config
+
+logger = logging.getLogger(__name__)
 
 
 def load_news_memory(file_path: str, limit: int = None, titles_only: bool = False):
@@ -348,6 +350,16 @@ def initialize_llm_from_config(
         msg = f"Failed to initialize LLM from provider '{model_provider}': {e}"
         logger.warning(msg, exc_info=True)
         return None
+
+
+def setup_llm(llm_config: LLM_Config):
+    """Setup main LLM from config."""
+    return initialize_llm(llm_type="main", raise_on_error=True)
+
+
+def setup_spare_llm(llm_config: LLM_Config):
+    """Setup spare LLM from config."""
+    return initialize_llm(llm_type="spare", raise_on_error=False)
 
 
 def clean_response(response_text: str) -> str:

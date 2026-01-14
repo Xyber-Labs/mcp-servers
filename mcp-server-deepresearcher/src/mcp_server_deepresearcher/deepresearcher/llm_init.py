@@ -1,7 +1,10 @@
-from app_logging.logger import logger
-from utils.utils import initialize_llm, initialize_llm_from_config
+import logging
 import sys
 from typing import Optional, Dict, Any
+
+from mcp_server_deepresearcher.deepresearcher.utils import initialize_llm, initialize_llm_from_config
+
+logger = logging.getLogger(__name__)
 
 
 def initialize_llms(llm_config: Optional[Dict[str, Any]] = None):
