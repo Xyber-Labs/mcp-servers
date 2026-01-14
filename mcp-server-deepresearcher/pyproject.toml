@@ -37,6 +37,7 @@ dependencies = [
     "x402==0.2.1",
     "cdp-sdk>=1.33.2",
     "pyyaml",
+    "psycopg2-binary>=2.9.9",
 ]
 
 [dependency-groups]

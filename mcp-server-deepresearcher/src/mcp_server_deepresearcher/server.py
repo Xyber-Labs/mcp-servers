@@ -179,9 +179,9 @@ async def deep_research(
             langfuse_handler = CallbackHandler()
             logger.info("Langfuse CallbackHandler created successfully")
             
-            runnable_config = RunnableConfig(
-                callbacks=[langfuse_handler],
-                metadata={
+            runnable_config: RunnableConfig = {
+                "callbacks": [langfuse_handler],
+                "metadata": {
                     "agent_type": "deep_researcher",
                     "agent_name": "DeepResearcher",
                     "session_id": session_id,
@@ -189,7 +189,7 @@ async def deep_research(
                     "research_topic": request.research_topic,
                     "max_web_research_loops": request.max_web_research_loops,
                 }
-            )
+            }
             
             logger.info(f"Created Langfuse handler for research run {run_id[:8]}")
         except Exception as e:
@@ -205,11 +205,12 @@ async def deep_research(
         # If runnable_config exists, merge configurable parameters with it
         if runnable_config:
             # Create a new RunnableConfig that includes both callbacks and configurable params
-            config = RunnableConfig(
-                callbacks=runnable_config.callbacks,
-                configurable=configurable_params,
-                metadata=runnable_config.metadata,
-            )
+            # Note: RunnableConfig is a TypedDict, so we use dictionary access
+            config: RunnableConfig = {
+                "callbacks": runnable_config.get("callbacks"),
+                "configurable": configurable_params,
+                "metadata": runnable_config.get("metadata"),
+            }
             logger.info("Starting graph execution...")
             logger.info("Executing graph with Langfuse tracking enabled")
         else:

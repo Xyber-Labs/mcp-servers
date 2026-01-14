@@ -21,11 +21,17 @@ from mcp_server_deepresearcher.deepresearcher.utils import (
 )
 from mcp_server_deepresearcher.deepresearcher.state import ToolDescription
 from mcp_server_deepresearcher.hybrid_routers import routers as hybrid_routers
+from mcp_server_deepresearcher.mcp_routers import routers as mcp_routers
+from mcp_server_deepresearcher.logging_config import configure_logging
 from mcp_server_deepresearcher.middlewares import X402WrapperMiddleware
 from mcp_server_deepresearcher.x402_config import get_x402_settings
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
 logger = logging.getLogger(__name__)
+
+
+# Apply logging configuration when the app module is loaded
+configure_logging()
 
 
 # --- Lifespan Management ---
@@ -145,6 +151,8 @@ def create_app() -> FastAPI:
     mcp_source_app = FastAPI(title="MCP Source")
     for router in hybrid_routers:
         mcp_source_app.include_router(router)
+    for router in mcp_routers:
+        mcp_source_app.include_router(router)
     
     # Convert to MCP server
     mcp_server = FastMCP.from_fastapi(app=mcp_source_app, name="deep_researcher")
@@ -174,6 +182,9 @@ def create_app() -> FastAPI:
     # Hybrid routes: accessible via /hybrid/* (REST) and /mcp (MCP)
     for router in hybrid_routers:
         app.include_router(router, prefix="/hybrid")
+
+    # MCP-only routes: NOT mounted as REST endpoints
+    # They're only accessible through the /mcp endpoint below
 
     # Mount the MCP server at /mcp
     app.mount("/mcp", mcp_app)

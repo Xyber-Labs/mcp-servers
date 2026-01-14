@@ -8,9 +8,10 @@ import os
 
 import uvicorn
 
-from mcp_server_deepresearcher.logging_config import LOGGING_LEVEL, configure_logging
+from mcp_server_deepresearcher.logging_config import LOGGING_LEVEL
 
-configure_logging()
+# The configure_logging() call is removed from here.
+# Uvicorn will handle the logging configuration.
 logger = logging.getLogger(__name__)
 
 
@@ -39,6 +40,5 @@ if __name__ == "__main__":
         host=args.host,
         port=args.port,
         reload=args.reload,
-        log_level=LOGGING_LEVEL.lower(),
         factory=True,
     )
