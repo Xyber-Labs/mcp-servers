@@ -229,7 +229,7 @@ The server integrates with Langfuse for comprehensive tracing of LangGraph execu
 LANGFUSE_API_KEY=your_api_key
 LANGFUSE_SECRET_KEY=your_secret_key
 LANGFUSE_HOST=https://cloud.langfuse.com  # Optional, defaults to cloud
-LANGFUSE_PROJECT=poker  # Optional project name
+LANGFUSE_PROJECT=deepresearcher  # Optional project name
 ```
 
 ### Features
@@ -358,7 +358,7 @@ DB_PORT=5432                                            # Default: "5432"
 LANGFUSE_API_KEY="your_langfuse_api_key"               # Optional: Langfuse API key
 LANGFUSE_SECRET_KEY="your_langfuse_secret_key"         # Optional: Langfuse secret key
 LANGFUSE_HOST="https://cloud.langfuse.com"             # Optional: Defaults to cloud
-LANGFUSE_PROJECT="poker"                               # Optional: Project name
+LANGFUSE_PROJECT="deepresearcher"                               # Optional: Project name
 
 # ============================================================================
 # x402 Payment Configuration (Optional)
