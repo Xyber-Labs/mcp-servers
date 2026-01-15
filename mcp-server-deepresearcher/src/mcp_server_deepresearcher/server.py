@@ -59,6 +59,17 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[Dict[str, Any]]:
         llm_config = LLM_Config()
         search_mcp_config = SearchMCP_Config()
         deep_researcher_config = DeepResearcherConfig()
+        
+        # Set Langfuse environment variables once at startup (not per-request)
+        # This avoids race conditions when multiple requests run concurrently
+        langfuse_config = LangfuseConfig()
+        if langfuse_config.LANGFUSE_API_KEY and langfuse_config.LANGFUSE_SECRET_KEY:
+            os.environ["LANGFUSE_PUBLIC_KEY"] = langfuse_config.LANGFUSE_API_KEY
+            os.environ["LANGFUSE_SECRET_KEY"] = langfuse_config.LANGFUSE_SECRET_KEY
+            if langfuse_config.LANGFUSE_HOST:
+                os.environ["LANGFUSE_HOST"] = langfuse_config.LANGFUSE_HOST
+            logger.info("Langfuse environment variables configured at startup")
+        
         # Initialize LLMs
         llm = setup_llm()
         llm_spare = setup_spare_llm()
@@ -172,6 +183,7 @@ async def deep_research(
     langfuse_config = LangfuseConfig()
     
     # Check if Langfuse is configured (v3 doesn't require project, but we check for API key)
+    # Note: Environment variables are set at startup in lifespan, so we just check if they're available
     logger.debug(f"Langfuse config check - API_KEY: {bool(langfuse_config.LANGFUSE_API_KEY)}, SECRET_KEY: {bool(langfuse_config.LANGFUSE_SECRET_KEY)}, HOST: {langfuse_config.LANGFUSE_HOST}")
     
     if langfuse_config.LANGFUSE_API_KEY and langfuse_config.LANGFUSE_SECRET_KEY:
@@ -180,16 +192,7 @@ async def deep_research(
             
             # Create a NEW CallbackHandler instance - each handler automatically generates a new trace ID
             # Note: Langfuse v3 - CallbackHandler() reads all config from environment variables
-            # Set environment variables for Langfuse configuration (v3 uses LANGFUSE_PUBLIC_KEY)
-            os.environ["LANGFUSE_PUBLIC_KEY"] = langfuse_config.LANGFUSE_API_KEY
-            os.environ["LANGFUSE_SECRET_KEY"] = langfuse_config.LANGFUSE_SECRET_KEY
-            if langfuse_config.LANGFUSE_HOST:
-                os.environ["LANGFUSE_HOST"] = langfuse_config.LANGFUSE_HOST
-            
-            logger.info(f"Langfuse env vars set - PUBLIC_KEY: {langfuse_config.LANGFUSE_API_KEY[:10]}..., HOST: {langfuse_config.LANGFUSE_HOST}")
-            
-            # CallbackHandler reads all config from environment variables (no arguments needed in v3)
-            # Note: Project parameter was removed in v3 - projects are managed at account level in UI
+            # Environment variables are set once at startup in lifespan to avoid race conditions
             langfuse_handler = CallbackHandler()
             logger.info("Langfuse CallbackHandler created successfully")
             

@@ -452,16 +452,20 @@ async def search_profile_batch(
     )
 
     results: list[ProfileBatchResult] = []
+    # Calculate timeout per username (distribute total timeout across all usernames)
+    timeout_per_username = max(1, timeout_seconds // len(usernames)) if usernames else timeout_seconds
+    
     for username in usernames:
         try:
             logger.info(
-                "profile batch item start user=%r max_items=%s since=%r until=%r lang=%s format=%s",
+                "profile batch item start user=%r max_items=%s since=%r until=%r lang=%s format=%s timeout=%ss",
                 username,
                 request.max_items,
                 request.since,
                 request.until,
                 request.lang,
                 request.output_format,
+                timeout_per_username,
             )
             query = create_profile_query(
                 username,
@@ -470,15 +474,26 @@ async def search_profile_batch(
                 until=request.until.isoformat() if request.until else None,
                 lang=request.lang,
             )
-            items = _run_query_and_read(temp_scraper, query)
+            items = await asyncio.wait_for(
+                asyncio.to_thread(_run_query_and_read, temp_scraper, query),
+                timeout=timeout_per_username,
+            )
             results.append(ProfileBatchResult(username=username, items=items, error=None))
+        except asyncio.TimeoutError:
+            logger.error("profile batch item timeout user=%r timeout=%ss", username, timeout_per_username)
+            if not request.continue_on_error:
+                raise HTTPException(
+                    status_code=504,
+                    detail=f"Batch search timed out for username={username!r} after {timeout_per_username} seconds",
+                )
+            results.append(ProfileBatchResult(username=username, items=[], error=f"Timeout after {timeout_per_username} seconds"))
         except Exception as e:
             logger.exception("profile batch item failed user=%r error=%s", username, e)
             if not request.continue_on_error:
                 raise HTTPException(
                     status_code=500,
                     detail=f"Batch search failed for username={username!r}: {str(e)}",
-                )
+                ) from e
             results.append(ProfileBatchResult(username=username, items=[], error=str(e)))
 
     return results
@@ -524,14 +539,18 @@ async def search_profile_latest_batch(
     )
 
     results: list[ProfileBatchResult] = []
+    # Calculate timeout per username (distribute total timeout across all usernames)
+    timeout_per_username = max(1, timeout_seconds // len(usernames)) if usernames else timeout_seconds
+    
     for username in usernames:
         try:
             logger.info(
-                "profile latest batch item start user=%r max_items=%s lang=%s format=%s",
+                "profile latest batch item start user=%r max_items=%s lang=%s format=%s timeout=%ss",
                 username,
                 request.max_items,
                 request.lang,
                 request.output_format,
+                timeout_per_username,
             )
             query = create_profile_query(
                 username,
@@ -540,15 +559,26 @@ async def search_profile_latest_batch(
                 until=None,
                 lang=request.lang,
             )
-            items = _run_query_and_read(temp_scraper, query)
+            items = await asyncio.wait_for(
+                asyncio.to_thread(_run_query_and_read, temp_scraper, query),
+                timeout=timeout_per_username,
+            )
             results.append(ProfileBatchResult(username=username, items=items, error=None))
+        except asyncio.TimeoutError:
+            logger.error("profile latest batch item timeout user=%r timeout=%ss", username, timeout_per_username)
+            if not request.continue_on_error:
+                raise HTTPException(
+                    status_code=504,
+                    detail=f"Batch latest search timed out for username={username!r} after {timeout_per_username} seconds",
+                )
+            results.append(ProfileBatchResult(username=username, items=[], error=f"Timeout after {timeout_per_username} seconds"))
         except Exception as e:
             logger.exception("profile latest batch item failed user=%r error=%s", username, e)
             if not request.continue_on_error:
                 raise HTTPException(
                     status_code=500,
                     detail=f"Batch latest search failed for username={username!r}: {str(e)}",
-                )
+                ) from e
             results.append(ProfileBatchResult(username=username, items=[], error=str(e)))
 
     return results

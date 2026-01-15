@@ -268,7 +268,7 @@ async def perform_deep_research(
         logger.error(
             f"An unexpected error occurred during deep research: {e}", exc_info=True
         )
-        raise HTTPException(status_code=500, detail=f"An unexpected error occurred during research: {e}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred during research: {e}") from e
     finally:
         # Clean up handler reference
         langfuse_handler = None
