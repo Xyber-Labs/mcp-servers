@@ -71,6 +71,23 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
         if not self.facilitator:
             return await call_next(request)
 
+        # Cache request body for MCP POST requests to allow re-reading by downstream handlers
+        if "mcp" in request.url.path and request.method == "POST":
+            # Read and cache the body
+            body_bytes = await request.body()
+            # Wrap the receive callable to replay the cached body
+            original_receive = request.scope["receive"]
+            body_consumed = False
+            
+            async def cached_receive():
+                nonlocal body_consumed
+                if not body_consumed:
+                    body_consumed = True
+                    return {"type": "http.request", "body": body_bytes, "more_body": False}
+                return await original_receive()
+            
+            request.scope["receive"] = cached_receive
+
         operation_id = await self._get_operation_id(request)
         pricing_options = self.tool_pricing.get(operation_id)
 
@@ -195,7 +212,9 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
                     return route.operation_id
         elif "mcp" in path and request.method == "POST":
             try:
-                body = await request.json()
+                # Body should already be cached in dispatch, read it
+                body_bytes = await request.body()
+                body = json.loads(body_bytes)
                 return (body.get("params") or {}).get("name")
             except json.JSONDecodeError:
                 logger.warning("Could not decode JSON body for MCP request.")

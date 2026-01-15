@@ -688,20 +688,6 @@ async def search_videos_only(
             raise HTTPException(status_code=401, detail=error_msg)
         else:
             raise HTTPException(status_code=500, detail=error_msg)
-
-        # Handle both BaseModels and dicts (from mocks)
-        video_responses = []
-        for video in videos:
-            video_dict = _normalize_video_to_dict(video)
-            video_responses.append(VideoSearchResponse.from_video(video_dict))
-
-        return SearchOnlyResponse(
-            query=request.query,
-            max_results=request.num_videos,
-            num_videos=request.num_videos,
-            videos=video_responses,
-            total_found=len(videos),
-        )
     except HTTPException:
         # Re-raise HTTPExceptions (like 404) without wrapping
         raise
@@ -711,4 +697,18 @@ async def search_videos_only(
     except Exception as e:
         logger.error(f"Error in search endpoint: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+    # Handle both BaseModels and dicts (from mocks)
+    video_responses = []
+    for video in videos:
+        video_dict = _normalize_video_to_dict(video)
+        video_responses.append(VideoSearchResponse.from_video(video_dict))
+
+    return SearchOnlyResponse(
+        query=request.query,
+        max_results=request.num_videos,
+        num_videos=request.num_videos,
+        videos=video_responses,
+        total_found=len(videos),
+    )
 

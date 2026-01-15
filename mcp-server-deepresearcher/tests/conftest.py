@@ -255,6 +255,5 @@ def mock_fastapi_app(mock_app_state):
 def mock_research_request():
     """Create a mock research request."""
     return DeepResearchRequest(
-        research_topic="test topic",
-        max_web_research_loops=3
+        research_topic="test topic"
     )

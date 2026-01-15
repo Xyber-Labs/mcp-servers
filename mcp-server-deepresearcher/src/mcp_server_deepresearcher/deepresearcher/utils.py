@@ -1216,21 +1216,6 @@ def get_telegram_sources_for_topic(topic: str, topics_file_path: str) -> List[st
 
     logger.warning(f"No Telegram sources found for topic '{topic}'")
     return []
-
-
-async def generate_llm_response_async(message: str) -> str:
-    llm = initialize_llm("main")
-    llm_thinking = initialize_llm("thinking")
-    llm_spare = initialize_llm("spare")
-    llm = llm.with_fallbacks([llm_spare])
-    llm_thinking = llm_thinking.with_fallbacks([llm_spare])
-    response = await llm_thinking.ainvoke(message)
-    if not response:
-        response = clean_response(response.content)
-        response = JsonOutputParser().parse(response)
-    return response
-
-
 def construct_tools_yaml(mcp_tools: List[Any], tool_to_server_map: Optional[Dict[str, str]] = None) -> str:
     """
     Constructs valid YAML specification from MCP tools.
