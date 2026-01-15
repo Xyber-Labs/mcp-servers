@@ -22,16 +22,27 @@ from mcp_server_deepresearcher.deepresearcher.utils import (
 from mcp_server_deepresearcher.deepresearcher.state import ToolDescription
 from mcp_server_deepresearcher.schemas import DeepResearchRequest
 
+logger = logging.getLogger(__name__)
+
 # Langfuse 
-# Set OpenTelemetry timeout environment variables BEFORE importing Langfuse
-# This ensures they're applied before OpenTelemetry initializes
-os.environ.setdefault("OTEL_EXPORTER_OTLP_TIMEOUT", "30")
-os.environ.setdefault("OTEL_BSP_EXPORT_TIMEOUT", "30000")  # 30 seconds in milliseconds
+# Configure OpenTelemetry BEFORE importing Langfuse to handle errors gracefully
+# Set OpenTelemetry timeout environment variables to fail fast if Langfuse is not available
+os.environ.setdefault("OTEL_EXPORTER_OTLP_TIMEOUT", "5")  # Reduced timeout for faster failure
+os.environ.setdefault("OTEL_BSP_EXPORT_TIMEOUT", "5000")  # 5 seconds in milliseconds
 os.environ.setdefault("OTEL_BSP_SCHEDULE_DELAY", "5000")  # Delay between batch exports
 
-from langfuse.langchain import CallbackHandler
+# Suppress OpenTelemetry SDK error logging to prevent spam when Langfuse is not running
+# Set log level to CRITICAL to suppress all OpenTelemetry SDK errors
+otel_logger = logging.getLogger("opentelemetry")
+otel_logger.setLevel(logging.CRITICAL)
+# Suppress urllib3 connection errors from OpenTelemetry
+urllib3_logger = logging.getLogger("urllib3.connectionpool")
+urllib3_logger.setLevel(logging.CRITICAL)
+# Suppress requests errors from OpenTelemetry
+requests_logger = logging.getLogger("requests")
+requests_logger.setLevel(logging.CRITICAL)
 
-logger = logging.getLogger(__name__)
+from langfuse.langchain import CallbackHandler
 
 
 # --- Lifespan Management --- #
@@ -49,8 +60,8 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[Dict[str, Any]]:
         search_mcp_config = SearchMCP_Config()
         deep_researcher_config = DeepResearcherConfig()
         # Initialize LLMs
-        llm = setup_llm(llm_config)
-        llm_spare = setup_spare_llm(llm_config)
+        llm = setup_llm()
+        llm_spare = setup_spare_llm()
         llm_with_fallbacks = llm.with_fallbacks([llm_spare])
         
         # Initialize thinking LLM

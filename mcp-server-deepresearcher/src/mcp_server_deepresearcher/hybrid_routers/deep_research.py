@@ -16,11 +16,22 @@ from mcp_server_deepresearcher.deepresearcher.graph import DeepResearcher
 from mcp_server_deepresearcher.schemas import DeepResearchRequest
 
 # Langfuse
-# Set OpenTelemetry timeout environment variables BEFORE importing Langfuse
-# This ensures they're applied before OpenTelemetry initializes
-os.environ.setdefault("OTEL_EXPORTER_OTLP_TIMEOUT", "30")
-os.environ.setdefault("OTEL_BSP_EXPORT_TIMEOUT", "30000")
-os.environ.setdefault("OTEL_BSP_SCHEDULE_DELAY", "5000")
+# Configure OpenTelemetry BEFORE importing Langfuse to handle errors gracefully
+# Set OpenTelemetry timeout environment variables to fail fast if Langfuse is not available
+os.environ.setdefault("OTEL_EXPORTER_OTLP_TIMEOUT", "5")  # Reduced timeout for faster failure
+os.environ.setdefault("OTEL_BSP_EXPORT_TIMEOUT", "5000")  # 5 seconds in milliseconds
+os.environ.setdefault("OTEL_BSP_SCHEDULE_DELAY", "5000")  # Delay between batch exports
+
+# Suppress OpenTelemetry SDK error logging to prevent spam when Langfuse is not running
+# Set log level to CRITICAL to suppress all OpenTelemetry SDK errors
+otel_logger = logging.getLogger("opentelemetry")
+otel_logger.setLevel(logging.CRITICAL)
+# Suppress urllib3 connection errors from OpenTelemetry
+urllib3_logger = logging.getLogger("urllib3.connectionpool")
+urllib3_logger.setLevel(logging.CRITICAL)
+# Suppress requests errors from OpenTelemetry
+requests_logger = logging.getLogger("requests")
+requests_logger.setLevel(logging.CRITICAL)
 
 from langfuse.langchain import CallbackHandler
 

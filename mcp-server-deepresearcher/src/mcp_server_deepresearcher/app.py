@@ -56,8 +56,8 @@ async def app_lifespan(app: FastAPI):
         search_mcp_config = SearchMCP_Config()
 
         # Initialize LLMs
-        llm = setup_llm(llm_config)
-        llm_spare = setup_spare_llm(llm_config)
+        llm = setup_llm()
+        llm_spare = setup_spare_llm()
         llm_with_fallbacks = llm.with_fallbacks([llm_spare])
         
         # Initialize thinking LLM

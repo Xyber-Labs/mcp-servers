@@ -53,7 +53,13 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
         self.settings: X402Config = get_x402_settings()
         self.facilitator: FacilitatorClient | None = None
         if facilitator_config := self.settings.facilitator_config:
-            self.facilitator = FacilitatorClient(facilitator_config)
+            if not self.settings.payee_wallet_address:
+                logger.error(
+                    "Facilitator is configured but payee_wallet_address is not set. "
+                    "Payment middleware will be disabled."
+                )
+            else:
+                self.facilitator = FacilitatorClient(facilitator_config)
         else:
             logger.warning(
                 "No x402 facilitator configured (missing CDP keys and URL). "
@@ -102,7 +108,8 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
             payment_dict = json.loads(safe_base64_decode(payment_header))
             payment = PaymentPayload(**payment_dict)
         except Exception as e:
-            logger.warning(f"Invalid payment header from {request.client.host}: {e}")
+            client_host = request.client.host if request.client else "unknown"
+            logger.warning(f"Invalid payment header from {client_host}: {e}")
             return self._create_402_response(
                 payment_requirements, "Invalid payment header format"
             )
@@ -181,7 +188,9 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
                         "Retrying payment verification in %.1f seconds...", delay
                     )
                     await asyncio.sleep(delay)
-        assert last_error is not None
+        if last_error is None:
+            # This should never happen, but handle it gracefully
+            raise RuntimeError("Payment verification failed but no error was captured")
         raise last_error
 
     def _create_402_response(

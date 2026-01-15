@@ -5,6 +5,7 @@ REST API endpoints for YouTube search and transcript extraction.
 from __future__ import annotations
 
 import logging
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.exceptions import RequestValidationError
@@ -34,7 +35,7 @@ async def _process_video_dict_transcript(
     db_manager: DatabaseManager,
     cached_transcripts: dict[str, bool],
     existing_videos: dict[str, bool],
-) -> dict:
+) -> Optional[dict]:
     """
     Process transcript for a single video dict (cached or fetch from API).
     
@@ -78,37 +79,37 @@ async def _process_video_dict_transcript(
         logger.info(f"🌐 Fetching transcript from API for video {video_id}")
         transcript_api_result = await service.get_transcript_safe(video_id)
         transcript_result = _normalize_transcript_result(transcript_api_result)
-    
-    # Save to cache (both successful and failed attempts to avoid retrying)
-    video_data = {
-        "video_id": video_id,
-        "title": video_dict.get("title") or "Unknown",
-        "channel": video_dict.get("channel") or video_dict.get("uploader") or "Unknown",
-        "channel_id": video_dict.get("channel_id"),
-        "channel_url": video_dict.get("channel_url"),
-        "video_url": video_dict.get("url") or video_dict.get("link") or video_dict.get("webpage_url") or f"https://www.youtube.com/watch?v={video_id}",
-        "duration": video_dict.get("duration"),
-        "views": video_dict.get("views") or video_dict.get("view_count"),
-        "likes": video_dict.get("likes") or video_dict.get("like_count"),
-        "comments": video_dict.get("comments") or video_dict.get("comment_count"),
-        "upload_date": video_dict.get("upload_date"),
-        "description": video_dict.get("description") or "",
-        "thumbnail": video_dict.get("thumbnail"),
-        "transcript_success": transcript_result["success"],
-        "transcript": transcript_result["transcript"] if transcript_result["success"] else None,
-        "transcript_length": transcript_result["transcript_length"] if transcript_result["success"] else 0,
-        "error": transcript_result["error"],
-        "is_auto_generated": transcript_result["is_generated"],
-        "language": transcript_result["language"],
-    }
-    saved = await asyncio.to_thread(db_manager.save_video, video_data)
-    if saved:
-        if transcript_result["success"]:
-            logger.info(f"💾 Saved transcript to cache for video {video_id}")
+        
+        # Save to cache (both successful and failed attempts to avoid retrying)
+        video_data = {
+            "video_id": video_id,
+            "title": video_dict.get("title") or "Unknown",
+            "channel": video_dict.get("channel") or video_dict.get("uploader") or "Unknown",
+            "channel_id": video_dict.get("channel_id"),
+            "channel_url": video_dict.get("channel_url"),
+            "video_url": video_dict.get("url") or video_dict.get("link") or video_dict.get("webpage_url") or f"https://www.youtube.com/watch?v={video_id}",
+            "duration": video_dict.get("duration"),
+            "views": video_dict.get("views") or video_dict.get("view_count"),
+            "likes": video_dict.get("likes") or video_dict.get("like_count"),
+            "comments": video_dict.get("comments") or video_dict.get("comment_count"),
+            "upload_date": video_dict.get("upload_date"),
+            "description": video_dict.get("description") or "",
+            "thumbnail": video_dict.get("thumbnail"),
+            "transcript_success": transcript_result["success"],
+            "transcript": transcript_result["transcript"] if transcript_result["success"] else None,
+            "transcript_length": transcript_result["transcript_length"] if transcript_result["success"] else 0,
+            "error": transcript_result["error"],
+            "is_auto_generated": transcript_result["is_generated"],
+            "language": transcript_result["language"],
+        }
+        saved = await asyncio.to_thread(db_manager.save_video, video_data)
+        if saved:
+            if transcript_result["success"]:
+                logger.info(f"💾 Saved transcript to cache for video {video_id}")
+            else:
+                logger.info(f"💾 Cached failed transcript attempt for video {video_id} (error: {transcript_result.get('error')}) - will not retry")
         else:
-            logger.info(f"💾 Cached failed transcript attempt for video {video_id} (error: {transcript_result.get('error')}) - will not retry")
-    else:
-        logger.warning(f"⚠️ Failed to save video to cache for video {video_id}")
+            logger.warning(f"⚠️ Failed to save video to cache for video {video_id}")
     
     # Combine video and transcript data
     combined = {

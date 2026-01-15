@@ -220,12 +220,18 @@ async def search_topic(
             use_cache=True,
         )
 
-        items = _run_query_and_read(temp_scraper, query)
+        items = await asyncio.wait_for(
+            asyncio.to_thread(_run_query_and_read, temp_scraper, query),
+            timeout=timeout_seconds,
+        )
         logger.info("topic search done topic=%r items=%d", request.topic, len(items))
         return items
+    except asyncio.TimeoutError:
+        logger.error("topic search timeout topic=%r timeout=%ss", request.topic, timeout_seconds)
+        raise HTTPException(status_code=504, detail=f"Search timed out after {timeout_seconds} seconds")
     except Exception as e:
         logger.exception("topic search failed topic=%r error=%s", request.topic, e)
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}") from e
 
 
 @router.post(
@@ -274,12 +280,18 @@ async def search_profile(
             use_cache=True,
         )
 
-        items = _run_query_and_read(temp_scraper, query)
+        items = await asyncio.wait_for(
+            asyncio.to_thread(_run_query_and_read, temp_scraper, query),
+            timeout=timeout_seconds,
+        )
         logger.info("profile search done user=%r items=%d", request.username, len(items))
         return items
+    except asyncio.TimeoutError:
+        logger.error("profile search timeout user=%r timeout=%ss", request.username, timeout_seconds)
+        raise HTTPException(status_code=504, detail=f"Search timed out after {timeout_seconds} seconds")
     except Exception as e:
         logger.exception("profile search failed user=%r error=%s", request.username, e)
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}") from e
 
 
 @router.post(
@@ -326,12 +338,18 @@ async def search_profile_latest(
             use_cache=True,
         )
 
-        items = _run_query_and_read(temp_scraper, query)
+        items = await asyncio.wait_for(
+            asyncio.to_thread(_run_query_and_read, temp_scraper, query),
+            timeout=timeout_seconds,
+        )
         logger.info("profile latest done user=%r items=%d", request.username, len(items))
         return items
+    except asyncio.TimeoutError:
+        logger.error("profile latest timeout user=%r timeout=%ss", request.username, timeout_seconds)
+        raise HTTPException(status_code=504, detail=f"Search timed out after {timeout_seconds} seconds")
     except Exception as e:
         logger.exception("profile latest failed user=%r error=%s", request.username, e)
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}") from e
 
 
 @router.post(
@@ -376,16 +394,22 @@ async def search_replies(
             use_cache=True,
         )
 
-        items = _run_query_and_read(temp_scraper, query)
+        items = await asyncio.wait_for(
+            asyncio.to_thread(_run_query_and_read, temp_scraper, query),
+            timeout=timeout_seconds,
+        )
         logger.info(
             "replies search done conversation_id=%r items=%d",
             request.conversation_id,
             len(items),
         )
         return items
+    except asyncio.TimeoutError:
+        logger.error("replies search timeout conversation_id=%r timeout=%ss", request.conversation_id, timeout_seconds)
+        raise HTTPException(status_code=504, detail=f"Search timed out after {timeout_seconds} seconds")
     except Exception as e:
         logger.exception("replies search failed conversation_id=%r error=%s", request.conversation_id, e)
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}") from e
 
 
 @router.post(
@@ -559,10 +583,16 @@ async def run_query(
     
     try:
         logger.info("preset run start id=%s type=%s name=%r timeout=%ss", query.id, query.type, query.name, timeout_seconds)
-        items = await asyncio.to_thread(_run_query_and_read, scraper, query)
+        items = await asyncio.wait_for(
+            asyncio.to_thread(_run_query_and_read, scraper, query),
+            timeout=timeout_seconds,
+        )
         logger.info("preset run done id=%s items=%d", query.id, len(items))
         return items
+    except asyncio.TimeoutError:
+        logger.error("preset run timeout id=%s timeout=%ss", query_id, timeout_seconds)
+        raise HTTPException(status_code=504, detail=f"Query execution timed out after {timeout_seconds} seconds")
     except Exception as e:
         logger.exception("preset run failed id=%s error=%s", query_id, e)
-        raise HTTPException(status_code=500, detail=f"Query execution failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Query execution failed: {str(e)}") from e
 

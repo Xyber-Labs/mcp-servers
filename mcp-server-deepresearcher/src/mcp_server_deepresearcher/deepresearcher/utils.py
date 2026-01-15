@@ -107,7 +107,7 @@ class BaseChatModel:
 def initialize_llm(
     llm_type: Literal["main", "validation", "spare", "thinking"] = "main",
     raise_on_error: bool = True,
-) -> BaseChatModel:
+) -> Optional[BaseChatModel]:
     """
     Initializes and returns a language model client based on the specified type.
     This function is cached to avoid reloading models on subsequent calls.
@@ -269,12 +269,12 @@ def initialize_llm_from_config(
         return None
 
 
-def setup_llm(llm_config: LLM_Config):
+def setup_llm():
     """Setup main LLM from config."""
     return initialize_llm(llm_type="main", raise_on_error=True)
 
 
-def setup_spare_llm(llm_config: LLM_Config):
+def setup_spare_llm():
     """Setup spare LLM from config."""
     return initialize_llm(llm_type="spare", raise_on_error=False)
 
@@ -1489,131 +1489,3 @@ def save_tools_yaml_to_file(yaml_content: str, file_path: str) -> None:
         f.write(yaml_content)
     
     logger.info(f"Tools YAML saved to: {file_path}")
-
-
-def get_twitter_sources_for_topic(topic: str, topics_file_path: str) -> List[str]:
-    """
-    Loads twitter sources from the provided topics YAML file for a given topic.
-
-    Args:
-        topic: The topic to get twitter sources for.
-        topics_file_path: The path to the topics YAML file.
-
-    Returns:
-        A list of twitter source URLs.
-    """
-    try:
-        topics_data = load_yaml(topics_file_path)
-        if topics_data and isinstance(topics_data, list):
-            # Find the topic in the list
-            for topic_entry in topics_data:
-                if isinstance(topic_entry, dict) and topic_entry.get("topic") == topic:
-                    twitter_sources = topic_entry.get("twitter_sources", [])
-                    if twitter_sources:
-                        logger.info(
-                            f"Found {len(twitter_sources)} Twitter sources for topic '{topic}'"
-                        )
-                        return twitter_sources
-    except Exception as e:
-        logger.error(f"Error getting twitter sources for topic '{topic}': {e}")
-
-    logger.warning(f"No Twitter sources found for topic '{topic}'")
-    return []
-
-
-def get_telegram_sources_for_topic(topic: str, topics_file_path: str) -> List[str]:
-    """
-    Loads telegram sources from the provided topics YAML file for a given topic.
-
-    Args:
-        topic: The topic to get telegram sources for.
-        topics_file_path: The path to the topics YAML file.
-
-    Returns:
-        A list of telegram source URLs.
-    """
-    try:
-        topics_data = load_yaml(topics_file_path)
-        if topics_data and isinstance(topics_data, list):
-            # Find the topic in the list
-            for topic_entry in topics_data:
-                if isinstance(topic_entry, dict) and topic_entry.get("topic") == topic:
-                    telegram_sources = topic_entry.get("telegram_sources", [])
-                    if telegram_sources:
-                        logger.info(
-                            f"Found {len(telegram_sources)} Telegram sources for topic '{topic}'"
-                        )
-                        return telegram_sources
-    except Exception as e:
-        logger.error(f"Error getting telegram sources for topic '{topic}': {e}")
-
-    logger.warning(f"No Telegram sources found for topic '{topic}'")
-    return []
-
-
-
-
-def clean_apify_tweet_data(data: str) -> str:
-    """
-    Cleans the tweet data from Apify to extract relevant fields like text, username, and timestamp.
-    This function can handle both a single JSON array of tweets and line-delimited JSON (JSONL).
-
-    Args:
-        data: A string containing raw output from Apify.
-
-    Returns:
-        A formatted string with the cleaned tweet text, including username and timestamp,
-        with each tweet on a new line.
-    """
-    logger.info(f"Raw Apify data received for cleaning:\n{data}")
-
-    # Extract JSON part from the raw string, as actor output may include summary text
-    json_match = re.search(r"(\[.*\])", data, re.DOTALL)
-    if json_match:
-        json_data = json_match.group(1)
-        logger.info("Successfully extracted JSON array from raw input.")
-    else:
-        logger.warning(
-            "Could not find a JSON array in the raw data. Attempting to parse as is."
-        )
-        json_data = data
-
-    cleaned_tweets_info = []
-    tweets = []
-
-    try:
-        tweets = json.loads(json_data)
-        # Ensure it's a list, as a single tweet object could also be valid JSON
-        if not isinstance(tweets, list):
-            tweets = [tweets]
-        logger.info(f"Successfully parsed data as JSON. Type: {type(tweets)}")
-    except json.JSONDecodeError:
-        logger.warning(
-            "Failed to parse data as a single JSON object. Assuming JSONL format."
-        )
-
-        for line in data.splitlines():
-            try:
-                tweet = json.loads(line)
-                if isinstance(tweet, dict):
-                    tweets.append(tweet)
-            except json.JSONDecodeError:
-                continue
-
-    # Process the list of tweets
-    logger.info(f"Processing {len(tweets)} tweets...")
-    for i, tweet in enumerate(tweets):
-        logger.info(f"Processing tweet #{i + 1}: {tweet}")
-        if isinstance(tweet, dict):
-            # Skip items with noResults flag
-            if tweet.get("noResults", False):
-                logger.debug(f"Skipping tweet #{i + 1} - noResults flag is True")
-                continue
-            tweet_text = tweet.get("text")
-            if tweet_text:
-                cleaned_tweets_info.append(tweet_text)
-
-    logger.info(f"Cleaned {len(cleaned_tweets_info)} tweets successfully.")
-    final_result = "\n\n".join(cleaned_tweets_info)
-    logger.info(f"Final cleaned tweet text:\n{final_result}")
-    return final_result
