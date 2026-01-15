@@ -145,7 +145,7 @@ class VideoSearchResponse(BaseModel):
 class SearchVideosRequest(BaseModel):
     """Request model for video search."""
     query: str = Field(..., description="Search query for YouTube videos")
-    num_videos: int = Field(10, ge=1, le=50, description="Number of videos to process (1-50)")
+    num_videos: int = Field(5, ge=1, le=50, description="Number of videos to process (1-50)")
     include_transcripts: bool = Field(False, description="Whether to include transcripts in the response")
     max_results: int | None = Field(None, ge=1, le=50, description="Alias for num_videos (deprecated)")
     

@@ -5,8 +5,10 @@ import httpx
 from unittest.mock import AsyncMock, patch, MagicMock, call
 from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
+from langchain_core.runnables import Runnable
 
 from mcp_server_deepresearcher.server import mcp_server, app_lifespan
+from mcp_server_deepresearcher.schemas import DeepResearchRequest
 
 
 async def get_deep_research_func():
@@ -20,10 +22,13 @@ async def get_deep_research_func():
 @pytest.mark.asyncio
 async def test_deep_research_success(mock_context, mock_agent):
     """Test successful deep research execution."""
+    from mcp_server_deepresearcher.schemas import DeepResearchRequest
+    
     deep_research_func = await get_deep_research_func()
+    request = DeepResearchRequest(research_topic='artificial intelligence')
     
     with patch('mcp_server_deepresearcher.server.DeepResearcher', return_value=mock_agent):
-        result = await deep_research_func(mock_context, 'artificial intelligence', 3)
+        result = await deep_research_func(mock_context, request)
         
         parsed_result = json.loads(result)
         assert 'result' in parsed_result
@@ -39,10 +44,13 @@ async def test_deep_research_success(mock_context, mock_agent):
 
 @pytest.mark.asyncio
 async def test_deep_research_default_loops(mock_context, mock_agent):
+    from mcp_server_deepresearcher.schemas import DeepResearchRequest
+    
     deep_research_func = await get_deep_research_func()
+    request = DeepResearchRequest(research_topic='quantum computing')
     
     with patch('mcp_server_deepresearcher.server.DeepResearcher', return_value=mock_agent):
-        await deep_research_func(mock_context, 'quantum computing')
+        await deep_research_func(mock_context, request)
         
         call_args = mock_agent.graph.ainvoke.call_args
         assert call_args[1]['config']['configurable']['max_web_research_loops'] == 3
@@ -51,34 +59,38 @@ async def test_deep_research_default_loops(mock_context, mock_agent):
 @pytest.mark.asyncio
 async def test_deep_research_missing_llm(context_missing_llm):
     deep_research_func = await get_deep_research_func()
+    request = DeepResearchRequest(research_topic='test topic')
     
     with pytest.raises(ToolError) as exc_info:
-        await deep_research_func(context_missing_llm, 'test topic')
+        await deep_research_func(context_missing_llm, request)
     assert 'Shared resources' in str(exc_info.value)
 
 
 @pytest.mark.asyncio
 async def test_deep_research_missing_tools(context_missing_tools):
     deep_research_func = await get_deep_research_func()
+    request = DeepResearchRequest(research_topic='test topic')
     
     with pytest.raises(ToolError) as exc_info:
-        await deep_research_func(context_missing_tools, 'test topic')
+        await deep_research_func(context_missing_tools, request)
     assert 'Shared resources' in str(exc_info.value)
 
 @pytest.mark.asyncio
 async def test_deep_research_agent_error(mock_context, mock_agent_with_error):
     deep_research_func = await get_deep_research_func()
+    request = DeepResearchRequest(research_topic='pytest topic')
     
     with patch('mcp_server_deepresearcher.server.DeepResearcher', return_value=mock_agent_with_error):
         with pytest.raises(ToolError) as exc:
-            await deep_research_func(mock_context, 'pytest topic')
+            await deep_research_func(mock_context, request)
         assert 'unexpected error' in str(exc.value).lower()
 
 @pytest.mark.asyncio
 async def test_app_lifespan_initialization(monkeypatch):
-    mock_llm = MagicMock()
-    mock_llm.with_fallbacks = MagicMock(return_value=mock_llm)
-    mock_spare_llm = MagicMock()
+    mock_llm = MagicMock(spec=Runnable)
+    mock_llm_with_fallbacks = MagicMock(spec=Runnable)
+    mock_llm.with_fallbacks = MagicMock(return_value=mock_llm_with_fallbacks)
+    mock_spare_llm = MagicMock(spec=Runnable)
     mock_tools = [MagicMock()]
     mock_client = MagicMock()
     mock_client.get_tools = AsyncMock(return_value=mock_tools)
@@ -86,12 +98,15 @@ async def test_app_lifespan_initialization(monkeypatch):
     monkeypatch.setattr('mcp_server_deepresearcher.server.setup_spare_llm', lambda cfg: mock_spare_llm)
     monkeypatch.setattr('mcp_server_deepresearcher.server.load_mcp_servers_config', lambda **kwargs: {'mock': 'config'})
     monkeypatch.setattr('mcp_server_deepresearcher.server.MultiServerMCPClient', lambda cfg: mock_client)
+    monkeypatch.setattr('mcp_server_deepresearcher.server.construct_tools_description_yaml', lambda tools: "tools:\n  - name: test")
+    monkeypatch.setattr('mcp_server_deepresearcher.server.parse_tools_description_from_yaml', lambda yaml_str: [{"name": "test", "description": "test"}])
+    monkeypatch.setattr('mcp_server_deepresearcher.server.initialize_llm', lambda llm_type, raise_on_error: None)
     from mcp_server_deepresearcher.server import app_lifespan, FastMCP
     server = MagicMock(spec=FastMCP)
     async with app_lifespan(server) as resources:
         assert 'llm' in resources
         assert 'mcp_tools' in resources
-        assert resources['llm'] is mock_llm
+        assert resources['llm'] is mock_llm_with_fallbacks
         assert resources['mcp_tools'] == mock_tools
 
 @pytest.mark.asyncio
@@ -125,6 +140,7 @@ async def test_streaming_events(monkeypatch):
 @pytest.mark.asyncio
 async def test_deep_research_empty_topic(mock_context):
     deep_research_func = await get_deep_research_func()
+    request = DeepResearchRequest(research_topic='')
     
     mock_agent = MagicMock()
     mock_agent.graph.ainvoke = AsyncMock(return_value={
@@ -136,33 +152,16 @@ async def test_deep_research_empty_topic(mock_context):
     })
     
     with patch('mcp_server_deepresearcher.server.DeepResearcher', return_value=mock_agent):
-        result = await deep_research_func(mock_context, '', 2)
+        result = await deep_research_func(mock_context, request)
         parsed_result = json.loads(result)
         assert 'result' in parsed_result
 
-
-@pytest.mark.asyncio
-async def test_deep_research_max_loops_boundary(mock_context):
-    deep_research_func = await get_deep_research_func()
-    
-    mock_agent = MagicMock()
-    mock_agent.graph.ainvoke = AsyncMock(return_value={
-        'running_summary': {'result': 'Test', 'sources': [], 'query_count': 1}
-    })
-    
-    with patch('mcp_server_deepresearcher.server.DeepResearcher', return_value=mock_agent):
-        await deep_research_func(mock_context, 'test topic', 1)
-        call_args = mock_agent.graph.ainvoke.call_args
-        assert call_args[1]['config']['configurable']['max_web_research_loops'] == 1
-        
-        await deep_research_func(mock_context, 'test topic', 10)
-        call_args = mock_agent.graph.ainvoke.call_args
-        assert call_args[1]['config']['configurable']['max_web_research_loops'] == 10
 
 
 @pytest.mark.asyncio
 async def test_deep_research_malformed_result():
     deep_research_func = await get_deep_research_func()
+    request = DeepResearchRequest(research_topic='test topic')
     
     ctx = MagicMock(spec=Context)
     ctx.request_context.lifespan_context = {
@@ -176,14 +175,14 @@ async def test_deep_research_malformed_result():
     })
     
     with patch('mcp_server_deepresearcher.server.DeepResearcher', return_value=mock_agent):
-        result = await deep_research_func(ctx, 'test topic')
+        result = await deep_research_func(ctx, request)
         parsed_result = json.loads(result)
         assert parsed_result == {}
 
 
 def test_mcp_server_initialization():
     assert mcp_server.name == "deep_researcher"
-    assert mcp_server._has_lifespan is True
+    assert mcp_server._lifespan is not None
 
 
 @pytest.mark.asyncio
@@ -195,9 +194,10 @@ async def test_mcp_server_tool_registration():
 
 @pytest.mark.asyncio
 async def test_app_lifespan_network_error(monkeypatch):
-    mock_llm = MagicMock()
-    mock_llm.with_fallbacks = MagicMock(return_value=mock_llm)
-    mock_spare_llm = MagicMock()
+    mock_llm = MagicMock(spec=Runnable)
+    mock_llm_with_fallbacks = MagicMock(spec=Runnable)
+    mock_llm.with_fallbacks = MagicMock(return_value=mock_llm_with_fallbacks)
+    mock_spare_llm = MagicMock(spec=Runnable)
     
     mock_client = MagicMock()
     mock_client.get_tools = AsyncMock(side_effect=httpx.ConnectError("Connection failed"))
@@ -216,9 +216,10 @@ async def test_app_lifespan_network_error(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_app_lifespan_partial_tools_failure(monkeypatch):
-    mock_llm = MagicMock()
-    mock_llm.with_fallbacks = MagicMock(return_value=mock_llm)
-    mock_spare_llm = MagicMock()
+    mock_llm = MagicMock(spec=Runnable)
+    mock_llm_with_fallbacks = MagicMock(spec=Runnable)
+    mock_llm.with_fallbacks = MagicMock(return_value=mock_llm_with_fallbacks)
+    mock_spare_llm = MagicMock(spec=Runnable)
     
     mock_client = MagicMock()
     mock_client.get_tools = AsyncMock(return_value=[MagicMock()])  # Only one tool instead of expected multiple
@@ -227,6 +228,9 @@ async def test_app_lifespan_partial_tools_failure(monkeypatch):
     monkeypatch.setattr('mcp_server_deepresearcher.server.setup_spare_llm', lambda cfg: mock_spare_llm)
     monkeypatch.setattr('mcp_server_deepresearcher.server.load_mcp_servers_config', lambda **kwargs: {'mock': 'config'})
     monkeypatch.setattr('mcp_server_deepresearcher.server.MultiServerMCPClient', lambda cfg: mock_client)
+    monkeypatch.setattr('mcp_server_deepresearcher.server.construct_tools_description_yaml', lambda tools: "tools:\n  - name: test")
+    monkeypatch.setattr('mcp_server_deepresearcher.server.parse_tools_description_from_yaml', lambda yaml_str: [{"name": "test", "description": "test"}])
+    monkeypatch.setattr('mcp_server_deepresearcher.server.initialize_llm', lambda llm_type, raise_on_error: None)
     
     server = MagicMock(spec=FastMCP)
     
@@ -326,9 +330,9 @@ async def test_concurrent_deep_research_requests(multiple_contexts, mock_agent_f
     with patch('mcp_server_deepresearcher.server.DeepResearcher', side_effect=mock_agent_factory):
         deep_research_func = await get_deep_research_func()
         tasks = [
-            deep_research_func(multiple_contexts[0], 'topic1'),
-            deep_research_func(multiple_contexts[1], 'topic2'),
-            deep_research_func(multiple_contexts[2], 'topic3')
+            deep_research_func(multiple_contexts[0], DeepResearchRequest(research_topic='topic1')),
+            deep_research_func(multiple_contexts[1], DeepResearchRequest(research_topic='topic2')),
+            deep_research_func(multiple_contexts[2], DeepResearchRequest(research_topic='topic3'))
         ]
         
         results = await asyncio.gather(*tasks)
@@ -354,24 +358,33 @@ async def test_app_lifespan_cleanup_on_error(monkeypatch):
         nonlocal cleanup_called
         cleanup_called = True
     
-    mock_llm = MagicMock()
+    # Create proper Runnable mocks to avoid Pydantic validation errors
+    mock_llm = MagicMock(spec=Runnable)
     mock_llm.with_fallbacks = MagicMock(return_value=mock_llm)
     mock_llm.cleanup = mock_cleanup
     
-    mock_spare_llm = MagicMock()
-    mock_client = MagicMock()
-    mock_client.get_tools = AsyncMock(side_effect=Exception("Setup error"))
+    mock_spare_llm = MagicMock(spec=Runnable)
+    
+    # Create a mock client factory that raises an error when get_tools is called
+    def mock_client_factory(cfg):
+        mock_client = MagicMock()
+        mock_client.get_tools = AsyncMock(side_effect=Exception("Setup error"))
+        return mock_client
     
     monkeypatch.setattr('mcp_server_deepresearcher.server.setup_llm', lambda cfg: mock_llm)
     monkeypatch.setattr('mcp_server_deepresearcher.server.setup_spare_llm', lambda cfg: mock_spare_llm)
-    monkeypatch.setattr('mcp_server_deepresearcher.server.load_mcp_servers_config', lambda **kwargs: {'mock': 'config'})
-    monkeypatch.setattr('mcp_server_deepresearcher.server.MultiServerMCPClient', lambda cfg: mock_client)
+    monkeypatch.setattr('mcp_server_deepresearcher.server.load_mcp_servers_config', lambda **kwargs: {'server1': {'url': 'http://test'}})
+    monkeypatch.setattr('mcp_server_deepresearcher.server.MultiServerMCPClient', mock_client_factory)
     
     server = MagicMock(spec=FastMCP)
     
-    with pytest.raises(Exception, match="Setup error"):
+    # The exception should be raised during initialization when get_tools is called
+    with pytest.raises(Exception) as exc_info:
         async with app_lifespan(server) as resources:
             pass
+    
+    # Verify the error message contains "Setup error"
+    assert "Setup error" in str(exc_info.value)
     
     # Cleanup should be called even on error
     # Note: This test assumes cleanup logic exists, may need adjustment based on actual implementation
@@ -390,7 +403,8 @@ async def test_deep_research_large_topic(mock_context, large_research_topic):
     
     with patch('mcp_server_deepresearcher.server.DeepResearcher', return_value=mock_agent):
         deep_research_func = await get_deep_research_func()
-        result = await deep_research_func(mock_context, large_research_topic)
+        request = DeepResearchRequest(research_topic=large_research_topic)
+        result = await deep_research_func(mock_context, request)
         parsed_result = json.loads(result)
         assert 'result' in parsed_result
         
@@ -411,7 +425,8 @@ async def test_deep_research_unicode_topic(mock_context, unicode_research_topic)
     
     with patch('mcp_server_deepresearcher.server.DeepResearcher', return_value=mock_agent):
         deep_research_func = await get_deep_research_func()
-        result = await deep_research_func(mock_context, unicode_research_topic)
+        request = DeepResearchRequest(research_topic=unicode_research_topic)
+        result = await deep_research_func(mock_context, request)
         parsed_result = json.loads(result)
         assert 'result' in parsed_result
         
@@ -437,7 +452,8 @@ async def test_app_lifespan_with_missing_env_vars(monkeypatch):
 @pytest.mark.asyncio
 async def test_app_lifespan_with_partial_config(monkeypatch):
     mock_llm = MagicMock()
-    mock_llm.with_fallbacks = MagicMock(return_value=mock_llm)
+    mock_llm_with_fallbacks = MagicMock()
+    mock_llm.with_fallbacks = MagicMock(return_value=mock_llm_with_fallbacks)
     mock_spare_llm = MagicMock()
     mock_tools = []  # Empty tools list
     mock_client = MagicMock()
@@ -447,6 +463,9 @@ async def test_app_lifespan_with_partial_config(monkeypatch):
     monkeypatch.setattr('mcp_server_deepresearcher.server.setup_spare_llm', lambda cfg: mock_spare_llm)
     monkeypatch.setattr('mcp_server_deepresearcher.server.load_mcp_servers_config', lambda **kwargs: {})
     monkeypatch.setattr('mcp_server_deepresearcher.server.MultiServerMCPClient', lambda cfg: mock_client)
+    monkeypatch.setattr('mcp_server_deepresearcher.server.construct_tools_description_yaml', lambda tools: "")
+    monkeypatch.setattr('mcp_server_deepresearcher.server.parse_tools_description_from_yaml', lambda yaml_str: [])
+    monkeypatch.setattr('mcp_server_deepresearcher.server.initialize_llm', lambda llm_type, raise_on_error: None)
     
     server = MagicMock(spec=FastMCP)
     
@@ -456,52 +475,14 @@ async def test_app_lifespan_with_partial_config(monkeypatch):
         assert resources['mcp_tools'] == []
 
 
-@pytest.mark.asyncio
-async def test_deep_research_negative_loops():
-    ctx = MagicMock(spec=Context)
-    ctx.request_context.lifespan_context = {
-        'llm': MagicMock(),
-        'mcp_tools': [MagicMock()]
-    }
-    
-    mock_agent = MagicMock()
-    mock_agent.graph.ainvoke = AsyncMock(return_value={
-        'running_summary': {'result': 'Test', 'sources': [], 'query_count': 0}
-    })
-    
-    with patch('mcp_server_deepresearcher.server.DeepResearcher', return_value=mock_agent):
-        deep_research_func = await get_deep_research_func()
-        result = await deep_research_func(ctx, 'test topic', -1)
-        call_args = mock_agent.graph.ainvoke.call_args
-        assert call_args[1]['config']['configurable']['max_web_research_loops'] == -1
-
-
-@pytest.mark.asyncio
-async def test_deep_research_zero_loops():
-    """Test handling of zero max_web_research_loops."""
-    ctx = MagicMock(spec=Context)
-    ctx.request_context.lifespan_context = {
-        'llm': MagicMock(),
-        'mcp_tools': [MagicMock()]
-    }
-    
-    mock_agent = MagicMock()
-    mock_agent.graph.ainvoke = AsyncMock(return_value={
-        'running_summary': {'result': 'Test', 'sources': [], 'query_count': 0}
-    })
-    
-    with patch('mcp_server_deepresearcher.server.DeepResearcher', return_value=mock_agent):
-        deep_research_func = await get_deep_research_func()
-        result = await deep_research_func(ctx, 'test topic', 0)
-        call_args = mock_agent.graph.ainvoke.call_args
-        assert call_args[1]['config']['configurable']['max_web_research_loops'] == 0
 
 
 @pytest.mark.asyncio
 async def test_mcp_client_http_timeout(monkeypatch):
-    mock_llm = MagicMock()
-    mock_llm.with_fallbacks = MagicMock(return_value=mock_llm)
-    mock_spare_llm = MagicMock()
+    mock_llm = MagicMock(spec=Runnable)
+    mock_llm_with_fallbacks = MagicMock(spec=Runnable)
+    mock_llm.with_fallbacks = MagicMock(return_value=mock_llm_with_fallbacks)
+    mock_spare_llm = MagicMock(spec=Runnable)
     
     mock_client = MagicMock()
     mock_client.get_tools = AsyncMock(side_effect=httpx.TimeoutException("Request timeout"))
@@ -520,9 +501,10 @@ async def test_mcp_client_http_timeout(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_mcp_client_http_error_codes(monkeypatch):
-    mock_llm = MagicMock()
-    mock_llm.with_fallbacks = MagicMock(return_value=mock_llm)
-    mock_spare_llm = MagicMock()
+    mock_llm = MagicMock(spec=Runnable)
+    mock_llm_with_fallbacks = MagicMock(spec=Runnable)
+    mock_llm.with_fallbacks = MagicMock(return_value=mock_llm_with_fallbacks)
+    mock_spare_llm = MagicMock(spec=Runnable)
     
     mock_client = MagicMock()
     mock_client.get_tools = AsyncMock(side_effect=httpx.HTTPStatusError(
@@ -545,9 +527,10 @@ async def test_mcp_client_http_error_codes(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_full_request_lifecycle(monkeypatch):
-    mock_llm = MagicMock()
-    mock_llm.with_fallbacks = MagicMock(return_value=mock_llm)
-    mock_spare_llm = MagicMock()
+    mock_llm = MagicMock(spec=Runnable)
+    mock_llm_with_fallbacks = MagicMock(spec=Runnable)
+    mock_llm.with_fallbacks = MagicMock(return_value=mock_llm_with_fallbacks)
+    mock_spare_llm = MagicMock(spec=Runnable)
     mock_tools = [MagicMock(name="test_tool")]
     mock_client = MagicMock()
     mock_client.get_tools = AsyncMock(return_value=mock_tools)
@@ -556,6 +539,9 @@ async def test_full_request_lifecycle(monkeypatch):
     monkeypatch.setattr('mcp_server_deepresearcher.server.setup_spare_llm', lambda cfg: mock_spare_llm)
     monkeypatch.setattr('mcp_server_deepresearcher.server.load_mcp_servers_config', lambda **kwargs: {'mock': 'config'})
     monkeypatch.setattr('mcp_server_deepresearcher.server.MultiServerMCPClient', lambda cfg: mock_client)
+    monkeypatch.setattr('mcp_server_deepresearcher.server.construct_tools_description_yaml', lambda tools: "tools:\n  - name: test")
+    monkeypatch.setattr('mcp_server_deepresearcher.server.parse_tools_description_from_yaml', lambda yaml_str: [{"name": "test", "description": "test"}])
+    monkeypatch.setattr('mcp_server_deepresearcher.server.initialize_llm', lambda llm_type, raise_on_error: None)
     
     mock_agent = MagicMock()
     mock_agent.graph.ainvoke = AsyncMock(return_value={
@@ -579,7 +565,8 @@ async def test_full_request_lifecycle(monkeypatch):
         
         with patch('mcp_server_deepresearcher.server.DeepResearcher', return_value=mock_agent):
             deep_research_func = await get_deep_research_func()
-            result = await deep_research_func(ctx, 'advanced AI research', 5)
+            request = DeepResearchRequest(research_topic='advanced AI research')
+            result = await deep_research_func(ctx, request)
             
             parsed_result = json.loads(result)
             assert parsed_result['result'] == 'Comprehensive research completed'
@@ -589,7 +576,7 @@ async def test_full_request_lifecycle(monkeypatch):
             mock_agent.graph.ainvoke.assert_called_once()
             call_args = mock_agent.graph.ainvoke.call_args
             assert call_args[0][0]['research_topic'] == 'advanced AI research'
-            assert call_args[1]['config']['configurable']['max_web_research_loops'] == 5
+            assert call_args[1]['config']['configurable']['max_web_research_loops'] == 3
 
 
 @pytest.mark.asyncio
@@ -614,7 +601,8 @@ async def test_memory_cleanup_after_research():
     with patch('mcp_server_deepresearcher.server.DeepResearcher', side_effect=track_agent_creation):
         deep_research_func = await get_deep_research_func()
         for i in range(3):
-            await deep_research_func(ctx, f'topic {i}')
+            request = DeepResearchRequest(research_topic=f'topic {i}')
+            await deep_research_func(ctx, request)
         
         assert len(created_agents) == 3
         
@@ -642,6 +630,7 @@ async def test_json_serialization_edge_cases():
     
     with patch('mcp_server_deepresearcher.server.DeepResearcher', return_value=mock_agent):
         deep_research_func = await get_deep_research_func()
-        result = await deep_research_func(ctx, 'test topic')
+        request = DeepResearchRequest(research_topic='test topic')
+        result = await deep_research_func(ctx, request)
         parsed_result = json.loads(result)  # Should not raise exception
         assert parsed_result['result'] is None

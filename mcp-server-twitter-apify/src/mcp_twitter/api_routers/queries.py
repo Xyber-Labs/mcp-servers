@@ -57,7 +57,7 @@ async def list_types(http_request: Request) -> list[QueryTypeInfo]:
         "replies": "Fetch replies for a thread via conversation_id",
     }
     examples: dict[str, str] = {
-        "topic": 'POST /hybrid/v1/search/topic {"topic": "starlink", "sort": "Top", "max_items": 50}',
+        "topic": 'POST /hybrid/v1/search/topic {"topic": "starlink", "sort": "Top", "max_items": 10}',
         "profile": 'POST /hybrid/v1/search/profile {"username": "elonmusk", "max_items": 100}',
         "replies": 'POST /hybrid/v1/search/replies {"conversation_id": "1728108619189874825"}',
     }

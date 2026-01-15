@@ -3,7 +3,7 @@ name = "mcp-server-deep-researcher"
 version = "0.1.0"
 description = "MCP Server for performing deep research using a LangGraph-based agent."
 authors = [
-    { name = "XyAgent", email = "agent@xyber.inc" },
+    { name = "XyManchick", email = "xymanchick@xyber.inc" },
 ]
 readme = "README.md"
 requires-python = ">=3.12"
@@ -32,6 +32,12 @@ dependencies = [
     "langchain-google-genai",
     "langchain-mistralai",
     "langchain-mcp-adapters",
+    "langfuse>=2.0.0",
+    # x402 Payment Dependencies
+    "x402==0.2.1",
+    "cdp-sdk>=1.33.2",
+    "pyyaml",
+    "psycopg2-binary>=2.9.9",
 ]
 
 [dependency-groups]
@@ -100,6 +106,7 @@ line-ending = "auto"
 
 [tool.mypy]
 python_version = "3.12"
+warn_unreachable = true
 files = ["src/**/*.py"]
 exclude = ["tests/", "__pycache__/"]
 strict = true
@@ -115,9 +122,16 @@ testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+pythonpath = ["."]
 addopts = [
     "--strict-markers",
     "--strict-config",
     "--disable-warnings",
     "-v",
+    "--ignore=tests/e2e",  # Exclude e2e tests by default
+    "-m", "not integration",  # Exclude integration tests by default
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
 ]
