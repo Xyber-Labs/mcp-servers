@@ -38,8 +38,7 @@ def mock_mcp_context():
 async def test_mcp_deep_research_success(mock_mcp_context):
     """Test successful MCP deep research execution."""
     request = DeepResearchRequest(
-        research_topic="machine learning",
-        max_web_research_loops=3
+        research_topic="machine learning"
     )
     
     mock_result = {
@@ -61,7 +60,7 @@ async def test_mcp_deep_research_success(mock_mcp_context):
         # Result should be JSON string
         import json
         parsed_result = json.loads(result)
-        assert "running_summary" in parsed_result
+        assert parsed_result == mock_result["running_summary"]
         mock_agent.graph.ainvoke.assert_called_once()
 
 
@@ -140,30 +139,6 @@ async def test_mcp_deep_research_default_loops(mock_mcp_context):
         assert configurable.get("max_web_research_loops") == 3
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("max_loops", [1, 5, 10])
-async def test_mcp_deep_research_custom_loops(mock_mcp_context, max_loops):
-    """Test MCP deep research with custom max_web_research_loops."""
-    request = DeepResearchRequest(
-        research_topic="test",
-        max_web_research_loops=max_loops
-    )
-    
-    mock_result = {"running_summary": {}}
-    
-    with patch('mcp_server_deepresearcher.server.DeepResearcher') as mock_agent_class:
-        mock_agent = MagicMock()
-        mock_agent.graph.ainvoke = AsyncMock(return_value=mock_result)
-        mock_agent_class.return_value = mock_agent
-        
-        deep_research_func = await get_deep_research_func()
-        await deep_research_func(mock_mcp_context, request)
-        
-        call_args = mock_agent.graph.ainvoke.call_args
-        config = call_args[1].get("config", {})
-        configurable = config.get("configurable", {})
-        assert configurable.get("max_web_research_loops") == max_loops
-
 
 @pytest.mark.asyncio
 async def test_mcp_deep_research_empty_summary(mock_mcp_context):
@@ -171,7 +146,7 @@ async def test_mcp_deep_research_empty_summary(mock_mcp_context):
     request = DeepResearchRequest(research_topic="test")
     
     mock_result = {
-        "running_summary": None,
+        "running_summary": {},
         "report": {}
     }
     

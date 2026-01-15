@@ -84,7 +84,8 @@ async def test_app_lifespan_initializes_resources(monkeypatch):
         return None
     
     def mock_load_config(**kwargs):
-        return {"mock": "config"}
+        # Return proper server config structure: {server_name: {url: ..., transport: ...}}
+        return {"test_server": {"url": "http://localhost:3000", "transport": "streamable_http"}}
     
     def mock_get_tools():
         return mock_tools
@@ -95,11 +96,18 @@ async def test_app_lifespan_initializes_resources(monkeypatch):
     def mock_parse_yaml(yaml_str):
         return [{"name": "tool1", "description": "test"}]
     
+    # Create a mock client factory that returns a client with async get_tools
+    # The code creates a new client for each server, so we need to return a new mock each time
+    def mock_client_factory(cfg):
+        mock_client = MagicMock()
+        mock_client.get_tools = AsyncMock(return_value=mock_tools)
+        return mock_client
+    
     monkeypatch.setattr('mcp_server_deepresearcher.app.setup_llm', mock_setup_llm)
     monkeypatch.setattr('mcp_server_deepresearcher.app.setup_spare_llm', mock_setup_spare_llm)
     monkeypatch.setattr('mcp_server_deepresearcher.app.initialize_llm', mock_initialize_llm)
     monkeypatch.setattr('mcp_server_deepresearcher.app.load_mcp_servers_config', mock_load_config)
-    monkeypatch.setattr('mcp_server_deepresearcher.app.MultiServerMCPClient', lambda cfg: MagicMock(get_tools=AsyncMock(return_value=mock_tools)))
+    monkeypatch.setattr('mcp_server_deepresearcher.app.MultiServerMCPClient', mock_client_factory)
     monkeypatch.setattr('mcp_server_deepresearcher.app.construct_tools_description_yaml', mock_construct_yaml)
     monkeypatch.setattr('mcp_server_deepresearcher.app.parse_tools_description_from_yaml', mock_parse_yaml)
     
@@ -110,8 +118,11 @@ async def test_app_lifespan_initializes_resources(monkeypatch):
         assert hasattr(app.state, 'llm_thinking')
         assert hasattr(app.state, 'mcp_tools')
         assert hasattr(app.state, 'tools_description')
-        assert app.state.llm == mock_llm
+        # app_lifespan sets llm_with_fallbacks (llm.with_fallbacks([llm_spare]))
+        assert app.state.llm == mock_llm  # mock_llm.with_fallbacks returns mock_llm in this test
+        assert len(app.state.mcp_tools) == len(mock_tools)
         assert app.state.mcp_tools == mock_tools
+        assert app.state.llm_thinking == mock_thinking_llm
 
 
 @pytest.mark.asyncio

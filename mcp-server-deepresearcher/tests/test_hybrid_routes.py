@@ -101,20 +101,31 @@ async def test_perform_deep_research_error_handling(stub_resources):
 @pytest_asyncio.fixture
 async def hybrid_client(monkeypatch) -> AsyncClient:
     """Create a test client for hybrid routes with mocked dependencies."""
+    from fastapi import Request
     from mcp_server_deepresearcher.dependencies import get_research_resources
     
-    # Mock the dependencies
-    def mock_get_resources(request):
+    # Mock the dependencies - ensure it returns the expected dict structure
+    # Match the exact signature: get_research_resources(request: Request) -> dict[str, Any]
+    def mock_get_resources(request: Request):
         return {
             "llm": MagicMock(),
             "llm_thinking": MagicMock(),
             "mcp_tools": [MagicMock()],
-            "tools_description": []
+            "tools_description": [],
+            "mcp_connection_error": None
         }
     
     app = FastAPI()
-    app.include_router(deep_research_router, prefix="/hybrid")
+    # Override dependency BEFORE including router to ensure it's used
     app.dependency_overrides[get_research_resources] = mock_get_resources
+    app.include_router(deep_research_router, prefix="/hybrid")
+    
+    # Set app state for the dependency (in case it's accessed directly)
+    app.state.llm = MagicMock()
+    app.state.llm_thinking = MagicMock()
+    app.state.mcp_tools = [MagicMock()]
+    app.state.tools_description = []
+    app.state.mcp_connection_error = None
     
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:

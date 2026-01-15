@@ -358,24 +358,33 @@ async def test_app_lifespan_cleanup_on_error(monkeypatch):
         nonlocal cleanup_called
         cleanup_called = True
     
-    mock_llm = MagicMock()
+    # Create proper Runnable mocks to avoid Pydantic validation errors
+    mock_llm = MagicMock(spec=Runnable)
     mock_llm.with_fallbacks = MagicMock(return_value=mock_llm)
     mock_llm.cleanup = mock_cleanup
     
-    mock_spare_llm = MagicMock()
-    mock_client = MagicMock()
-    mock_client.get_tools = AsyncMock(side_effect=Exception("Setup error"))
+    mock_spare_llm = MagicMock(spec=Runnable)
+    
+    # Create a mock client factory that raises an error when get_tools is called
+    def mock_client_factory(cfg):
+        mock_client = MagicMock()
+        mock_client.get_tools = AsyncMock(side_effect=Exception("Setup error"))
+        return mock_client
     
     monkeypatch.setattr('mcp_server_deepresearcher.server.setup_llm', lambda cfg: mock_llm)
     monkeypatch.setattr('mcp_server_deepresearcher.server.setup_spare_llm', lambda cfg: mock_spare_llm)
-    monkeypatch.setattr('mcp_server_deepresearcher.server.load_mcp_servers_config', lambda **kwargs: {'mock': 'config'})
-    monkeypatch.setattr('mcp_server_deepresearcher.server.MultiServerMCPClient', lambda cfg: mock_client)
+    monkeypatch.setattr('mcp_server_deepresearcher.server.load_mcp_servers_config', lambda **kwargs: {'server1': {'url': 'http://test'}})
+    monkeypatch.setattr('mcp_server_deepresearcher.server.MultiServerMCPClient', mock_client_factory)
     
     server = MagicMock(spec=FastMCP)
     
-    with pytest.raises(Exception, match="Setup error"):
+    # The exception should be raised during initialization when get_tools is called
+    with pytest.raises(Exception) as exc_info:
         async with app_lifespan(server) as resources:
             pass
+    
+    # Verify the error message contains "Setup error"
+    assert "Setup error" in str(exc_info.value)
     
     # Cleanup should be called even on error
     # Note: This test assumes cleanup logic exists, may need adjustment based on actual implementation

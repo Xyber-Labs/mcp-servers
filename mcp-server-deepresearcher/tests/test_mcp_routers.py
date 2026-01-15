@@ -18,24 +18,32 @@ from mcp_server_deepresearcher.schemas import DeepResearchRequest
 @pytest_asyncio.fixture
 async def mcp_client(monkeypatch) -> AsyncClient:
     """Create a test client for MCP-only routes with mocked dependencies."""
-    # Mock the dependencies
-    def mock_get_resources(request):
+    from fastapi import Request
+    
+    # Mock the dependencies - ensure it returns the expected dict structure
+    # Note: get_research_resources is sync, so the override should also be sync
+    # Match the exact signature: get_research_resources(request: Request) -> dict[str, Any]
+    def mock_get_resources(request: Request):
+        # Ensure we return a proper dict that matches what the endpoint expects
         return {
             "llm": MagicMock(),
             "llm_thinking": MagicMock(),
             "mcp_tools": [MagicMock()],
-            "tools_description": []
+            "tools_description": [],
+            "mcp_connection_error": None
         }
     
     app = FastAPI()
-    app.include_router(mcp_router)
+    # Override dependency BEFORE including router to ensure it's used
     app.dependency_overrides[get_research_resources] = mock_get_resources
+    app.include_router(mcp_router)
     
-    # Set app state for the dependency
+    # Set app state for the dependency (in case it's accessed directly)
     app.state.llm = MagicMock()
     app.state.llm_thinking = MagicMock()
     app.state.mcp_tools = [MagicMock()]
     app.state.tools_description = []
+    app.state.mcp_connection_error = None
     
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
@@ -63,7 +71,14 @@ async def test_mcp_deep_research_mcp_success(mcp_client: AsyncClient) -> None:
             }
         )
         
-        assert response.status_code == 200
+        # Debug 422 errors
+        if response.status_code == 422:
+            error_detail = response.json()
+            print(f"422 Validation Error: {error_detail}")
+            # Check if it's a dependency issue
+            assert False, f"422 Validation Error: {error_detail}"
+        
+        assert response.status_code == 200, f"Expected 200, got {response.status_code}. Response: {response.text}"
         data = response.json()
         assert data["status"] == "success"
         assert data["research_topic"] == "quantum computing"
@@ -78,7 +93,8 @@ async def test_mcp_deep_research_mcp_missing_resources(monkeypatch) -> None:
             "llm": None,
             "llm_thinking": None,
             "mcp_tools": [],
-            "tools_description": []
+            "tools_description": [],
+            "mcp_connection_error": None
         }
     
     app = FastAPI()
@@ -106,7 +122,8 @@ async def test_mcp_deep_research_mcp_missing_tools(monkeypatch) -> None:
             "llm": MagicMock(),
             "llm_thinking": MagicMock(),
             "mcp_tools": None,
-            "tools_description": []
+            "tools_description": [],
+            "mcp_connection_error": None
         }
     
     app = FastAPI()
@@ -155,15 +172,16 @@ async def test_mcp_deep_research_mcp_default_loops(mcp_client: AsyncClient) -> N
             "/deep-research",
             json={
                 "research_topic": "test"
-                # max_web_research_loops should default to 3
+                # max_web_research_loops is configured via DeepResearcherConfig, not request
             }
         )
         
         assert response.status_code == 200
-        # Verify default value was used
+        # Verify the function was called with the request
         call_args = mock_perform.call_args
         request_arg = call_args[0][0]
-        assert request_arg.max_web_research_loops == 3
+        assert request_arg.research_topic == "test"
+        # max_web_research_loops is handled internally by perform_deep_research via DeepResearcherConfig
 
 
 
@@ -192,7 +210,8 @@ async def test_mcp_deep_research_mcp_uses_llm_thinking_fallback(mcp_client: Asyn
             "llm": MagicMock(),
             "llm_thinking": None,  # Missing thinking LLM
             "mcp_tools": [MagicMock()],
-            "tools_description": []
+            "tools_description": [],
+            "mcp_connection_error": None
         }
     
     app = FastAPI()
@@ -222,5 +241,6 @@ async def test_mcp_deep_research_mcp_uses_llm_thinking_fallback(mcp_client: Asyn
             assert response.status_code == 200
             # Verify that llm was used as fallback for llm_thinking
             call_args = mock_perform.call_args
-            assert call_args[0][2] == call_args[0][1]  # llm_thinking == llm
+            # perform_deep_research signature: (request, llm, llm_thinking, mcp_tools, tools_description)
+            assert call_args[0][2] == call_args[0][1]  # llm_thinking == llm (fallback)
 
