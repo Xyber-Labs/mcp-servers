@@ -42,6 +42,9 @@ async def deep_research_mcp(
 
     This premium tool requires x402 payment and is optimized for LLM reasoning
     and decision-making during research workflows.
+    
+    Args:
+        request: The research request containing the topic to investigate
     """
     logger.info(f"Received MCP-only request for deep_research on topic: '{request.research_topic}'")
 

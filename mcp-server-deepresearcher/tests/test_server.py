@@ -5,6 +5,7 @@ import httpx
 from unittest.mock import AsyncMock, patch, MagicMock, call
 from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
+from langchain_core.runnables import Runnable
 
 from mcp_server_deepresearcher.server import mcp_server, app_lifespan
 from mcp_server_deepresearcher.schemas import DeepResearchRequest
@@ -24,7 +25,7 @@ async def test_deep_research_success(mock_context, mock_agent):
     from mcp_server_deepresearcher.schemas import DeepResearchRequest
     
     deep_research_func = await get_deep_research_func()
-    request = DeepResearchRequest(research_topic='artificial intelligence', max_web_research_loops=3)
+    request = DeepResearchRequest(research_topic='artificial intelligence')
     
     with patch('mcp_server_deepresearcher.server.DeepResearcher', return_value=mock_agent):
         result = await deep_research_func(mock_context, request)
@@ -86,10 +87,10 @@ async def test_deep_research_agent_error(mock_context, mock_agent_with_error):
 
 @pytest.mark.asyncio
 async def test_app_lifespan_initialization(monkeypatch):
-    mock_llm = MagicMock()
-    mock_llm_with_fallbacks = MagicMock()
+    mock_llm = MagicMock(spec=Runnable)
+    mock_llm_with_fallbacks = MagicMock(spec=Runnable)
     mock_llm.with_fallbacks = MagicMock(return_value=mock_llm_with_fallbacks)
-    mock_spare_llm = MagicMock()
+    mock_spare_llm = MagicMock(spec=Runnable)
     mock_tools = [MagicMock()]
     mock_client = MagicMock()
     mock_client.get_tools = AsyncMock(return_value=mock_tools)
@@ -139,7 +140,7 @@ async def test_streaming_events(monkeypatch):
 @pytest.mark.asyncio
 async def test_deep_research_empty_topic(mock_context):
     deep_research_func = await get_deep_research_func()
-    request = DeepResearchRequest(research_topic='', max_web_research_loops=2)
+    request = DeepResearchRequest(research_topic='')
     
     mock_agent = MagicMock()
     mock_agent.graph.ainvoke = AsyncMock(return_value={
@@ -155,26 +156,6 @@ async def test_deep_research_empty_topic(mock_context):
         parsed_result = json.loads(result)
         assert 'result' in parsed_result
 
-
-@pytest.mark.asyncio
-async def test_deep_research_max_loops_boundary(mock_context):
-    deep_research_func = await get_deep_research_func()
-    
-    mock_agent = MagicMock()
-    mock_agent.graph.ainvoke = AsyncMock(return_value={
-        'running_summary': {'result': 'Test', 'sources': [], 'query_count': 1}
-    })
-    
-    with patch('mcp_server_deepresearcher.server.DeepResearcher', return_value=mock_agent):
-        request1 = DeepResearchRequest(research_topic='test topic', max_web_research_loops=1)
-        await deep_research_func(mock_context, request1)
-        call_args = mock_agent.graph.ainvoke.call_args
-        assert call_args[1]['config']['configurable']['max_web_research_loops'] == 1
-        
-        request2 = DeepResearchRequest(research_topic='test topic', max_web_research_loops=10)
-        await deep_research_func(mock_context, request2)
-        call_args = mock_agent.graph.ainvoke.call_args
-        assert call_args[1]['config']['configurable']['max_web_research_loops'] == 10
 
 
 @pytest.mark.asyncio
@@ -213,10 +194,10 @@ async def test_mcp_server_tool_registration():
 
 @pytest.mark.asyncio
 async def test_app_lifespan_network_error(monkeypatch):
-    mock_llm = MagicMock()
-    mock_llm_with_fallbacks = MagicMock()
+    mock_llm = MagicMock(spec=Runnable)
+    mock_llm_with_fallbacks = MagicMock(spec=Runnable)
     mock_llm.with_fallbacks = MagicMock(return_value=mock_llm_with_fallbacks)
-    mock_spare_llm = MagicMock()
+    mock_spare_llm = MagicMock(spec=Runnable)
     
     mock_client = MagicMock()
     mock_client.get_tools = AsyncMock(side_effect=httpx.ConnectError("Connection failed"))
@@ -235,10 +216,10 @@ async def test_app_lifespan_network_error(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_app_lifespan_partial_tools_failure(monkeypatch):
-    mock_llm = MagicMock()
-    mock_llm_with_fallbacks = MagicMock()
+    mock_llm = MagicMock(spec=Runnable)
+    mock_llm_with_fallbacks = MagicMock(spec=Runnable)
     mock_llm.with_fallbacks = MagicMock(return_value=mock_llm_with_fallbacks)
-    mock_spare_llm = MagicMock()
+    mock_spare_llm = MagicMock(spec=Runnable)
     
     mock_client = MagicMock()
     mock_client.get_tools = AsyncMock(return_value=[MagicMock()])  # Only one tool instead of expected multiple
@@ -485,61 +466,14 @@ async def test_app_lifespan_with_partial_config(monkeypatch):
         assert resources['mcp_tools'] == []
 
 
-@pytest.mark.asyncio
-async def test_deep_research_negative_loops():
-    ctx = MagicMock(spec=Context)
-    ctx.request_context.lifespan_context = {
-        'llm': MagicMock(),
-        'mcp_tools': [MagicMock()]
-    }
-    
-    mock_agent = MagicMock()
-    mock_agent.graph.ainvoke = AsyncMock(return_value={
-        'running_summary': {'result': 'Test', 'sources': [], 'query_count': 0}
-    })
-    
-    with patch('mcp_server_deepresearcher.server.DeepResearcher', return_value=mock_agent):
-        deep_research_func = await get_deep_research_func()
-        # Note: Pydantic validation will reject -1, but we test the function accepts it if validation is bypassed
-        request = DeepResearchRequest(research_topic='test topic', max_web_research_loops=-1)
-        # This will fail validation, but if we bypass it, test the internal logic
-        try:
-            result = await deep_research_func(ctx, request)
-        except Exception:
-            pass  # Expected to fail validation
-
-
-@pytest.mark.asyncio
-async def test_deep_research_zero_loops():
-    """Test handling of zero max_web_research_loops."""
-    ctx = MagicMock(spec=Context)
-    ctx.request_context.lifespan_context = {
-        'llm': MagicMock(),
-        'mcp_tools': [MagicMock()]
-    }
-    
-    mock_agent = MagicMock()
-    mock_agent.graph.ainvoke = AsyncMock(return_value={
-        'running_summary': {'result': 'Test', 'sources': [], 'query_count': 0}
-    })
-    
-    with patch('mcp_server_deepresearcher.server.DeepResearcher', return_value=mock_agent):
-        deep_research_func = await get_deep_research_func()
-        # Note: Pydantic validation will reject 0 (ge=1), but we test the function accepts it if validation is bypassed
-        request = DeepResearchRequest(research_topic='test topic', max_web_research_loops=0)
-        # This will fail validation, but if we bypass it, test the internal logic
-        try:
-            result = await deep_research_func(ctx, request)
-        except Exception:
-            pass  # Expected to fail validation
 
 
 @pytest.mark.asyncio
 async def test_mcp_client_http_timeout(monkeypatch):
-    mock_llm = MagicMock()
-    mock_llm_with_fallbacks = MagicMock()
+    mock_llm = MagicMock(spec=Runnable)
+    mock_llm_with_fallbacks = MagicMock(spec=Runnable)
     mock_llm.with_fallbacks = MagicMock(return_value=mock_llm_with_fallbacks)
-    mock_spare_llm = MagicMock()
+    mock_spare_llm = MagicMock(spec=Runnable)
     
     mock_client = MagicMock()
     mock_client.get_tools = AsyncMock(side_effect=httpx.TimeoutException("Request timeout"))
@@ -558,10 +492,10 @@ async def test_mcp_client_http_timeout(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_mcp_client_http_error_codes(monkeypatch):
-    mock_llm = MagicMock()
-    mock_llm_with_fallbacks = MagicMock()
+    mock_llm = MagicMock(spec=Runnable)
+    mock_llm_with_fallbacks = MagicMock(spec=Runnable)
     mock_llm.with_fallbacks = MagicMock(return_value=mock_llm_with_fallbacks)
-    mock_spare_llm = MagicMock()
+    mock_spare_llm = MagicMock(spec=Runnable)
     
     mock_client = MagicMock()
     mock_client.get_tools = AsyncMock(side_effect=httpx.HTTPStatusError(
@@ -584,10 +518,10 @@ async def test_mcp_client_http_error_codes(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_full_request_lifecycle(monkeypatch):
-    mock_llm = MagicMock()
-    mock_llm_with_fallbacks = MagicMock()
+    mock_llm = MagicMock(spec=Runnable)
+    mock_llm_with_fallbacks = MagicMock(spec=Runnable)
     mock_llm.with_fallbacks = MagicMock(return_value=mock_llm_with_fallbacks)
-    mock_spare_llm = MagicMock()
+    mock_spare_llm = MagicMock(spec=Runnable)
     mock_tools = [MagicMock(name="test_tool")]
     mock_client = MagicMock()
     mock_client.get_tools = AsyncMock(return_value=mock_tools)
@@ -622,7 +556,7 @@ async def test_full_request_lifecycle(monkeypatch):
         
         with patch('mcp_server_deepresearcher.server.DeepResearcher', return_value=mock_agent):
             deep_research_func = await get_deep_research_func()
-            request = DeepResearchRequest(research_topic='advanced AI research', max_web_research_loops=5)
+            request = DeepResearchRequest(research_topic='advanced AI research')
             result = await deep_research_func(ctx, request)
             
             parsed_result = json.loads(result)
@@ -633,7 +567,7 @@ async def test_full_request_lifecycle(monkeypatch):
             mock_agent.graph.ainvoke.assert_called_once()
             call_args = mock_agent.graph.ainvoke.call_args
             assert call_args[0][0]['research_topic'] == 'advanced AI research'
-            assert call_args[1]['config']['configurable']['max_web_research_loops'] == 5
+            assert call_args[1]['config']['configurable']['max_web_research_loops'] == 3
 
 
 @pytest.mark.asyncio

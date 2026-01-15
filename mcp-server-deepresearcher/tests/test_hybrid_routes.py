@@ -37,8 +37,7 @@ def stub_resources():
 async def test_perform_deep_research_success(stub_resources):
     """Test successful deep research execution."""
     request = DeepResearchRequest(
-        research_topic="artificial intelligence",
-        max_web_research_loops=3
+        research_topic="artificial intelligence"
     )
     
     mock_result = {
@@ -71,47 +70,12 @@ async def test_perform_deep_research_success(stub_resources):
         mock_agent.graph.ainvoke.assert_called_once()
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("max_loops", [1, 3, 5, 10])
-async def test_perform_deep_research_different_loop_counts(stub_resources, max_loops):
-    """Test deep research with different max_web_research_loops values."""
-    request = DeepResearchRequest(
-        research_topic="quantum computing",
-        max_web_research_loops=max_loops
-    )
-    
-    mock_result = {
-        "running_summary": "Quantum computing research",
-        "report": {},
-        "research_loop_count": max_loops
-    }
-    
-    with patch('mcp_server_deepresearcher.hybrid_routers.deep_research.DeepResearcher') as mock_agent_class:
-        mock_agent = MagicMock()
-        mock_agent.graph.ainvoke = AsyncMock(return_value=mock_result)
-        mock_agent_class.return_value = mock_agent
-        
-        result = await perform_deep_research(
-            request=request,
-            llm=stub_resources.llm,
-            llm_thinking=stub_resources.llm_thinking,
-            mcp_tools=stub_resources.mcp_tools,
-            tools_description=stub_resources.tools_description,
-        )
-        
-        assert result["status"] == "success"
-        call_args = mock_agent.graph.ainvoke.call_args
-        config = call_args[1].get("config", {})
-        configurable = config.get("configurable", {})
-        assert configurable.get("max_web_research_loops") == max_loops
-
 
 @pytest.mark.asyncio
 async def test_perform_deep_research_error_handling(stub_resources):
     """Test error handling in deep research."""
     request = DeepResearchRequest(
-        research_topic="test topic",
-        max_web_research_loops=3
+        research_topic="test topic"
     )
     
     with patch('mcp_server_deepresearcher.hybrid_routers.deep_research.DeepResearcher') as mock_agent_class:
@@ -164,44 +128,7 @@ async def test_deep_research_endpoint_empty_body_returns_422(hybrid_client: Asyn
     assert response.status_code == 422
 
 
-@pytest.mark.asyncio
-async def test_deep_research_endpoint_missing_required_field_returns_422(hybrid_client: AsyncClient) -> None:
-    """Test that missing required field returns 422."""
-    # Missing research_topic
-    response = await hybrid_client.post(
-        "/hybrid/deep-research",
-        json={"max_web_research_loops": 3}
-    )
-    assert response.status_code == 422
 
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("max_loops", [0, 11])
-async def test_deep_research_endpoint_loops_out_of_range_returns_422(
-    hybrid_client: AsyncClient, max_loops: int
-) -> None:
-    """Test that out-of-range max_web_research_loops returns 422."""
-    response = await hybrid_client.post(
-        "/hybrid/deep-research",
-        json={
-            "research_topic": "test topic",
-            "max_web_research_loops": max_loops
-        }
-    )
-    assert response.status_code == 422
-
-
-@pytest.mark.asyncio
-async def test_deep_research_endpoint_invalid_loops_type_returns_422(hybrid_client: AsyncClient) -> None:
-    """Test that invalid type for max_web_research_loops returns 422."""
-    response = await hybrid_client.post(
-        "/hybrid/deep-research",
-        json={
-            "research_topic": "test topic",
-            "max_web_research_loops": "not-a-number"
-        }
-    )
-    assert response.status_code == 422
 
 
 @pytest.mark.asyncio
@@ -219,8 +146,7 @@ async def test_deep_research_endpoint_valid_request_structure(hybrid_client: Asy
         response = await hybrid_client.post(
             "/hybrid/deep-research",
             json={
-                "research_topic": "test topic",
-                "max_web_research_loops": 3
+                "research_topic": "test topic"
             }
         )
         
@@ -267,8 +193,7 @@ async def test_deep_research_endpoint_unicode_topic(hybrid_client: AsyncClient) 
         response = await hybrid_client.post(
             "/hybrid/deep-research",
             json={
-                "research_topic": unicode_topic,
-                "max_web_research_loops": 3
+                "research_topic": unicode_topic
             }
         )
         

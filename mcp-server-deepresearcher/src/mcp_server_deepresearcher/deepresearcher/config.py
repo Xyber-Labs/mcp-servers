@@ -56,7 +56,7 @@ class LLM_Config(BaseModel):
 
 class DeepResearcherConfig(BaseModel):
     """Configuration settings for the Deep Researcher."""
-    MAX_WEB_RESEARCH_LOOPS: int = Field(default=5, ge=1, le=10, description="Maximum number of web research loops to perform (1-10)")
+    MAX_WEB_RESEARCH_LOOPS: int = Field(default=3, ge=1, le=10, description="Maximum number of web research loops to perform (1-10)")
 
 
 class SearchMCP_Config(BaseModel):

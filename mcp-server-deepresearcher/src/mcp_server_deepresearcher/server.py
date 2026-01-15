@@ -15,6 +15,7 @@ from mcp_server_deepresearcher.deepresearcher.utils import (
     load_mcp_servers_config,
     setup_llm,
     setup_spare_llm,
+    initialize_llm,
     construct_tools_description_yaml,
     parse_tools_description_from_yaml,
 )
@@ -53,7 +54,6 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[Dict[str, Any]]:
         llm_with_fallbacks = llm.with_fallbacks([llm_spare])
         
         # Initialize thinking LLM
-        from mcp_server_deepresearcher.deepresearcher.utils import initialize_llm
         llm_thinking = initialize_llm(llm_type="thinking", raise_on_error=False)
         if not llm_thinking:
             llm_thinking = llm_with_fallbacks
@@ -184,14 +184,14 @@ async def deep_research(
             
             runnable_config: RunnableConfig = {
                 "callbacks": [langfuse_handler],
-                "metadata": {
-                    "agent_type": "deep_researcher",
-                    "agent_name": "DeepResearcher",
-                    "session_id": session_id,
-                    "run_id": run_id,
-                    "research_topic": request.research_topic,
-                    "max_web_research_loops": request.max_web_research_loops,
-                }
+            "metadata": {
+                "agent_type": "deep_researcher",
+                "agent_name": "DeepResearcher",
+                "session_id": session_id,
+                "run_id": run_id,
+                "research_topic": request.research_topic,
+                "max_web_research_loops": deep_researcher_config.MAX_WEB_RESEARCH_LOOPS,
+            }
             }
             
             logger.info(f"Created Langfuse handler for research run {run_id[:8]}")
@@ -203,7 +203,7 @@ async def deep_research(
 
     try:
         # Build config with configurable parameters
-        configurable_params = {"max_web_research_loops": request.max_web_research_loops}
+        configurable_params = {"max_web_research_loops": deep_researcher_config.MAX_WEB_RESEARCH_LOOPS}
         
         # If runnable_config exists, merge configurable parameters with it
         if runnable_config:

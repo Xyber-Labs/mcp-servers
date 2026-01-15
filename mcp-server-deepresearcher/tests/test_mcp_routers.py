@@ -59,8 +59,7 @@ async def test_mcp_deep_research_mcp_success(mcp_client: AsyncClient) -> None:
         response = await mcp_client.post(
             "/deep-research",
             json={
-                "research_topic": "quantum computing",
-                "max_web_research_loops": 3
+                "research_topic": "quantum computing"
             }
         )
         
@@ -91,8 +90,7 @@ async def test_mcp_deep_research_mcp_missing_resources(monkeypatch) -> None:
         response = await client.post(
             "/deep-research",
             json={
-                "research_topic": "test",
-                "max_web_research_loops": 3
+                "research_topic": "test"
             }
         )
         
@@ -120,8 +118,7 @@ async def test_mcp_deep_research_mcp_missing_tools(monkeypatch) -> None:
         response = await client.post(
             "/deep-research",
             json={
-                "research_topic": "test",
-                "max_web_research_loops": 3
+                "research_topic": "test"
             }
         )
         
@@ -169,34 +166,6 @@ async def test_mcp_deep_research_mcp_default_loops(mcp_client: AsyncClient) -> N
         assert request_arg.max_web_research_loops == 3
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("max_loops", [1, 5, 10])
-async def test_mcp_deep_research_mcp_custom_loops(mcp_client: AsyncClient, max_loops: int) -> None:
-    """Test MCP-only deep research with custom max_web_research_loops."""
-    mock_result = {
-        "status": "success",
-        "research_topic": "test",
-        "running_summary": {},
-        "report": {},
-        "research_loop_count": max_loops
-    }
-    
-    with patch('mcp_server_deepresearcher.mcp_routers.research_analyzer.perform_deep_research') as mock_perform:
-        mock_perform.return_value = mock_result
-        
-        response = await mcp_client.post(
-            "/deep-research",
-            json={
-                "research_topic": "test",
-                "max_web_research_loops": max_loops
-            }
-        )
-        
-        assert response.status_code == 200
-        call_args = mock_perform.call_args
-        request_arg = call_args[0][0]
-        assert request_arg.max_web_research_loops == max_loops
-
 
 @pytest.mark.asyncio
 async def test_mcp_deep_research_mcp_error_handling(mcp_client: AsyncClient) -> None:
@@ -207,8 +176,7 @@ async def test_mcp_deep_research_mcp_error_handling(mcp_client: AsyncClient) -> 
         response = await mcp_client.post(
             "/deep-research",
             json={
-                "research_topic": "test",
-                "max_web_research_loops": 3
+                "research_topic": "test"
             }
         )
         
@@ -247,8 +215,7 @@ async def test_mcp_deep_research_mcp_uses_llm_thinking_fallback(mcp_client: Asyn
             response = await client.post(
                 "/deep-research",
                 json={
-                    "research_topic": "test",
-                    "max_web_research_loops": 3
+                    "research_topic": "test"
                 }
             )
             

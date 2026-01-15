@@ -7,6 +7,7 @@ from __future__ import annotations
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 from fastapi import FastAPI
+from langchain_core.runnables import Runnable
 
 from mcp_server_deepresearcher.app import create_app, app_lifespan
 
@@ -15,10 +16,10 @@ from mcp_server_deepresearcher.app import create_app, app_lifespan
 async def test_create_app_returns_fastapi_app(monkeypatch):
     """Test that create_app returns a FastAPI application."""
     # Mock all dependencies
-    mock_llm = MagicMock()
+    mock_llm = MagicMock(spec=Runnable)
     mock_llm.with_fallbacks = MagicMock(return_value=mock_llm)
-    mock_spare_llm = MagicMock()
-    mock_thinking_llm = MagicMock()
+    mock_spare_llm = MagicMock(spec=Runnable)
+    mock_thinking_llm = MagicMock(spec=Runnable)
     mock_thinking_llm.with_fallbacks = MagicMock(return_value=mock_thinking_llm)
     mock_tools = [MagicMock()]
     mock_tools_description = []
@@ -132,10 +133,10 @@ async def test_app_lifespan_error_handling(monkeypatch):
 async def test_create_app_includes_routers(monkeypatch):
     """Test that create_app includes all routers."""
     # Mock all dependencies
-    mock_llm = MagicMock()
+    mock_llm = MagicMock(spec=Runnable)
     mock_llm.with_fallbacks = MagicMock(return_value=mock_llm)
-    mock_spare_llm = MagicMock()
-    mock_thinking_llm = MagicMock()
+    mock_spare_llm = MagicMock(spec=Runnable)
+    mock_thinking_llm = MagicMock(spec=Runnable)
     mock_thinking_llm.with_fallbacks = MagicMock(return_value=mock_thinking_llm)
     mock_tools = [MagicMock()]
     

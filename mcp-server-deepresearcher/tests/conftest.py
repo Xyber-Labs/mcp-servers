@@ -4,20 +4,21 @@ import httpx
 from unittest.mock import MagicMock, AsyncMock
 from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
+from langchain_core.runnables import Runnable
 
 from mcp_server_deepresearcher.schemas import DeepResearchRequest
 
 
 @pytest.fixture
 def mock_llm():
-    llm = MagicMock()
+    llm = MagicMock(spec=Runnable)
     llm.with_fallbacks = MagicMock(return_value=llm)
     return llm
 
 
 @pytest.fixture
 def mock_spare_llm():
-    spare_llm = MagicMock()
+    spare_llm = MagicMock(spec=Runnable)
     return spare_llm
 
 
