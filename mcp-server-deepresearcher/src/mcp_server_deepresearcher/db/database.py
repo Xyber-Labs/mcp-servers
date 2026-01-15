@@ -221,3 +221,25 @@ class Database:
             )
             return reports
 
+    def get_recent_reports(self, limit: int = 10) -> list[ResearchReport]:
+        """
+        Retrieve the most recent research reports across all topics.
+
+        Args:
+            limit: Maximum number of reports to return
+
+        Returns:
+            List of ResearchReport objects ordered by creation date (newest first)
+        """
+        if not self.Session:
+            return []
+
+        with self.Session() as session:
+            reports = (
+                session.query(ResearchReport)
+                .order_by(ResearchReport.created_at.desc())
+                .limit(limit)
+                .all()
+            )
+            return reports
+

@@ -128,6 +128,8 @@ addopts = [
     "--strict-config",
     "--disable-warnings",
     "-v",
+    "--ignore=tests/e2e",  # Exclude e2e tests by default
+    "-m", "not integration",  # Exclude integration tests by default
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",

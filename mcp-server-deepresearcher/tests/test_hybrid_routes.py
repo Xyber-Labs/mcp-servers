@@ -106,7 +106,8 @@ async def hybrid_client(monkeypatch) -> AsyncClient:
     
     # Mock the dependencies - ensure it returns the expected dict structure
     # Match the exact signature: get_research_resources(request: Request) -> dict[str, Any]
-    def mock_get_resources(request: Request):
+    # Accept Request but ignore it to match signature
+    def mock_get_resources(request=None):
         return {
             "llm": MagicMock(),
             "llm_thinking": MagicMock(),
@@ -161,9 +162,14 @@ async def test_deep_research_endpoint_valid_request_structure(hybrid_client: Asy
             }
         )
         
+        # Debug 422 errors
+        if response.status_code == 422:
+            error_detail = response.json()
+            print(f"422 Validation Error: {error_detail}")
+        
         # Should call the function (may fail due to dependency injection, but structure is valid)
         # The actual call depends on how dependencies are set up
-        assert response.status_code in [200, 500, 503]  # 500/503 if dependencies not properly mocked
+        assert response.status_code in [200, 500, 503], f"Expected 200/500/503, got {response.status_code}. Response: {response.text}"
 
 
 @pytest.mark.asyncio
@@ -183,8 +189,13 @@ async def test_deep_research_endpoint_default_loops(hybrid_client: AsyncClient) 
             json={"research_topic": "test topic"}
         )
         
+        # Debug 422 errors
+        if response.status_code == 422:
+            error_detail = response.json()
+            print(f"422 Validation Error: {error_detail}")
+        
         # Should use default value of 3
-        assert response.status_code in [200, 500, 503]
+        assert response.status_code in [200, 500, 503], f"Expected 200/500/503, got {response.status_code}. Response: {response.text}"
 
 
 @pytest.mark.asyncio

@@ -35,7 +35,7 @@ router = APIRouter()
     response_model=dict,
 )
 async def deep_research(
-    request: DeepResearchRequest,
+    research_request: DeepResearchRequest,
     resources: dict = Depends(get_research_resources),
 ) -> dict:
     """
@@ -45,7 +45,7 @@ async def deep_research(
     It conducts comprehensive research using multiple MCP tools and returns
     a detailed report with sources.
     """
-    logger.info(f"Received request for deep_research on topic: '{request.research_topic}'")
+    logger.info(f"Received request for deep_research on topic: '{research_request.research_topic}'")
 
     llm = resources.get("llm")
     llm_thinking = resources.get("llm_thinking")
@@ -86,7 +86,7 @@ async def deep_research(
         llm_thinking = llm
 
     return await perform_deep_research(
-        request=request,
+        request=research_request,
         llm=llm,
         llm_thinking=llm_thinking,
         mcp_tools=mcp_tools,

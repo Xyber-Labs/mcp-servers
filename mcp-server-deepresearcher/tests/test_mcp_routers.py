@@ -23,7 +23,8 @@ async def mcp_client(monkeypatch) -> AsyncClient:
     # Mock the dependencies - ensure it returns the expected dict structure
     # Note: get_research_resources is sync, so the override should also be sync
     # Match the exact signature: get_research_resources(request: Request) -> dict[str, Any]
-    def mock_get_resources(request: Request):
+    # Accept Request but ignore it to match signature
+    def mock_get_resources(request=None):
         # Ensure we return a proper dict that matches what the endpoint expects
         return {
             "llm": MagicMock(),
@@ -88,7 +89,7 @@ async def test_mcp_deep_research_mcp_success(mcp_client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_mcp_deep_research_mcp_missing_resources(monkeypatch) -> None:
     """Test MCP-only deep research with missing resources returns 503."""
-    def mock_get_resources(request):
+    def mock_get_resources(request=None):
         return {
             "llm": None,
             "llm_thinking": None,
@@ -98,8 +99,9 @@ async def test_mcp_deep_research_mcp_missing_resources(monkeypatch) -> None:
         }
     
     app = FastAPI()
-    app.include_router(mcp_router)
+    # Override dependency BEFORE including router
     app.dependency_overrides[get_research_resources] = mock_get_resources
+    app.include_router(mcp_router)
     
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
@@ -111,13 +113,13 @@ async def test_mcp_deep_research_mcp_missing_resources(monkeypatch) -> None:
         )
         
         assert response.status_code == 503
-        assert "Shared resources" in response.json()["detail"]
+        assert "LLM not available" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
 async def test_mcp_deep_research_mcp_missing_tools(monkeypatch) -> None:
     """Test MCP-only deep research with missing tools returns 503."""
-    def mock_get_resources(request):
+    def mock_get_resources(request=None):
         return {
             "llm": MagicMock(),
             "llm_thinking": MagicMock(),
@@ -127,8 +129,9 @@ async def test_mcp_deep_research_mcp_missing_tools(monkeypatch) -> None:
         }
     
     app = FastAPI()
-    app.include_router(mcp_router)
+    # Override dependency BEFORE including router
     app.dependency_overrides[get_research_resources] = mock_get_resources
+    app.include_router(mcp_router)
     
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
@@ -140,7 +143,7 @@ async def test_mcp_deep_research_mcp_missing_tools(monkeypatch) -> None:
         )
         
         assert response.status_code == 503
-        assert "Shared resources" in response.json()["detail"]
+        assert "No MCP tools are available" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -178,8 +181,11 @@ async def test_mcp_deep_research_mcp_default_loops(mcp_client: AsyncClient) -> N
         
         assert response.status_code == 200
         # Verify the function was called with the request
+        mock_perform.assert_called_once()
         call_args = mock_perform.call_args
-        request_arg = call_args[0][0]
+        # perform_deep_research is called with keyword arguments
+        request_arg = call_args.kwargs.get('request')
+        assert request_arg is not None, f"Expected 'request' in kwargs, got: {call_args.kwargs.keys()}"
         assert request_arg.research_topic == "test"
         # max_web_research_loops is handled internally by perform_deep_research via DeepResearcherConfig
 
@@ -205,7 +211,7 @@ async def test_mcp_deep_research_mcp_error_handling(mcp_client: AsyncClient) -> 
 @pytest.mark.asyncio
 async def test_mcp_deep_research_mcp_uses_llm_thinking_fallback(mcp_client: AsyncClient) -> None:
     """Test MCP-only deep research uses llm as fallback when llm_thinking is None."""
-    def mock_get_resources(request):
+    def mock_get_resources(request=None):
         return {
             "llm": MagicMock(),
             "llm_thinking": None,  # Missing thinking LLM
@@ -215,8 +221,9 @@ async def test_mcp_deep_research_mcp_uses_llm_thinking_fallback(mcp_client: Asyn
         }
     
     app = FastAPI()
-    app.include_router(mcp_router)
+    # Override dependency BEFORE including router
     app.dependency_overrides[get_research_resources] = mock_get_resources
+    app.include_router(mcp_router)
     
     mock_result = {
         "status": "success",
@@ -241,6 +248,8 @@ async def test_mcp_deep_research_mcp_uses_llm_thinking_fallback(mcp_client: Asyn
             assert response.status_code == 200
             # Verify that llm was used as fallback for llm_thinking
             call_args = mock_perform.call_args
-            # perform_deep_research signature: (request, llm, llm_thinking, mcp_tools, tools_description)
-            assert call_args[0][2] == call_args[0][1]  # llm_thinking == llm (fallback)
+            # perform_deep_research is called with keyword arguments
+            llm_arg = call_args.kwargs.get('llm') or (call_args[0][1] if len(call_args[0]) > 1 else None)
+            llm_thinking_arg = call_args.kwargs.get('llm_thinking') or (call_args[0][2] if len(call_args[0]) > 2 else None)
+            assert llm_thinking_arg == llm_arg  # llm_thinking == llm (fallback)
 

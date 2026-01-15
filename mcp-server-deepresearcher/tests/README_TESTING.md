@@ -24,6 +24,11 @@ pytest tests/ -m "not slow and not integration"
 pytest tests/ --ignore=tests/e2e -m "not integration"
 ```
 
+### Option 5: Quick command to skip e2e tests (recommended)
+```bash
+pytest tests/ --ignore=tests/e2e -m "not integration and not slow"
+```
+
 ## Running Specific Test Files
 
 ```bash

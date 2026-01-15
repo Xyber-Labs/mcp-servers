@@ -30,7 +30,7 @@ router = APIRouter()
     response_model=dict,
 )
 async def deep_research_mcp(
-    request: DeepResearchRequest,
+    research_request: DeepResearchRequest,
     resources: dict = Depends(get_research_resources),
 ) -> dict:
     """
@@ -44,9 +44,9 @@ async def deep_research_mcp(
     and decision-making during research workflows.
     
     Args:
-        request: The research request containing the topic to investigate
+        research_request: The research request containing the topic to investigate
     """
-    logger.info(f"Received MCP-only request for deep_research on topic: '{request.research_topic}'")
+    logger.info(f"Received MCP-only request for deep_research on topic: '{research_request.research_topic}'")
 
     llm = resources.get("llm")
     llm_thinking = resources.get("llm_thinking")
@@ -86,11 +86,15 @@ async def deep_research_mcp(
     if not llm_thinking:
         llm_thinking = llm
 
-    return await perform_deep_research(
-        request=request,
-        llm=llm,
-        llm_thinking=llm_thinking,
-        mcp_tools=mcp_tools,
-        tools_description=tools_description,
-    )
+    try:
+        return await perform_deep_research(
+            request=research_request,
+            llm=llm,
+            llm_thinking=llm_thinking,
+            mcp_tools=mcp_tools,
+            tools_description=tools_description,
+        )
+    except Exception as e:
+        logger.error(f"An unexpected error occurred during deep research: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
 
