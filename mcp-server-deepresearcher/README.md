@@ -6,7 +6,7 @@
 
 This server integrates with multiple MCP services to conduct comprehensive research and generate structured reports. It features a hybrid architecture supporting both REST API and MCP protocol access, with advanced capabilities including payment processing, caching, tracing, and parallel tool execution.
 
-![Deep Researcher Graph](./deep_researcher_graph.png)
+![Deep Researcher Graph](src/mcp_server_deepresearcher/deepresearcher/agent_research_graph.png)
 
 ## Key Features
 
