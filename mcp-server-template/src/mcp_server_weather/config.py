@@ -153,7 +153,7 @@ class X402Config(BaseSettings):
             logger.warning("Pricing configuration mismatch found:")
             for op_id in sorted(misconfigured):
                 logger.warning(
-                    f"  - The operation_id '{op_id}' is priced in your .env file, "
+                    f"  - The operation_id '{op_id}' is priced in your tool_pricing.yaml, "
                     "but no corresponding endpoint was found. (Typo?)"
                 )
 

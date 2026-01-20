@@ -90,7 +90,8 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
             payment_dict = json.loads(safe_base64_decode(payment_header))
             payment = PaymentPayload(**payment_dict)
         except Exception as e:
-            logger.warning(f"Invalid payment header from {request.client.host}: {e}")
+            client_host = request.client.host if request.client else "<unknown>"
+            logger.warning(f"Invalid payment header from {client_host}: {e}")
             return self._create_402_response(
                 payment_requirements, "Invalid payment header format"
             )

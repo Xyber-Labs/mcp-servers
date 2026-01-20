@@ -115,6 +115,6 @@ async def test_hybrid_search_by_id_succeeds_with_x402(paid_client) -> None:
     paper = result[0]
     # Arxiv returns versioned IDs (e.g., "1706.03762v7"), so check it starts with the base ID
     assert paper["arxiv_id"].startswith("1706.03762")
-    assert "title" in result
-    assert "authors" in result
+    assert "title" in paper
+    assert "authors" in paper
 

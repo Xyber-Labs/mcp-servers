@@ -18,13 +18,17 @@ FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS dev
 
 WORKDIR /app
 
-ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
+ENV UV_COMPILE_BYTECODE=1
 
+COPY --from=builder /app/.venv /app/.venv
+
+# Additionally install dev and debug dependencies
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --frozen --no-install-project  --all-groups
+    uv sync --frozen --no-install-project --group dev --group debug
+
 
 ENV PATH="/app/.venv/bin:$PATH"
 

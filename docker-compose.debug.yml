@@ -1,3 +1,7 @@
+x-debug-env: &debug-env
+  PYTHONDONTWRITEBYTECODE: 1
+  PYTHONUNBUFFERED: 1
+
 x-qdrant-config: &qdrant-config
   # Qdrant connection settings for debugging
   QDRANT_HOST: qdrant
@@ -32,7 +36,8 @@ services:
     restart: unless-stopped
     environment:
       <<: *debug-env
-  mcp_server_weather:
+
+  mcp_server_arxiv:
     build:
       context: ./mcp-server-arxiv
       dockerfile: Dockerfile
@@ -49,7 +54,8 @@ services:
     restart: unless-stopped
     environment:
       <<: *debug-env
-  mcp_server_telegram:
+
+  mcp_server_cartesia:
     build:
       context: ./mcp-server-cartesia
       dockerfile: Dockerfile
@@ -111,46 +117,11 @@ services:
       - "8105:8105"
       - "5705:5705"
     volumes:
-      - ./mcp-server-cartesia/src/mcp_server_cartesia:/app/mcp_server_cartesia:ro
-    env_file: ./mcp-server-cartesia/.env
+      - ./mcp-server-postgres/src/mcp_server_postgres:/app/mcp_server_postgres:ro
+    env_file: ./mcp-server-postgres/.env
     restart: unless-stopped
     environment:
       <<: *debug-env
-
-  mcp_server_tavily:
-    build:
-      context: ./mcp-server-tavily
-      dockerfile: Dockerfile
-      target: dev
-    image: mcp_server_tavily-debug
-    container_name: mcp_server_tavily_debug
-    command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5703", "--wait-for-client", "-m", "mcp_server_tavily", "--port", "8006", "--reload"]
-    ports:
-      - "8006:8006"
-      - "5703:5703"
-    volumes:
-      - ./mcp-server-tavily/src/mcp_server_tavily:/app/mcp_server_tavily:ro
-    env_file: ./mcp-server-tavily/.env
-    restart: unless-stopped
-    environment:
-      <<: *debug-env
-
-  mcp_server_arxiv:
-    build:
-      context: ./mcp-server-arxiv
-      dockerfile: Dockerfile
-      target: dev
-    image: mcp_server_arxiv-debug
-    container_name: mcp_server_arxiv_debug
-    command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5704", "--wait-for-client", "-m", "mcp_server_arxiv", "--port", "8001", "--reload"]
-    ports:
-      - "8001:8001"
-      - "5704:5704"
-    volumes:
-      - ./mcp-server-arxiv/src/mcp_server_arxiv:/app/mcp_server_arxiv:ro
-    env_file: ./mcp-server-arxiv/.env
-    restart: unless-stopped
-    environment: {}
 
   mcp_server_qdrant:
     build:
@@ -238,23 +209,6 @@ services:
     env_file: ./mcp-server-telegram-parser/.env
     restart: unless-stopped
     environment: {}
-
-  mcp_server_hangman:
-    build:
-      context: ./mcp-server-hangman
-      dockerfile: Dockerfile
-      target: dev
-    image: mcp_server_hangman-debug
-    container_name: mcp_server_hangman_debug
-    command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5712", "--wait-for-client", "-m", "mcp_server_hangman", "--port", "8000", "--reload"]
-    ports:
-      - "8015:8000"
-      - "5712:5712"
-    volumes:
-      - ./mcp-server-hangman/src/mcp_server_hangman:/app/mcp_server_hangman:ro
-    restart: unless-stopped
-    environment:
-      <<: *debug-env
 
   mcp_server_together_imgen:
     build:

@@ -11,5 +11,8 @@ def event_loop() -> Iterator[asyncio.AbstractEventLoop]:
     """Create an event loop for async tests scoped to the session."""
 
     loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+    asyncio.set_event_loop(loop)
+    try:
+        yield loop
+    finally:
+        loop.close()
