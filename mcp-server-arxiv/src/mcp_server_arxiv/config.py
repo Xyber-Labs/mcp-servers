@@ -64,21 +64,29 @@ class X402Config(BaseSettings):
         try:
             with open(self.pricing_config_path) as f:
                 pricing_data = yaml.safe_load(f)
-                if not pricing_data:
-                    return {}
-                validated_pricing = {
-                    op_id: [PaymentOption(**opt) for opt in opts]
-                    for op_id, opts in pricing_data.items()
-                }
-                logger.info(
-                    f"Successfully loaded pricing for {len(validated_pricing)} tools."
+
+            if not pricing_data:
+                return {}
+
+            if not isinstance(pricing_data, dict):
+                raise ValueError(
+                    f"expected a YAML mapping (dict) but got {type(pricing_data).__name__}"
                 )
-                return validated_pricing
-        except (yaml.YAMLError, TypeError, ValueError) as e:
-            logger.error(
-                f"Failed to parse pricing config '{self.pricing_config_path}': {e}"
-            )
-            return {}
+
+            validated_pricing = {
+                op_id: [PaymentOption(**opt) for opt in opts]
+                for op_id, opts in pricing_data.items()
+            }
+
+        except yaml.YAMLError as e:
+            raise ValueError(f"Invalid YAML syntax: {e}") from e
+        except (TypeError, AttributeError) as e:
+            raise ValueError(f"Each endpoint must map to a list of payment options: {e}") from e
+        except ValueError:
+            raise
+
+        logger.info(f"Successfully loaded pricing for {len(validated_pricing)} tools.")
+        return validated_pricing
 
     def validate_against_routes(self, routes: list):
         configured_op_ids = set(self.pricing.keys())

@@ -23,11 +23,10 @@ ENV UV_COMPILE_BYTECODE=1
 
 COPY --from=builder /app/.venv /app/.venv
 
-# Additionally install dev and debug dependencies
+# Additionally install dev and debug dependencies without removing the project
 RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --frozen --no-install-project --group dev --group debug
+    uv pip install --group dev --group debug
 
 
 ENV PATH="/app/.venv/bin:$PATH"
