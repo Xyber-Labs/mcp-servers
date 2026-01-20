@@ -9,13 +9,18 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastmcp import Context
 from fastmcp.exceptions import ToolError
 
-from mcp_server_deepresearcher.server import mcp_server
+from mcp_server_deepresearcher.app import get_mcp_server
 from mcp_server_deepresearcher.schemas import DeepResearchRequest
 
 
+_mcp_server = None
+
 async def get_deep_research_func():
     """Get the deep_research function from mcp_server tools."""
-    tools = await mcp_server.get_tools()
+    global _mcp_server
+    if _mcp_server is None:
+        _mcp_server = get_mcp_server()
+    tools = await _mcp_server.get_tools()
     if 'deep_research' in tools:
         return tools['deep_research'].fn
     raise ValueError("deep_research tool not found")

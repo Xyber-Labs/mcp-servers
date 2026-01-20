@@ -41,16 +41,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Make container use python installed inside the venv
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Create logs directory
-RUN mkdir -p /app/logs && \
-    chmod 755 /app/logs
-
-# Set log file path
-ENV MCP_DEEP_RESEARCHER__LOGGING__LOG_FILE="/app/logs/mcp_deep_researcher.log"
-
-# Mount point for logs
-VOLUME ["/app/logs"]
-
 COPY tool_pricing.yaml .
 
 CMD ["tail", "-f", "/dev/null"]
@@ -62,30 +52,11 @@ WORKDIR /app
 
 COPY --from=builder /app/.venv /app/.venv
 
-# Copy application code
-COPY src/ ./src/
 COPY tool_pricing.yaml .
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Create logs directory
-RUN mkdir -p /app/logs && \
-    chmod 755 /app/logs
+EXPOSE 8000
 
-# Set log file path (logs directory will be created if needed)
-ENV MCP_DEEP_RESEARCHER__LOGGING__LOG_FILE="/app/logs/mcp_deep_researcher.log"
-
-# Set default port (can be overridden via environment variable)
-ENV MCP_DEEP_RESEARCHER_PORT=8003
-
-# Mount point for logs
-VOLUME ["/app/logs"]
-
-EXPOSE 8003
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')" || exit 1
-
-CMD ["python", "-m", "mcp_server_deepresearcher", "--host", "0.0.0.0", "--port", "8003"]
+CMD ["python", "-m", "mcp_server_deepresearcher", "--host", "0.0.0.0", "--port", "8000"]
 

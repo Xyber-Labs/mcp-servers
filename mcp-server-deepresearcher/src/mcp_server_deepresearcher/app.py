@@ -289,3 +289,17 @@ def create_app() -> FastAPI:
     logger.info("Application setup complete.")
     return app
 
+
+def get_mcp_server() -> FastMCP:
+    """
+    Get the MCP server instance for testing purposes.
+    
+    This creates a standalone MCP server without the full FastAPI app.
+    """
+    mcp_source_app = FastAPI(title="MCP Source")
+    for router in hybrid_routers:
+        mcp_source_app.include_router(router)
+    for router in mcp_routers:
+        mcp_source_app.include_router(router)
+    
+    return FastMCP.from_fastapi(app=mcp_source_app, name="deep_researcher")

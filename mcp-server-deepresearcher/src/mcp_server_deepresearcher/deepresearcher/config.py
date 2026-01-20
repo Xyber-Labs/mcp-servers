@@ -72,13 +72,32 @@ class SearchMCP_Config(BaseModel):
 
 
 
-class LangfuseConfig(BaseModel):
+class LangfuseConfig(BaseSettings):
+    """Configuration settings for Langfuse integration."""
     # Support both LANGFUSE_API_KEY and LANGFUSE_PUBLIC_KEY for compatibility
-    LANGFUSE_API_KEY: str = os.getenv("LANGFUSE_API_KEY") or os.getenv("LANGFUSE_PUBLIC_KEY") or ""
-    LANGFUSE_SECRET_KEY: str = os.getenv("LANGFUSE_SECRET_KEY") or ""
-    LANGFUSE_PROJECT: str = os.getenv("LANGFUSE_PROJECT") or "poker"
+    LANGFUSE_API_KEY: str = Field(default="")
+    LANGFUSE_SECRET_KEY: str = Field(default="")
+    LANGFUSE_PROJECT: str = Field(default="deepresearcher")
     # Support both LANGFUSE_HOST and LANGFUSE_BASE_URL for compatibility
-    LANGFUSE_HOST: str = os.getenv("LANGFUSE_HOST") or os.getenv("LANGFUSE_BASE_URL") or "https://cloud.langfuse.com"
+    LANGFUSE_HOST: str = Field(default="https://cloud.langfuse.com")
+    
+    model_config = SettingsConfigDict(
+        env_file=_env_file,
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+    
+    def __init__(self, **kwargs):
+        # Handle LANGFUSE_PUBLIC_KEY as alias for LANGFUSE_API_KEY
+        if not kwargs.get("LANGFUSE_API_KEY"):
+            api_key = os.getenv("LANGFUSE_API_KEY") or os.getenv("LANGFUSE_PUBLIC_KEY") or ""
+            if api_key:
+                kwargs["LANGFUSE_API_KEY"] = api_key
+        # Handle LANGFUSE_BASE_URL as alias for LANGFUSE_HOST
+        if not kwargs.get("LANGFUSE_HOST"):
+            host = os.getenv("LANGFUSE_HOST") or os.getenv("LANGFUSE_BASE_URL") or "https://cloud.langfuse.com"
+            kwargs["LANGFUSE_HOST"] = host
+        super().__init__(**kwargs)
 
 
 
