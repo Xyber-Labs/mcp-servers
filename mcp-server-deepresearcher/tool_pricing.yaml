@@ -1,0 +1,15 @@
+# This file defines the payment options for all x402-protected endpoints.
+# The key for each entry is the endpoint's unique `operation_id`.
+# You can define one or more payment options for each tool, allowing for
+# flexibility with different tokens or networks.
+
+# --- Paid Hybrid Endpoint ---
+deep_research:
+  # Offer payment options for deep research
+  - token_amount: 5000    # ~0.005 USDC 
+    chain_id: 8453 # Base 
+    token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+  - token_amount: 1000   
+    chain_id: 84532 # Base Sepolia (Testnet)
+    token_address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+
