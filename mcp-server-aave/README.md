@@ -1,81 +1,57 @@
 # AAVE MCP Server
 
-A Model Context Protocol (MCP) server that provides real-time Aave v3 market data via a clean, agent-friendly schema.
+A Model Context Protocol (MCP) server that provides real-time Aave v3 market data via a clean, agent-friendly schema. This service queries Aave v3 GraphQL across multiple networks and returns a simplified structure with network overviews, per-reserve summaries, and optional filtering capabilities.
 
-## Overview
+## Capabilities
 
-This service queries Aave v3 GraphQL across multiple networks and returns a simplified structure:
-- Networks (markets) with an aggregated overview
-- Per-reserve summaries (APY, totals)
-- Optional filtering by network and/or asset
+### API-Only Endpoints
 
-Designed for LLM agents: minimal fields, consistent formatting, and ready-to-use metrics.
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/health` | GET | Returns the operational status of the server (not exposed to MCP) |
 
-## MCP Tools
+### Hybrid Endpoints (REST + MCP)
 
-### `get_available_networks`
-- Description: Returns the list of supported networks as known by the upstream API.
-- Input: none
-- Output: `list[str]`
+| Endpoint | Method | Operation ID | Description |
+|----------|--------|--------------|-------------|
+| `/hybrid/pricing` | GET | `aave_get_pricing` | Get tool pricing configuration |
+| `/hybrid/available-networks` | POST | `aave_get_available_networks` | Returns the list of supported Aave networks |
+| `/hybrid/comprehensive-aave-data` | POST | `aave_get_comprehensive_data` | Fetch comprehensive Aave market data with optional filtering |
 
-### `get_comprehensive_aave_data`
-- Description: Returns a simplified, comprehensive view of Aave data.
-- Inputs:
-  - `network` (optional, `str`): restrict results to a single network (e.g., "ethereum", "polygon").
-  - `asset_address` (optional, `str`): restrict results to a single token address on the specified network; if `network` is omitted, the server will filter across all networks but still return only matching reserves.
-- Output: `ComprehensiveAaveData` with the following shape:
-  - `data: list[NetworkAaveData]`
-    - `network: str`
-    - `overview: MarketOverview`
-      - `total_reserves: int`
-      - `total_liquidity_usd: str`
-      - `total_variable_debt_usd: str`
-      - `utilization_rate: str`
-      - `base_currency_info: {symbol: str, decimals: int}`
-    - `reserves: list[AssetSummary]`
-      - `address: str`
-      - `symbol: str`
-      - `name: str`
-      - `supply_apy: str`
-      - `borrow_apy: str`
-      - `total_supply: str`
-      - `total_debt: str`
+### MCP-Only Endpoints
 
-Notes:
-- If both `network` and `asset_address` are provided, only the selected reserve for that network is returned.
-- Raw pool data and separate risk blocks are intentionally omitted to reduce duplication and confusion.
+None - all MCP tools are now accessible via hybrid endpoints.
 
-## Installation
+## API Documentation
 
-### Prerequisites
+Once the server is running, you can access:
+- Interactive API documentation at `http://localhost:8000/docs`
+- Alternative API documentation at `http://localhost:8000/redoc`
+- MCP endpoint at `http://localhost:8000/mcp`
+
+## Requirements
+
 - Python 3.12+
 - UV (dependency management)
 
-### Setup
+## Setup
 
-1. Clone the repository
+1. Clone the repository:
 ```bash
 git clone <repository-url>
 cd mcp-server-aave
 ```
 
-2. Install dependencies
+2. Install dependencies:
 ```bash
 uv sync
 ```
 
-3. Configure environment
+3. Configure environment:
 ```bash
 cp env.example .env
 # Edit .env to suit your environment
 ```
-
-4. Run the server
-```bash
-uv run python -m mcp_server_aave
-```
-
-## Configuration
 
 Environment variables (see `env.example`):
 ```dotenv
@@ -89,55 +65,130 @@ MCP_AAVE_PORT=8000
 LOGGING_LEVEL=INFO
 ```
 
-## Usage Examples
+## Running
 
-### Get networks
-```python
-networks = await get_available_networks()
-# ["Ethereum", "Polygon", ...]
+Start the server:
+```bash
+uv run python -m mcp_server_aave
 ```
 
-### Get all markets
-```python
-data = await get_comprehensive_aave_data()
-# data.data[0].overview.total_reserves
-# data.data[0].reserves[0].symbol
-```
+The server will be available at `http://localhost:8000` (or the configured host/port).
 
-### Filter by network
-```python
-eth = await get_comprehensive_aave_data(network="ethereum")
-# Returns single network entry with its reserves
-```
+## Testing
 
-### Filter by network and asset
-```python
-usdc_eth = await get_comprehensive_aave_data(
-    network="ethereum",
-    asset_address="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
-)
-# Returns one network with a single USDC reserve summary
-```
-
-## Data Model Notes
-- Values are strings to avoid floating point ambiguity and because many LLM clients prefer strings for numeric data.
-- APYs are variable-rate and can change; do not treat as guarantees.
-
-## Development
-
-### Tests
+Run tests:
 ```bash
 uv run pytest
 ```
 
-### Lint/format
+Lint and format:
 ```bash
 uv run ruff check .
 uv run black .
 uv run isort .
 ```
 
+## Project Structure
+
+```
+mcp-server-aave/
+├── src/
+│   └── mcp_server_aave/
+│       ├── app.py                 # Main application factory
+│       ├── api_routers/           # REST-only endpoints
+│       │   ├── __init__.py
+│       │   └── health.py          # Health check endpoint
+│       ├── hybrid_routers/        # REST + MCP endpoints
+│       │   ├── __init__.py
+│       │   ├── pricing.py         # Pricing configuration
+│       │   ├── available_networks.py    # Network listing
+│       │   └── comprehensive_data.py    # Market data
+│       ├── middlewares/           # Custom middleware
+│       ├── aave.py                # Aave API client
+│       ├── schemas.py             # Data models
+│       └── x402_config.py         # Payment configuration
+├── tests/
+├── pyproject.toml
+├── env.example
+└── README.md
+```
+
+## Usage Examples
+
+### Get Available Networks
+
+Returns the list of supported networks as known by the upstream API.
+
+**Input**: None
+
+**Output**: `list[str]`
+
+```python
+networks = await get_available_networks()
+# ["Ethereum", "Polygon", "Avalanche", "Arbitrum", "Optimism"]
+```
+
+### Get Comprehensive Aave Data
+
+Returns a simplified, comprehensive view of Aave data with optional filtering.
+
+**Inputs**:
+- `networks` (optional, `list[str]`): Restrict results to specific networks (e.g., ["ethereum", "polygon"])
+- `asset_symbols` (optional, `list[str]`): Restrict results to specific token symbols
+
+**Output**: `ComprehensiveAaveData` with the following structure:
+- `data: list[NetworkAaveData]`
+  - `network: str`
+  - `overview: MarketOverview`
+    - `total_reserves: int`
+    - `total_liquidity_usd: str`
+    - `total_variable_debt_usd: str`
+    - `utilization_rate: str`
+    - `base_currency_info: {symbol: str, decimals: int}`
+  - `reserves: list[AssetSummary]`
+    - `address: str`
+    - `symbol: str`
+    - `name: str`
+    - `supply_apy: str`
+    - `borrow_apy: str`
+    - `total_supply: str`
+    - `total_debt: str`
+
+**Examples**:
+
+Get all markets:
+```python
+data = await get_comprehensive_aave_data()
+# Access: data.data[0].overview.total_reserves
+# Access: data.data[0].reserves[0].symbol
+```
+
+Filter by network:
+```python
+eth = await get_comprehensive_aave_data(networks=["ethereum"])
+# Returns single network entry with its reserves
+```
+
+Filter by network and asset:
+```python
+usdc_eth = await get_comprehensive_aave_data(
+    networks=["ethereum"],
+    asset_symbols=["USDC"]
+)
+# Returns one network with filtered USDC reserve data
+```
+
+## Data Model Notes
+
+- Values are strings to avoid floating point ambiguity and because many LLM clients prefer strings for numeric data
+- APYs are variable-rate and can change; do not treat as guarantees
+- Raw pool data and separate risk blocks are intentionally omitted to reduce duplication and confusion
+
+## Development
+
 ### Docker
+
+Build and run with Docker:
 ```bash
 docker build -t mcp-server-aave .
 docker run -p 8000:8000 mcp-server-aave

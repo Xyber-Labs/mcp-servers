@@ -1,18 +1,40 @@
 # MCP Telegram Server
 
-> **General:** This repository provides an MCP (Model Context Protocol) server for posting messages to a Telegram channel.
+An MCP (Model Context Protocol) server for posting messages to Telegram channels. This server provides both REST API and MCP tool interfaces for sending messages to configured Telegram channels using bot tokens, with support for text formatting and message length constraints.
 
-## Overview
+## Capabilities
 
-This server provides a tool to send messages to a pre-configured Telegram channel using a bot token. It handles interactions with the Telegram Bot API, including text formatting and message length constraints.
+### API-Only Endpoints (/api)
 
-## MCP Tools:
+| Endpoint | Method | Description | Parameters |
+|----------|--------|-------------|------------|
+| `/api/health` | GET | Returns server operational status | None |
 
-1. `post_to_telegram`
-    - **Description:** Posts a given message to the pre-configured Telegram channel.
-    - **Input:**
-        - `message` (required): The text message content to post.
-    - **Output:** A success or failure message.
+### Hybrid Endpoints (/hybrid)
+
+Available via both REST API (`/hybrid/*`) and MCP protocol (`/mcp`):
+
+| Endpoint | Method | Description | Parameters |
+|----------|--------|-------------|------------|
+| `/hybrid/pricing` | GET | Get tool pricing configuration | None |
+
+### MCP-Only Endpoints
+
+Available only through MCP protocol (`/mcp`):
+
+| Tool Name | Description | Input Parameters | Output |
+|-----------|-------------|------------------|--------|
+| `post_to_telegram` | Posts a message to a Telegram channel | `message` (string, 1-4096 chars) | Success/failure message |
+
+**Authentication Headers Required:**
+- `X-Telegram-Token`: Your Telegram bot API token
+- `X-Telegram-Channel`: The channel ID or username (e.g., @channelname)
+
+## API Documentation
+
+Once the server is running, interactive API documentation is available at:
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
 
 ## Requirements
 
@@ -130,13 +152,26 @@ mcp-server-telegram/
 │           └── test_server.py
 │
 ├── .env.example
-├── .gitignore
 ├── Dockerfile
-├── LICENSE
 ├── pyproject.toml
-├── README.md
-└── uv.lock
+└── README.md
 ```
+
+## Authentication
+
+The `post_to_telegram` MCP tool requires authentication via HTTP headers:
+
+- **X-Telegram-Token**: Your Telegram bot API token (obtained from [@BotFather](https://t.me/botfather))
+- **X-Telegram-Channel**: The target channel ID or username (e.g., `@channelname` or `-1001234567890`)
+
+These credentials must be provided in the MCP tool call headers. The server does not store credentials; they are passed per-request for security.
+
+### Getting Telegram Credentials
+
+1. **Create a Bot**: Message [@BotFather](https://t.me/botfather) on Telegram and use `/newbot` to create a bot
+2. **Get Token**: BotFather will provide your bot token (format: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`)
+3. **Add Bot to Channel**: Add your bot as an administrator to the target channel
+4. **Get Channel ID**: Use the channel username (e.g., `@mychannel`) or numeric ID
 
 ## Contributing
 

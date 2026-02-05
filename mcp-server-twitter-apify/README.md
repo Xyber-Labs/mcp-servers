@@ -2,93 +2,74 @@
 
 A production-ready, multi-protocol Twitter scraping service that provides seamless access to Twitter data through REST API, MCP (Model Context Protocol), and x402 payment-enabled endpoints. Built on FastAPI and powered by Apify's `apidojo/twitter-scraper-lite` actor, with intelligent PostgreSQL-backed caching to minimize API costs and improve response times.
 
-## Overview
+## Capabilities
 
-`mcp-twitter-apify` is a hybrid server that combines three access patterns in a single application:
+### API-Only Endpoints (/api)
 
-- **REST API** (`/api/*`, `/hybrid/*`): Traditional HTTP endpoints for direct integration
-- **MCP Protocol** (`/mcp`): Model Context Protocol endpoints for AI agent integration via FastMCP
-- **x402 Payment Middleware**: Optional pay-per-use functionality for monetized API access
+These endpoints are available only via REST API and are not exposed to MCP:
 
-The server intelligently caches Twitter search results in PostgreSQL, dramatically reducing Apify API costs while maintaining data freshness through configurable TTLs per query type.
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/` | GET | API root endpoint with service information |
+| `/api/health` | GET | Health check endpoint for monitoring and load balancers |
+| `/api/v1/types` | GET | List all available query types with descriptions |
+| `/api/v1/queries` | GET | List all available queries, optionally filtered by type |
+| `/api/v1/results/{filename}` | GET | Get saved search results (deprecated, use search endpoints) |
+| `/api/v1/results` | GET | List cache status (deprecated, results now in Postgres) |
 
-## Key Features
+### Hybrid Endpoints (/hybrid)
 
-### 🔍 **Search Capabilities**
-- **Topic Search**: Search tweets by keyword/topic with sorting (Latest/Top), verified user filtering, and image-only filtering
+These endpoints are available via both REST API and can be called by external services:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/hybrid/v1/search/topic` | POST | Search tweets by keyword/topic with sorting, verification, and image filters |
+| `/hybrid/v1/search/profile` | POST | Search tweets from specific user with optional date range filtering |
+| `/hybrid/v1/search/profile/latest` | POST | Get most recent tweets from a user without date constraints |
+| `/hybrid/v1/search/replies` | POST | Fetch conversation threads via conversation IDs |
+| `/hybrid/v1/search/profile/batch` | POST | Search tweets from multiple users in parallel with error handling |
+| `/hybrid/v1/search/profile/latest/batch` | POST | Get latest tweets from multiple users in parallel |
+| `/hybrid/v1/run/{query_id}` | POST | Execute a predefined query by ID from the registry |
+
+### MCP-Only Endpoints
+
+These endpoints are exclusively available to AI agents via the MCP protocol at `/mcp`:
+
+| Tool Name | Description |
+|-----------|-------------|
+| `twitter_search_topic` | Search tweets by topic/keyword with full filtering options (MCP-only tool for AI agents) |
+
+Note: Additional MCP tools (profile search, replies, batch operations) are temporarily disabled but available in the codebase.
+
+## API Documentation
+
+Interactive API documentation is available when the server is running:
+
+- **Swagger UI**: http://localhost:8002/docs
+- **ReDoc**: http://localhost:8002/redoc
+
+### Key Features
+
+- **Topic Search**: Search by keyword/topic with sorting (Latest/Top), verified user filtering, and image-only filtering
 - **Profile Search**: Retrieve tweets from specific users with optional date range filtering
 - **Profile Latest**: Get the most recent tweets from users without date constraints
 - **Batch Operations**: Process multiple profile searches in parallel with error handling
 - **Reply Threads**: Fetch conversation threads via conversation IDs
-
-### 💾 **Intelligent Caching**
-- **PostgreSQL-Backed Cache**: Persistent, normalized storage of tweets and authors
-- **Configurable TTLs**: Different cache durations per query type:
-  - Topic (Latest): 15 minutes
-  - Topic (Top): 24 hours
-  - Profile: 30 minutes
-  - Replies: 1 hour
-- **Automatic Cache Management**: Deterministic cache keys ensure consistent results
-- **Cost Optimization**: Reduces Apify API calls by serving cached results when available
-
-### 🛠️ **Query Management**
-- **Query Registry**: Predefined queries for common use cases
-- **Custom Queries**: Support for ad-hoc searches with full parameter control
-- **Query Types**: Organized by topic, profile, and replies
-- **Query Execution**: Run predefined queries by ID with timeout control
-
-### 📊 **Output Formats**
-- **Min Format**: Compact JSON with essential tweet data
-- **Max Format**: Full tweet metadata including extended fields
-- **Normalized Data**: Consistent structure across all endpoints
-
-### 🔐 **Enterprise Features**
+- **Query Registry**: Predefined queries for common use cases with execution by ID
+- **Output Formats**:
+  - `min` format: Compact JSON with essential tweet data
+  - `max` format: Full tweet metadata including extended fields
+- **Intelligent Caching**: PostgreSQL-backed cache with configurable TTLs per query type
 - **x402 Payment Integration**: Optional pay-per-use API access via Coinbase Developer Platform
-- **Pricing Configuration**: YAML-based tool pricing with validation
-- **Admin Endpoints**: Log access and system monitoring
-- **Health Checks**: Built-in health monitoring endpoints
 
-### 🚀 **Developer Experience**
-- **Interactive Documentation**: Swagger UI and ReDoc for API exploration
-- **Docker Support**: Production-ready Docker images with multi-stage builds
-- **Comprehensive Testing**: Unit tests, integration tests, and MCP E2E tests
-- **Structured Logging**: Separate log files for different components
-- **Type Safety**: Full type hints and Pydantic validation
-
-## Architecture
-
-The server uses a hybrid architecture pattern:
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    FastAPI Application                   │
-├─────────────────────────────────────────────────────────┤
-│  REST Routes (/api/*)  │  Hybrid Routes (/hybrid/*)    │
-│                        │  MCP Routes (/mcp)             │
-├─────────────────────────────────────────────────────────┤
-│              x402 Payment Middleware (Optional)         │
-├─────────────────────────────────────────────────────────┤
-│              TwitterScraper (Apify Client)             │
-├─────────────────────────────────────────────────────────┤
-│         PostgreSQL Cache (Query Results Storage)        │
-└─────────────────────────────────────────────────────────┘
-```
-
-**Key Components:**
-- **FastMCP**: Converts FastAPI routes to MCP protocol endpoints
-- **TwitterScraper**: Wraps Apify actor with retry logic and caching
-- **Database Layer**: SQLAlchemy models with automatic table creation
-- **Query Registry**: Predefined query management system
-
-## Installation
-
-### Prerequisites
+## Requirements
 
 - Python 3.12+
 - PostgreSQL (via Docker or local installation)
 - Apify account with API token
+- Docker (optional, for containerized deployment)
 
-### Setup
+## Setup
 
 1. **Clone the repository** (if applicable) or navigate to the project directory
 
@@ -107,158 +88,46 @@ The server uses a hybrid architecture pattern:
    ```env
    APIFY_TOKEN=your_apify_token_here
    APIFY_ACTOR_NAME=apidojo/twitter-scraper-lite
-   
+
    # Database configuration
    DB_NAME=mcp_twitter_apify
    DB_USER=postgres
    DB_PASSWORD=postgres
    DB_HOST=127.0.0.1
    DB_PORT=5432
+
+   # Optional: Cache TTL overrides (in seconds)
+   # CACHE_TTL_TOPIC_LATEST=900      # 15 minutes
+   # CACHE_TTL_TOPIC_TOP=86400       # 24 hours
+   # CACHE_TTL_PROFILE=1800          # 30 minutes
+   # CACHE_TTL_REPLIES=3600          # 1 hour
    ```
 
-## Database Setup
+4. **Start PostgreSQL**:
+   ```bash
+   docker run -d --name mcp-postgres \
+     -e POSTGRES_DB=mcp_twitter_apify \
+     -e POSTGRES_USER=postgres \
+     -e POSTGRES_PASSWORD=postgres \
+     -p 5432:5432 \
+     -v pgdata_mcp:/var/lib/postgresql/data \
+     postgres:15-alpine
+   ```
 
-### Running Postgres with Docker
+   **Notes:**
+   - The app builds `DATABASE_URL` from `DB_NAME/DB_USER/DB_PASSWORD/DB_HOST/DB_PORT`
+   - Tables are created automatically on first connection
+   - If container already exists: `docker start mcp-postgres`
+   - To stop later: `docker stop mcp-postgres`
 
-Start a Postgres container with the default configuration:
+5. **Verify database connectivity** (optional):
+   ```bash
+   docker exec -it mcp-postgres psql -U postgres -d mcp_twitter_apify -c '\dt'
+   ```
 
-```bash
-docker run -d --name mcp-postgres \
-  -e POSTGRES_DB=mcp_twitter_apify \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -p 5432:5432 \
-  -v pgdata_mcp:/var/lib/postgresql/data \
-  postgres:15-alpine
-```
+## Running the Server
 
-**Notes:**
-- The app builds `DATABASE_URL` from `DB_NAME/DB_USER/DB_PASSWORD/DB_HOST/DB_PORT`
-- Override via env vars in your shell or `.env` if needed
-- Tables are created automatically on first connection
-
-**Verify connectivity:**
-```bash
-docker exec -it mcp-postgres psql -U postgres -d mcp_twitter_apify -c '\dt'
-```
-
-**Stop / start later:**
-```bash
-docker stop mcp-postgres
-docker start mcp-postgres
-```
-
-### DBeaver Connection
-
-Use these parameters to connect via DBeaver:
-
-- **Host:** `localhost` (or `127.0.0.1`)
-- **Port:** `5432`
-- **Database:** `mcp_twitter_apify`
-- **Username:** `postgres`
-- **Password:** `postgres`
-
-**Connection URL:**
-```
-jdbc:postgresql://localhost:5432/mcp_twitter_apify
-```
-
-## Usage
-
-**⚠️ Important:** Before starting the server, ensure PostgreSQL is running. If you haven't started it yet, run:
-
-```bash
-docker run -d --name mcp-postgres \
-  -e POSTGRES_DB=mcp_twitter_apify \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -p 5432:5432 \
-  -v pgdata_mcp:/var/lib/postgresql/data \
-  postgres:15-alpine
-```
-
-If the container already exists, start it with:
-```bash
-docker start mcp-postgres
-```
-
-### API Server Mode
-
-Start the FastAPI server:
-
-```bash
-uv run python -m mcp_twitter --host 0.0.0.0 --port 8002
-```
-
-Or with hot reload for development:
-
-```bash
-uv run python -m mcp_twitter --host 0.0.0.0 --port 8002 --reload
-```
-
-The API will be available at:
-- **Swagger UI:** http://localhost:8002/docs
-- **ReDoc:** http://localhost:8002/redoc
-- **API Root:** http://localhost:8002/
-
-### Docker Deployment
-
-Build and run the server using Docker:
-
-**1. Build the Docker image:**
-
-```bash
-docker build -t mcp-twitter-apify:latest .
-```
-
-**2. Run the container:**
-
-```bash
-docker run -d \
-  --name mcp-twitter-server \
-  -p 8000:8000 \
-  --env-file .env \
-  --network host \
-  mcp-twitter-apify:latest
-```
-
-Or with environment variables directly:
-
-```bash
-docker run -d \
-  --name mcp-twitter-server \
-  -p 8000:8000 \
-  -e APIFY_TOKEN=your_token_here \
-  -e APIFY_ACTOR_NAME=apidojo/twitter-scraper-lite \
-  -e DB_NAME=mcp_twitter_apify \
-  -e DB_USER=postgres \
-  -e DB_PASSWORD=postgres \
-  -e DB_HOST=host.docker.internal \
-  -e DB_PORT=5432 \
-  --add-host=host.docker.internal:host-gateway \
-  mcp-twitter-apify:latest
-```
-
-**Note:** 
-- If PostgreSQL is running in Docker, use `--network host` or connect containers via Docker network
-- For Docker Desktop on Mac/Windows, use `host.docker.internal` as `DB_HOST`
-- For Linux, use `172.17.0.1` (default Docker bridge IP) or `--network host`
-
-**3. View logs:**
-
-```bash
-docker logs -f mcp-twitter-server
-```
-
-**4. Stop the container:**
-
-```bash
-docker stop mcp-twitter-server
-docker rm mcp-twitter-server
-docker restart mcp-twitter-server
-```
-
-**Using Docker Compose:**
+### Docker Compose (Recommended)
 
 Create a `docker-compose.yml`:
 
@@ -299,167 +168,83 @@ volumes:
 ```
 
 Then run:
-
 ```bash
 docker-compose up -d
 ```
 
-### API Endpoints
+### Locally
 
-#### Search Endpoints
+Start the FastAPI server:
 
-**Topic Search:**
 ```bash
-POST /api/v1/search/topic
-Content-Type: application/json
-
-{
-  "topic": "starlink",
-  "max_items": 10,
-  "sort": "Top",
-  "only_verified": false,
-  "only_image": false,
-  "lang": "en",
-  "output_format": "min"
-}
+uv run python -m mcp_twitter --host 0.0.0.0 --port 8002
 ```
 
-**Profile Search:**
+Or with hot reload for development:
+
 ```bash
-POST /api/v1/search/profile
-Content-Type: application/json
-
-{
-  "username": "elonmusk",
-  "max_items": 100,
-  "since": "2025-12-01",
-  "until": "2025-12-31",
-  "lang": "en",
-  "output_format": "min"
-}
+uv run python -m mcp_twitter --host 0.0.0.0 --port 8002 --reload
 ```
 
-**Profile Search (Batch):**
+The API will be available at:
+- **Swagger UI:** http://localhost:8002/docs
+- **ReDoc:** http://localhost:8002/redoc
+- **API Root:** http://localhost:8002/
+
+### Docker Standalone
+
+**1. Build the Docker image:**
+
 ```bash
-POST /api/v1/search/profile/batch
-Content-Type: application/json
-
-{
-  "usernames": ["elonmusk", "jack"],
-  "max_items": 100,
-  "since": "2025-12-01",
-  "until": "2025-12-31",
-  "lang": "en",
-  "output_format": "min",
-  "continue_on_error": true
-}
+docker build -t mcp-twitter-apify:latest .
 ```
 
-**Profile Latest (no date range):**
+**2. Run the container:**
+
 ```bash
-POST /api/v1/search/profile/latest
-Content-Type: application/json
-
-{
-  "username": "elonmusk",
-  "max_items": 10,
-  "lang": "en",
-  "output_format": "min"
-}
+docker run -d \
+  --name mcp-twitter-server \
+  -p 8000:8000 \
+  --env-file .env \
+  --network host \
+  mcp-twitter-apify:latest
 ```
 
-**Profile Latest (Batch):**
+Or with environment variables directly:
+
 ```bash
-POST /api/v1/search/profile/latest/batch
-Content-Type: application/json
-
-{
-  "usernames": ["elonmusk", "jack"],
-  "max_items": 10,
-  "lang": "en",
-  "output_format": "min",
-  "continue_on_error": true
-}
+docker run -d \
+  --name mcp-twitter-server \
+  -p 8000:8000 \
+  -e APIFY_TOKEN=your_token_here \
+  -e APIFY_ACTOR_NAME=apidojo/twitter-scraper-lite \
+  -e DB_NAME=mcp_twitter_apify \
+  -e DB_USER=postgres \
+  -e DB_PASSWORD=postgres \
+  -e DB_HOST=host.docker.internal \
+  -e DB_PORT=5432 \
+  --add-host=host.docker.internal:host-gateway \
+  mcp-twitter-apify:latest
 ```
 
-**Replies Search:**
+**Note:**
+- If PostgreSQL is running in Docker, use `--network host` or connect containers via Docker network
+- For Docker Desktop on Mac/Windows, use `host.docker.internal` as `DB_HOST`
+- For Linux, use `172.17.0.1` (default Docker bridge IP) or `--network host`
+
+**3. View logs:**
+
 ```bash
-POST /api/v1/search/replies
-Content-Type: application/json
-
-{
-  "conversation_id": "1728108619189874825",
-  "max_items": 50,
-  "lang": "en",
-  "output_format": "min"
-}
+docker logs -f mcp-twitter-server
 ```
 
-#### Query Management
+**4. Stop/restart the container:**
 
-**List query types:**
 ```bash
-GET /api/v1/types
+docker stop mcp-twitter-server
+docker rm mcp-twitter-server
+docker restart mcp-twitter-server
 ```
-
-**List queries:**
-```bash
-GET /api/v1/queries?query_type=topic
-```
-
-**Run predefined query:**
-```bash
-POST /api/v1/run/{query_id}?timeout_seconds=600
-```
-
-#### Health & Info
-
-**Health check:**
-```bash
-GET /health
-```
-
-**API info:**
-```bash
-GET /
-```
-
-## Caching
-
-The service uses Postgres-backed caching to reduce Apify API costs:
-
-- **Cache Key**: Deterministic hash of query parameters
-- **TTL Configuration**: Different TTLs per query type:
-  - Topic (Latest): 15 minutes (default)
-  - Topic (Top): 24 hours (default)
-  - Profile: 30 minutes (default)
-  - Replies: 1 hour (default)
-
-**Customize TTL** via environment variables:
-```env
-CACHE_TTL_TOPIC_LATEST=900      # 15 minutes
-CACHE_TTL_TOPIC_TOP=86400       # 24 hours
-CACHE_TTL_PROFILE=1800          # 30 minutes
-CACHE_TTL_REPLIES=3600          # 1 hour
-```
-
-**How it works:**
-1. Request comes in → Generate query key from parameters
-2. Check cache → If valid and not expired, return cached results
-3. If cache miss → Call Apify API
-4. Save results → Store tweets/authors in Postgres with TTL
-5. Return results → Serve to API
-
-## Database Schema
-
-The cache uses the following tables:
-
-- `twitter_query_cache`: Cache entries with metadata and TTL
-- `twitter_query_cache_items`: Links tweets to query cache entries
-- `twitter_tweets`: Normalized tweet data (supports min/max formats)
-- `twitter_authors`: Normalized author/user information
-
-Tables are created automatically on first connection.
 
 ## Testing
 
@@ -486,7 +271,7 @@ uv run pytest tests/ --cov=src --cov-report=html
 The MCP tools tests (`tests/test_mcp_tools.py`) are end-to-end integration tests that require a running server. These tests verify that the MCP transport layer works correctly and that all MCP tools are accessible.
 
 **Prerequisites:**
-- Server must be running (see [API Server Mode](#api-server-mode))
+- Server must be running
 - `APIFY_TOKEN` environment variable must be set (for tests that make real API calls)
 
 **Running the MCP E2E tests:**
@@ -501,38 +286,152 @@ The MCP tools tests (`tests/test_mcp_tools.py`) are end-to-end integration tests
    RUN_MCP_E2E=1 MCP_SERVER_URL=http://localhost:8003 uv run pytest tests/test_mcp_tools.py -v
    ```
 
-   Or if the server is running on a different port:
-   ```bash
-   RUN_MCP_E2E=1 MCP_SERVER_URL=http://localhost:8002 uv run pytest tests/test_mcp_tools.py -v
-   ```
-
 **What these tests cover:**
 - MCP session negotiation and initialization
 - Listing available MCP tools
-- Calling MCP tools: `mcp_list_types`, `mcp_list_queries`, `mcp_search_topic`, `mcp_search_profile`, `mcp_search_replies`
+- Calling MCP tools: `twitter_search_topic` and other agent-specific endpoints
 
 **Note:** If `APIFY_TOKEN` is not set, tests that make real API calls will be skipped automatically.
 
-## Development
-
-### Project Structure
+## Project Structure
 
 ```
-mcp-twitter/
+mcp-twitter-apify/
 ├── src/
-│   ├── mcp_twitter/      # Main application package
-│   │   ├── config.py     # Configuration
-│   │   ├── scraper.py    # Apify scraper wrapper
-│   │   └── ...
-│   └── db/               # Database package
-│       ├── models.py     # SQLAlchemy models
-│       └── database.py   # Database operations
-├── tests/                # Test suite
-├── main.py              # Entry point
-└── pyproject.toml       # Project configuration
+│   └── mcp_twitter/
+│       ├── app.py                    # Main application factory and lifespan management
+│       ├── config.py                 # Configuration management
+│       ├── api_routers/              # REST-only endpoints
+│       │   ├── admin.py              # Health check and root endpoints
+│       │   ├── health.py             # Health monitoring endpoints
+│       │   └── queries.py            # Query management endpoints
+│       ├── hybrid_routers/           # REST + externally callable endpoints
+│       │   ├── search.py             # Search endpoints (topic, profile, replies, batch)
+│       │   └── pricing.py            # Pricing-related endpoints
+│       ├── mcp_routers/              # MCP-only endpoints for AI agents
+│       │   └── search.py             # AI agent search tools
+│       ├── middlewares/              # Application middlewares
+│       │   └── x402_wrapper.py       # x402 payment middleware
+│       ├── twitter/                  # Core Twitter scraping logic
+│       │   ├── scraper.py            # Apify scraper wrapper with caching
+│       │   └── queries.py            # Query definitions and registry
+│       └── x402_config.py            # x402 payment configuration
+├── db/                               # Database layer
+│   ├── models.py                     # SQLAlchemy models for cache
+│   └── database.py                   # Database operations
+├── tests/                            # Test suite
+│   ├── test_api.py                   # API endpoint tests
+│   ├── test_database.py              # Database tests
+│   ├── test_scraper_cache.py         # Scraper cache tests
+│   └── test_mcp_tools.py             # MCP E2E tests
+├── logs/                             # Application logs (auto-created)
+├── .example.env                      # Example environment configuration
+├── Dockerfile                        # Docker image definition
+├── docker-compose.yml                # Docker Compose configuration
+└── pyproject.toml                    # Project configuration and dependencies
 ```
 
-### Logging
+## Architecture
+
+The server uses a hybrid architecture pattern:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    FastAPI Application                   │
+├─────────────────────────────────────────────────────────┤
+│  API Routes (/api/*)   │  Hybrid Routes (/hybrid/*)     │
+│                        │  MCP Routes (/mcp)             │
+├─────────────────────────────────────────────────────────┤
+│              x402 Payment Middleware (Optional)         │
+├─────────────────────────────────────────────────────────┤
+│              TwitterScraper (Apify Client)             │
+├─────────────────────────────────────────────────────────┤
+│         PostgreSQL Cache (Query Results Storage)        │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Key Components:**
+- **FastMCP**: Converts FastAPI routes to MCP protocol endpoints
+- **TwitterScraper**: Wraps Apify actor with retry logic and caching
+- **Database Layer**: SQLAlchemy models with automatic table creation
+- **Query Registry**: Predefined query management system
+
+## Caching
+
+The service uses PostgreSQL-backed caching to reduce Apify API costs:
+
+### Cache Configuration
+
+- **Cache Key**: Deterministic hash of query parameters
+- **TTL Configuration**: Different TTLs per query type:
+  - Topic (Latest): 15 minutes (default)
+  - Topic (Top): 24 hours (default)
+  - Profile: 30 minutes (default)
+  - Replies: 1 hour (default)
+
+**Customize TTL** via environment variables:
+```env
+CACHE_TTL_TOPIC_LATEST=900      # 15 minutes
+CACHE_TTL_TOPIC_TOP=86400       # 24 hours
+CACHE_TTL_PROFILE=1800          # 30 minutes
+CACHE_TTL_REPLIES=3600          # 1 hour
+```
+
+### Cache Flow
+
+1. Request comes in → Generate query key from parameters
+2. Check cache → If valid and not expired, return cached results
+3. If cache miss → Call Apify API
+4. Save results → Store tweets/authors in Postgres with TTL
+5. Return results → Serve to API
+
+### Database Schema
+
+The cache uses the following tables:
+
+- `twitter_query_cache`: Cache entries with metadata and TTL
+- `twitter_query_cache_items`: Links tweets to query cache entries
+- `twitter_tweets`: Normalized tweet data (supports min/max formats)
+- `twitter_authors`: Normalized author/user information
+
+Tables are created automatically on first connection.
+
+### Database Connection (DBeaver)
+
+Use these parameters to connect via DBeaver:
+
+- **Host:** `localhost` (or `127.0.0.1`)
+- **Port:** `5432`
+- **Database:** `mcp_twitter_apify`
+- **Username:** `postgres`
+- **Password:** `postgres`
+
+**Connection URL:**
+```
+jdbc:postgresql://localhost:5432/mcp_twitter_apify
+```
+
+## Authentication
+
+### x402 Payment Integration
+
+The server supports optional x402 payment middleware for pay-per-use API access via the Coinbase Developer Platform.
+
+**Configuration:**
+- Set `pricing_mode='on'` in x402 configuration
+- Define tool pricing in YAML configuration
+- Middleware validates pricing configuration against available routes
+- Pricing applies to both REST and MCP endpoints
+
+**Features:**
+- Per-endpoint pricing configuration
+- Automatic price validation
+- Request logging and monitoring
+- Admin endpoints for log access
+
+See `src/mcp_twitter/x402_config.py` for pricing configuration details.
+
+## Logging
 
 Logs are written to:
 - Console (stdout)
@@ -542,10 +441,12 @@ Logs are written to:
 
 Set log level via `LOG_LEVEL` environment variable (default: `INFO`).
 
+## Contributing
+
+Contributions are welcome. Please ensure all tests pass before submitting pull requests.
+
 ## License
 
 Copyright (c) 2025 Xyber Inc.
-
-## Support
 
 For issues and questions, please contact: xymanchick@xyber.inc

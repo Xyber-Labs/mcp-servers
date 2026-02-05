@@ -1,41 +1,61 @@
-# MCP Server for Qdrant Vector Database
+# Qdrant MCP Server
 
-> **General:** This repository provides an MCP (Model Context Protocol) server for Qdrant vector database integration.
-> It enables AI agents to perform semantic search, store documents, and manage collections with advanced multi-tenant filtering capabilities.
+A Model Context Protocol (MCP) server that provides semantic search, document storage, and collection management capabilities for Qdrant vector database with advanced multi-tenant filtering.
 
-## Overview
+## Capabilities
 
-This MCP server exposes Qdrant vector database functionality through the Model Context Protocol. It includes advanced features like multi-tenant data isolation, configurable payload indexes, and optimized HNSW settings for high-performance semantic search.
+This server exposes Qdrant vector database functionality through both REST API and MCP protocols. It includes advanced features like multi-tenant data isolation, configurable payload indexes, and optimized HNSW settings for high-performance semantic search.
 
-## MCP Tools:
+### API-Only Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/health` | GET | Health check endpoint |
+
+### Hybrid Endpoints (REST + MCP)
+
+| Endpoint | Method | Operation ID | Description |
+|----------|--------|--------------|-------------|
+| `/hybrid/pricing` | GET | `qdrant_get_pricing` | Get tool pricing configuration |
+| `/hybrid/store` | POST | `qdrant_store` | Store information with metadata in collections |
+| `/hybrid/find` | POST | `qdrant_find` | Search documents with semantic similarity and optional filtering |
+| `/hybrid/get_collections` | POST | `qdrant_get_collections` | List all available collections |
+| `/hybrid/get_collection_info` | POST | `qdrant_get_collection_info` | Get detailed collection configuration including payload schema |
+
+### MCP Tools
+
+All hybrid endpoints are also accessible via MCP protocol at `/mcp`:
 
 1. `qdrant_store`
-    - **Description:** Store information with metadata in Qdrant collections.
-    - **Input:**
-        - `information` (required): The information to store.
-        - `collection_name` (required): The name of the collection.
-        - `metadata` (optional): JSON metadata to store with the information.
-    - **Output:** A confirmation string with storage details.
+   - Store information with metadata in Qdrant collections
+   - Input: `information` (required), `collection_name` (required), `metadata` (optional)
+   - Output: Confirmation string with storage details
 
 2. `qdrant_find`
-    - **Description:** Search documents with semantic similarity and optional filtering.
-    - **Input:**
-        - `query` (required): The search query.
-        - `collection_name` (required): The name of the collection to search.
-        - `search_limit` (optional): Maximum number of results (default: 10).
-        - `filters` (optional): Optional filters as field_path -> value pairs.
-    - **Output:** A list of scored points with content and metadata.
+   - Search documents with semantic similarity and optional filtering
+   - Input: `query` (required), `collection_name` (required), `search_limit` (optional, default: 10), `filters` (optional)
+   - Output: List of scored points with content and metadata
 
 3. `qdrant_get_collections`
-    - **Description:** List all available collections.
-    - **Input:** None
-    - **Output:** A list of collection names.
+   - List all available collections
+   - Input: None
+   - Output: List of collection names
 
 4. `qdrant_get_collection_info`
-    - **Description:** Get detailed collection configuration including payload schema.
-    - **Input:**
-        - `collection_name` (required): The name of the collection.
-    - **Output:** Collection information with configuration details.
+   - Get detailed collection configuration including payload schema
+   - Input: `collection_name` (required)
+   - Output: Collection information with configuration details
+
+5. `qdrant_get_pricing`
+   - Get tool pricing configuration
+   - Input: None
+   - Output: Pricing configuration object
+
+## API Documentation
+
+When the server is running, interactive API documentation is available at:
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
 
 ## Requirements
 

@@ -22,7 +22,6 @@ from mcp_server_deepresearcher.deepresearcher.utils import (
 )
 from mcp_server_deepresearcher.deepresearcher.state import ToolDescription
 from mcp_server_deepresearcher.hybrid_routers import routers as hybrid_routers
-from mcp_server_deepresearcher.mcp_routers import routers as mcp_routers
 from mcp_server_deepresearcher.logging_config import configure_logging
 from mcp_server_deepresearcher.middlewares import X402WrapperMiddleware
 from mcp_server_deepresearcher.x402_config import get_x402_settings
@@ -227,7 +226,7 @@ def create_app() -> FastAPI:
     Create and configure the main FastAPI application.
 
     This factory function:
-    1. Creates an MCP server from hybrid and MCP-only routers
+    1. Creates an MCP server from hybrid routers
     2. Combines lifespans for proper resource management
     3. Configures API routes with appropriate prefixes
     4. Sets up x402 payment middleware
@@ -241,8 +240,6 @@ def create_app() -> FastAPI:
     mcp_source_app = FastAPI(title="MCP Source")
     for router in hybrid_routers:
         mcp_source_app.include_router(router)
-    for router in mcp_routers:
-        mcp_source_app.include_router(router)
     
     # Convert to MCP server
     mcp_server = FastMCP.from_fastapi(app=mcp_source_app, name="deep_researcher")
@@ -253,7 +250,7 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def combined_lifespan(app: FastAPI):
         async with app_lifespan(app) as _:
-            # Share app state with mcp_source_app so MCP-only routers can access resources
+            # Share app state with mcp_source_app so hybrid routers can access resources
             # FastMCP makes internal HTTP calls to mcp_source_app, so it needs the same state
             mcp_source_app.state.llm = app.state.llm
             mcp_source_app.state.llm_thinking = app.state.llm_thinking
@@ -280,9 +277,6 @@ def create_app() -> FastAPI:
     # Hybrid routes: accessible via /hybrid/* (REST) and /mcp (MCP)
     for router in hybrid_routers:
         app.include_router(router, prefix="/hybrid")
-
-    # MCP-only routes: NOT mounted as REST endpoints
-    # They're only accessible through the /mcp endpoint below
 
     # Mount the MCP server at /mcp
     app.mount("/mcp", mcp_app)
@@ -311,13 +305,11 @@ def create_app() -> FastAPI:
 def get_mcp_server() -> FastMCP:
     """
     Get the MCP server instance for testing purposes.
-    
+
     This creates a standalone MCP server without the full FastAPI app.
     """
     mcp_source_app = FastAPI(title="MCP Source")
     for router in hybrid_routers:
         mcp_source_app.include_router(router)
-    for router in mcp_routers:
-        mcp_source_app.include_router(router)
-    
+
     return FastMCP.from_fastapi(app=mcp_source_app, name="deep_researcher")

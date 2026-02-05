@@ -1,49 +1,55 @@
 # MCP Wikipedia Server
 
-> **General:** This repository implements an MCP (Model Context Protocol) server for Wikipedia search and content retrieval functionality.
+> **General:** This repository implements an MCP (Model Context Protocol) server for Wikipedia search and content retrieval functionality. It demonstrates a **hybrid architecture** that exposes Wikipedia functionality through REST APIs, MCP, or both simultaneously.
 
-## Overview
+## Capabilities
 
-This project provides a microservice that exposes comprehensive Wikipedia functionality through the Model Context Protocol (MCP). It uses the `wikipedia-api` library to search, retrieve, and process Wikipedia articles, making it easy to integrate Wikipedia content into AI applications and multi-tool agent systems.
+### 1. **API-Only Endpoints** (`/api`)
 
-## MCP Tools:
+Standard REST endpoints for traditional clients (e.g., web apps, dashboards).
 
-1.  `search_wikipedia`
-    - **Description:** Searches for articles and returns a list of titles.
-    - **Input:** `query` (required), `limit` (optional).
+| Method | Endpoint              | Price      | Description                            |
+| :----- | :-------------------- | :--------- | :------------------------------------- |
+| `GET`  | `/api/health`         | **Free**   | Checks the server's operational status |
 
-2.  `get_article`
-    - **Description:** Retrieves the full content of an article.
-    - **Input:** `title` (required).
+### 2. **Hybrid Endpoints** (`/hybrid`)
 
-3.  `get_summary`
-    - **Description:** Fetches the summary of an article.
-    - **Input:** `title` (required).
+Accessible via both REST and as MCP tools. Ideal for functionality shared between humans and AI.
 
-4.  `get_sections`
-    - **Description:** Lists all section titles in an article.
-    - **Input:** `title` (required).
+| Method/Tool                      | Price      | Description                                      |
+| :------------------------------- | :--------- | :----------------------------------------------- |
+| `GET /hybrid/pricing`            | **Free**   | Returns tool pricing configuration               |
+| `search_wikipedia`               | **Free**   | Searches for articles and returns list of titles |
+| `get_wikipedia_article`          | **Free**   | Retrieves full content and metadata of an article|
+| `get_wikipedia_summary`          | **Free**   | Fetches the summary of an article                |
+| `get_wikipedia_sections`         | **Free**   | Lists all section titles in an article           |
+| `get_wikipedia_links`            | **Free**   | Lists all internal links within an article       |
+| `get_wikipedia_related_topics`   | **Free**   | Finds related topics based on article's links    |
 
-5.  `get_links`
-    - **Description:** Lists all internal links within an article.
-    - **Input:** `title` (required).
+*Note: Paid endpoints require x402 payment protocol configuration. See `.env` file for details.*
 
-6.  `get_related_topics`
-    - **Description:** Finds related topics based on an article's links.
-    - **Input:** `title` (required), `limit` (optional).
+## API Documentation
+
+This server automatically generates OpenAPI documentation. Once the server is running, you can access the interactive API docs at:
+
+- **Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs) (for REST endpoints)
+- **MCP Inspector**: Use an MCP-compatible client to view available agent tools [http://localhost:8000/mcp](http://localhost:8000/mcp)
+
+These interfaces allow you to explore all REST-accessible endpoints, view their schemas, and test them directly from your browser.
 
 ## Requirements
 
-- Python 3.12+
-- UV (for dependency management)
-- Docker (optional, for containerization)
+- **Python 3.12+**
+- **UV** (for dependency management)
+- **Docker** (optional, for containerization)
 
 ## Setup
 
-1.  **Clone the Repository**:
+1.  **Clone & Configure**
     ```bash
-    # path: /path/to/your/projects/
     git clone <repository-url>
+    cd mcp-server-wikipedia
+    # Optionally create a .env file for custom configuration
     ```
 
 2.  **Create `.env` File (Optional)**:
@@ -55,14 +61,10 @@ This project provides a microservice that exposes comprehensive Wikipedia functi
     LOGGING_LEVEL="info"
     ```
 
-3.  **Install Dependencies**:
+3.  **Virtual Environment**
     ```bash
-    # path: ./mcp-servers/mcp-server-wikipedia/
-    # Using UV (recommended)
+    # working directory: ./mcp-servers/mcp-server-wikipedia/
     uv sync
-    
-    # Or install for development
-    uv sync --group dev
     ```
 
 ## Running the Server
@@ -108,6 +110,9 @@ docker run --rm -it -p 8000:8000 --env-file .env mcp-server-wikipedia
 # path: ./mcp-servers/mcp-server-wikipedia/
 # Run all tests
 uv run pytest
+
+# Run with verbose output
+uv run pytest -v
 ```
 
 ## Project Structure

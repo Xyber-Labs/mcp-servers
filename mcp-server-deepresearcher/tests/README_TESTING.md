@@ -33,7 +33,7 @@ pytest tests/ --ignore=tests/e2e -m "not integration and not slow"
 
 ```bash
 # Run only router tests
-pytest tests/test_mcp_routers.py tests/test_hybrid_routes.py
+pytest tests/test_hybrid_routes.py
 
 # Run only app tests
 pytest tests/test_app.py

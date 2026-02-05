@@ -8,31 +8,20 @@ A production-ready MCP (Model Context Protocol) server for searching YouTube vid
 
 Standard REST endpoints for traditional clients.
 
-| Method | Endpoint                    | Price    | Description                                    |
-| :----- | :-------------------------- | :------- | :--------------------------------------------- |
-| `GET`  | `/api/health`               | **Free** | Health check                                   |
-| `POST` | `/api/search`               | **Free** | Search YouTube videos only                     |
-| `POST` | `/api/search-transcripts`   | **Free** | Search videos and extract transcripts          |
-| `POST` | `/api/extract-transcripts`  | **Free** | Extract transcripts from video IDs             |
-| `GET`  | `/api/extract-transcript`   | **Free** | Extract transcript for a single video ID       |
+| Method | Endpoint       | Price    | Description   |
+| :----- | :------------- | :------- | :------------ |
+| `GET`  | `/api/health`  | **Free** | Health check  |
 
 ### 2. **Hybrid Endpoints** (`/hybrid`)
 
 Accessible via both REST and as MCP tools.
 
-| Method/Tool              | Price    | Description                         |
-| :----------------------- | :------- | :---------------------------------- |
-| `POST /hybrid/search`    | **Free** | Search YouTube videos (REST + MCP)  |
-
-### 3. **MCP-Only Endpoints**
-
-Tools exposed exclusively to AI agents via the `/mcp` endpoint.
-
-| Tool                            | Price    | Description                                    |
-| :------------------------------ | :------- | :--------------------------------------------- |
-| `mcp_search_youtube_videos`     | **Free** | Search YouTube videos without transcript extraction |
-| `search_and_extract_transcripts`| **Free** | Search videos and extract transcripts          |
-| `extract_transcripts`           | **Free** | Extract transcripts from video IDs             |
+| Method | Endpoint                       | MCP Tool                          | Price    | Description                           |
+| :----- | :----------------------------- | :-------------------------------- | :------- | :------------------------------------ |
+| `GET`  | `/hybrid/pricing`              | `youtube_get_pricing`             | **Free** | Returns tool pricing configuration    |
+| `POST` | `/hybrid/search`               | `mcp_search_youtube_videos`       | **Free** | Search YouTube videos                 |
+| `POST` | `/hybrid/search-transcripts`   | `search_and_extract_transcripts`  | **Free** | Search videos and extract transcripts |
+| `POST` | `/hybrid/extract-transcripts`  | `extract_transcripts`             | **Free** | Extract transcripts from video IDs    |
 
 ## API Documentation
 
@@ -240,7 +229,7 @@ To verify that videos are stored in PostgreSQL and persist across container rest
 
 ```bash
 # 1. Process some videos (search and extract transcripts)
-curl -X POST http://localhost:8002/api/search-transcripts \
+curl -X POST http://localhost:8002/hybrid/search-transcripts \
   -H "Content-Type: application/json" \
   -d '{"query": "python tutorial", "num_videos": 2}'
 
@@ -267,7 +256,7 @@ docker run --rm -d \
 psql -h localhost -U postgres -d mcp_youtube -c "SELECT video_id, title, transcript_success FROM youtube_videos LIMIT 5;"
 
 # 7. Test that cached videos are used (should be faster, no re-fetching)
-curl -X POST http://localhost:8002/api/search-transcripts \
+curl -X POST http://localhost:8002/hybrid/search-transcripts \
   -H "Content-Type: application/json" \
   -d '{"query": "python tutorial", "num_videos": 2}'
 # Check logs - you should see cached transcripts being used
@@ -345,16 +334,18 @@ uv run python -m pytest tests/test_app.py::TestAppLifespan::test_app_lifespan_su
 # Health check
 curl http://localhost:8002/api/health
 
-# Search videos
-curl -X POST http://localhost:8002/api/search \
+# Search videos (hybrid endpoint)
+curl -X POST http://localhost:8002/hybrid/search \
   -H "Content-Type: application/json" \
   -d '{"query": "python tutorial", "max_results": 3}'
 
-# Extract transcript for single video
-curl "http://localhost:8002/api/extract-transcript?video_id=dQw4w9WgXcQ"
+# Search and extract transcripts (hybrid endpoint)
+curl -X POST http://localhost:8002/hybrid/search-transcripts \
+  -H "Content-Type: application/json" \
+  -d '{"query": "python tutorial", "num_videos": 2}'
 
-# Extract transcripts for multiple videos
-curl -X POST http://localhost:8002/api/extract-transcripts \
+# Extract transcripts for multiple videos (hybrid endpoint)
+curl -X POST http://localhost:8002/hybrid/extract-transcripts \
   -H "Content-Type: application/json" \
   -d '{"video_ids": ["dQw4w9WgXcQ"]}'
 ```
@@ -488,14 +479,12 @@ mcp-server-youtube-v2/
 │       ├── schemas.py               # Pydantic request/response models
 │       │
 │       ├── api_routers/             # API-Only endpoints (REST)
-│       │   ├── health.py
-│       │   ├── admin.py
-│       │   └── youtube.py
+│       │   └── health.py
 │       ├── hybrid_routers/          # Hybrid endpoints (REST + MCP)
-│       │   └── search.py
-│       ├── mcp_routers/             # MCP-Only endpoints
+│       │   ├── search.py
+│       │   ├── search_videos.py
 │       │   ├── transcripts.py
-│       │   └── search.py
+│       │   └── pricing.py
 │       ├── middlewares/
 │       │   └── x402_wrapper.py      # x402 payment middleware
 │       │

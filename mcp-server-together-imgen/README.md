@@ -1,47 +1,130 @@
 # MCP Together Image Generation Server
 
-> **General:** This repository contains an MCP server for generating images using the Together AI API.
+A microservice for generating images using Together AI's image generation models, exposed through both standard HTTP REST API and the Model Context Protocol (MCP).
 
-## Overview
+## Capabilities
 
-This microservice exposes image generation functionality through both a standard HTTP API and the Model Context Protocol (MCP). It uses the `fastapi-mcp` library to automatically expose FastAPI endpoints as MCP tools.
+### API-Only Endpoints (/api)
 
-## Endpoints
+| Endpoint | Method | Description | Operation ID |
+|----------|--------|-------------|--------------|
+| `/api/images` | POST | Generate an image from a text prompt using Together AI models | `generate_image` |
+| `/api/models` | GET | List all available image generation models and their capabilities | `list_models` |
 
-### HTTP API: `POST /api/images`
+### Hybrid Endpoints (/hybrid)
 
--   **Description:** Generates an image from a text prompt.
--   **Request Body:** A JSON object with the following parameters:
-    -   `prompt` (required): The text prompt to generate the image from.
-    -   `width` (optional): The width of the image. Defaults to 1024.
-    -   `height` (optional): The height of the image. Defaults to 1024.
-    -   `steps` (optional): The number of generation steps. Defaults to 28.
-    -   `guidance_scale` (optional): The guidance scale. Defaults to 3.5.
-    -   `seed` (optional): The seed for the generation. Defaults to 42.
-    -   `lora_scale` (optional): The scale of the LoRA model. Defaults to 0.0.
-    -   `refine_prompt` (optional): Whether to refine the prompt using a chat model. Defaults to `False`.
--   **Example:**
-    ```bash
-    curl -X POST http://localhost:8000/api/images \\
-    -H "Content-Type: application/json" \\
-    -d '{
-        "prompt": "A beautiful landscape painting.",
-        "width": 512,
-        "height": 512
-    }'
-    ```
--   **Success Response:**
-    -   **Code:** `200 OK`
-    -   **Content:**
-        ```json
-        {
-            "image_b64": "iVBORw0KGgoAAAANSUhEUgAA..."
-        }
-        ```
+| Endpoint | Method | Description | Operation ID | Available as MCP Tool |
+|----------|--------|-------------|--------------|----------------------|
+| `/hybrid/pricing` | GET | Get tool pricing configuration for x402 payment protocol | `together_imgen_get_pricing` | Yes |
 
-### MCP Server: `/mcp`
+### MCP-Only Endpoints
 
-The `/api/images` endpoint is also automatically exposed as an MCP tool. The tool name will be derived from the endpoint's function name (`generate_image`).
+This server uses `fastapi-mcp` to automatically expose API endpoints as MCP tools. The following tools are available via MCP:
+
+- **generate_image**: Generate images from text prompts (from `/api/images`)
+- **list_models**: List available models and their capabilities (from `/api/models`)
+- **together_imgen_get_pricing**: Get pricing configuration (from `/hybrid/pricing`)
+
+## API Documentation
+
+### POST /api/images
+
+Generate an image from a text prompt using Together AI models.
+
+**Request Body:**
+```json
+{
+  "prompt": "A beautiful landscape painting",
+  "model": "black-forest-labs/FLUX.2-dev",
+  "width": 1024,
+  "height": 1024,
+  "steps": 20,
+  "guidance_scale": null,
+  "seed": null,
+  "lora_scale": 0.0,
+  "lora_url": null,
+  "negative_prompt": null,
+  "refine_prompt": false
+}
+```
+
+**Parameters:**
+- `prompt` (required): The text prompt describing the image to generate
+- `model` (optional): Model name (e.g., "black-forest-labs/FLUX.2-dev"). Uses environment default if not specified
+- `width` (optional): Image width in pixels (64-4096, multiple of 8). Default: 1024
+- `height` (optional): Image height in pixels (64-4096, multiple of 8). Default: 1024
+- `steps` (optional): Number of generation steps (1-100). Default: 20
+- `guidance_scale` (optional): Guidance scale (1.0-30.0). Only supported by FLUX.1-dev and FLUX.2-flex
+- `seed` (optional): Random seed for reproducibility. Use null for random
+- `lora_scale` (optional): LoRA scale (0.0-1.0). Only for FLUX.1-dev-lora models
+- `lora_url` (optional): LoRA model URL. Required if lora_scale > 0
+- `negative_prompt` (optional): Negative prompt. Only supported by FLUX.1-dev and older models
+- `refine_prompt` (optional): Refine prompt using chat model. Default: false
+
+**Success Response:**
+```
+Status: 200 OK
+Content-Type: image/png (or other image format)
+Body: [Binary image data]
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:8000/api/images \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "A beautiful landscape painting",
+    "model": "black-forest-labs/FLUX.2-dev",
+    "width": 1024,
+    "height": 1024,
+    "steps": 20
+  }' --output image.png
+```
+
+### GET /api/models
+
+List all available image generation models and their capabilities.
+
+**Success Response:**
+```json
+{
+  "models": [
+    {
+      "model": "black-forest-labs/FLUX.2-dev",
+      "family": "flux2",
+      "capabilities": {
+        "supports_negative_prompt": false,
+        "supports_guidance_scale": false,
+        "supports_guidance_param": false,
+        "supports_steps": true,
+        "supports_lora": false,
+        "requires_disable_safety_checker": false,
+        "response_format": "url",
+        "default_response_format": "url"
+      }
+    }
+  ]
+}
+```
+
+### GET /hybrid/pricing
+
+Get tool pricing configuration for the x402 payment protocol.
+
+**Success Response:**
+```json
+{
+  "pricing": {
+    "generate_image": [
+      {
+        "chain_id": 8453,
+        "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "token_amount": 1000000
+      }
+    ]
+  }
+}
+```
 
 ## Requirements
 
@@ -56,13 +139,23 @@ The `/api/images` endpoint is also automatically exposed as an MCP tool. The too
    ```bash
    # path: /path/to/your/projects/
    git clone <repository-url>
+   cd mcp-servers/mcp-server-together-imgen
    ```
 
-2. **Create `.env` File based on `env.example`**:
-   Create a `.env` file inside `./mcp-server-together-imgen/`.
+2. **Create `.env` File**:
+   Create a `.env` file based on `.env.example`:
    ```dotenv
-   # Required environment variables
+   # Required
    TOGETHER_API_KEY="your_together_api_key"
+
+   # Optional - Server Configuration
+   MCP_TOGETHER_IMGEN_HOST="0.0.0.0"
+   MCP_TOGETHER_IMGEN_PORT="8000"
+   MCP_TOGETHER_IMGEN_HOT_RELOAD="false"
+
+   # Optional - x402 Payment Protocol
+   X402_PRICING_MODE="off"  # Set to "on" to enable payment middleware
+   X402_PRICING_CONFIG_PATH="./pricing.yml"
    ```
 
 3. **Install Dependencies**:
@@ -70,7 +163,7 @@ The `/api/images` endpoint is also automatically exposed as an MCP tool. The too
    # path: ./mcp-servers/mcp-server-together-imgen/
    # Using UV (recommended)
    uv sync
-   
+
    # Or install for development
    uv sync --group dev
    ```
@@ -130,14 +223,20 @@ mcp-server-together-imgen/
 ├── src/
 │   └── mcp_server_together_imgen/
 │       ├── __init__.py
-│       ├── __main__.py
-│       ├── api_router.py
-│       ├── config.py
-│       ├── logging_config.py
-│       ├── schemas.py
-│       └── together_ai/
+│       ├── __main__.py              # Application entry point
+│       ├── api_router.py            # API-only endpoints
+│       ├── hybrid_routers/          # Hybrid endpoints (REST + MCP)
+│       │   ├── __init__.py
+│       │   └── pricing.py           # x402 pricing endpoint
+│       ├── middlewares/             # Custom middleware
+│       │   └── x402_wrapper.py      # x402 payment middleware
+│       ├── schemas.py               # Pydantic schemas
+│       ├── logging_config.py        # Logging configuration
+│       ├── x402_config.py          # x402 payment configuration
+│       └── together_ai/             # Together AI client
 │           ├── __init__.py
 │           ├── config.py
+│           ├── model_registry.py
 │           └── together_client.py
 ├── tests/
 ├── .env.example
@@ -148,6 +247,45 @@ mcp-server-together-imgen/
 ├── README.md
 └── uv.lock
 ```
+
+## Authentication
+
+### Together AI API Key
+
+This server requires a Together AI API key to function. The key is configured via the `TOGETHER_API_KEY` environment variable.
+
+### x402 Payment Protocol (Optional)
+
+The server supports the x402 payment protocol for monetizing API access. When enabled, clients must provide payment proofs via HTTP headers to access protected endpoints.
+
+**Configuration:**
+
+1. Set `X402_PRICING_MODE="on"` in your `.env` file
+2. Create a `pricing.yml` file defining payment options for each tool:
+
+```yaml
+generate_image:
+  - chain_id: 8453  # Base Mainnet
+    token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"  # USDC on Base
+    token_amount: 1000000  # 1 USDC (6 decimals)
+
+list_models:
+  - chain_id: 8453
+    token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+    token_amount: 100000  # 0.1 USDC
+```
+
+3. Set `X402_PRICING_CONFIG_PATH` to point to your pricing configuration file
+
+**Supported Networks:**
+- Ethereum Mainnet (chain_id: 1)
+- Base Mainnet (chain_id: 8453)
+- Base Sepolia (chain_id: 84532)
+- Optimism (chain_id: 10)
+- Arbitrum One (chain_id: 42161)
+- Polygon (chain_id: 137)
+
+**Note:** Token amounts should be specified in the token's smallest unit (e.g., for USDC with 6 decimals, 1 USDC = 1,000,000 token_amount).
 
 ## Contributing
 
