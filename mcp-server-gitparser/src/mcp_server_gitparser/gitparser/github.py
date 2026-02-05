@@ -9,6 +9,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from gitingest import ingest_async
+from gitingest.utils.exceptions import InvalidGitHubTokenError
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,12 @@ async def convert_repo_to_markdown(
 """
         logger.info("Successfully converted repository: %s", repo_url)
         return markdown_output
+    except InvalidGitHubTokenError as e:
+        # Normalize to ValueError so the API layer can return a 400.
+        raise ValueError(
+            "Invalid GitHub token format. Leave token empty for public repositories, "
+            "or provide a valid GitHub Personal Access Token."
+        ) from e
     except Exception as e:  # noqa: BLE001
         logger.error("Error converting repository %s: %s", repo_url, e)
         raise RuntimeError(f"Failed to convert repository: {str(e)}") from e

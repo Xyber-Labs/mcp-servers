@@ -65,3 +65,35 @@ def test_hybrid_parse_github_writes_file(monkeypatch):
 
     assert Path(data["file_path"]).exists()
 
+
+def test_hybrid_parse_github_normalizes_swagger_placeholder_token(monkeypatch):
+    from mcp_server_gitparser.app import create_app
+
+    captured = {}
+
+    async def _fake_convert_repo_to_markdown(repo_url: str, token=None, **kwargs) -> str:
+        captured["repo_url"] = repo_url
+        captured["token"] = token
+        captured["kwargs"] = kwargs
+        return "# ok\n"
+
+    monkeypatch.setattr(
+        "mcp_server_gitparser.hybrid_routers.parsing.convert_repo_to_markdown",
+        _fake_convert_repo_to_markdown,
+    )
+
+    app = create_app()
+    client = TestClient(app)
+
+    resp = client.post(
+        "/hybrid/parse-github",
+        json={
+            "url": "https://github.com/coderamp-labs/gitingest",
+            "token": "string",  # Swagger placeholder
+            "include_submodules": False,
+            "include_gitignored": False,
+        },
+    )
+    assert resp.status_code == 200
+    assert captured["token"] is None
+

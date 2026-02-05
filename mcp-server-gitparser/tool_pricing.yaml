@@ -1,0 +1,18 @@
+version: 1
+
+# Tool pricing configuration.
+# This server does not enforce payments; all tools are free by default.
+
+tools:
+  gitparser_parse_gitbook:
+    price: 0
+    currency: "USD"
+    unit: "call"
+    description: "Parse a GitBook site into a single Markdown file."
+
+  gitparser_parse_github:
+    price: 0
+    currency: "USD"
+    unit: "call"
+    description: "Parse a GitHub repository into a Markdown digest (via gitingest)."
+

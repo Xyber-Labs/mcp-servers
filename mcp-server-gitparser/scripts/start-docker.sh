@@ -113,6 +113,7 @@ fi
 echo "Starting Gitparser MCP Server in Docker..."
 echo "Container: ${CONTAINER_NAME}"
 echo "Image: ${IMAGE_NAME}"
+echo "Network: host (sharing host network stack)"
 echo "Server will be available at: http://localhost:${PORT}"
 echo "API docs: http://localhost:${PORT}/docs"
 echo "MCP endpoint: http://localhost:${PORT}/mcp/"
@@ -120,8 +121,8 @@ echo ""
 
 docker run -d \
   --name "${CONTAINER_NAME}" \
-  -p "${PORT}:8000" \
-  -e "MCP_GITPARSER_PORT=8000" \
+  --network host \
+  -e "MCP_GITPARSER_PORT=${PORT}" \
   --restart unless-stopped \
   "${IMAGE_NAME}"
 

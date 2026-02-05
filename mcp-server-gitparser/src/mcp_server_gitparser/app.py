@@ -42,7 +42,30 @@ def create_app() -> FastAPI:
     # --- Main Application ---
     app = FastAPI(
         title="Gitparser MCP Server (Hybrid)",
-        description="Parse GitBook sites and GitHub repositories into Markdown via REST and MCP.",
+        description="""
+An MCP (Model Context Protocol) server that converts:
+
+- **GitBook documentation sites** → a single Markdown file (LLM-friendly)
+- **GitHub repositories** → a repository “digest” Markdown file (via `gitingest`)
+
+It exposes the same functionality via:
+
+- **REST (Hybrid)**: `/hybrid/*`
+- **MCP tools**: mounted at `/mcp` (generated from the same hybrid routes)
+
+### Endpoints
+
+- **API-only**
+  - `GET /api/health` — health check
+- **Hybrid (REST + MCP)**
+  - `POST /hybrid/parse-gitbook` — parses a GitBook site into Markdown
+  - `POST /hybrid/parse-github` — parses a GitHub repo into Markdown
+
+### Notes
+
+- **Docs output** is written to the local `docs/` directory (configurable via `MCP_GITPARSER_DOCS_DIR`).
+- For **public GitHub repos**, leave `token` empty (Swagger may show `"string"` by default; it will be treated as “no token”).
+""".strip(),
         version="0.1.0",
         lifespan=combined_lifespan,
     )

@@ -30,6 +30,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 ENV PATH="/app/.venv/bin:$PATH"
 
+COPY --from=builder /app/tool_pricing.yaml .
+
 CMD ["tail", "-f", "/dev/null"]
 
 # --- Production stage --- #
@@ -37,7 +39,12 @@ FROM python:3.12-slim-bookworm AS prod
 
 WORKDIR /app
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git openssh-client ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /app/tool_pricing.yaml .
 
 ENV PATH="/app/.venv/bin:$PATH"
 

@@ -83,5 +83,6 @@ mcp-server-gitparser/
 ├── tests/
 ├── Dockerfile
 ├── pyproject.toml
+├── tool_pricing.yaml
 └── uv.lock
 ```

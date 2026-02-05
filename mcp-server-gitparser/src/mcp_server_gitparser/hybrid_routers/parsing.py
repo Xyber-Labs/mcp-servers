@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from urllib.parse import urlparse
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from mcp_server_gitparser.config import get_app_settings
 from mcp_server_gitparser.gitparser.gitbook import clean_gitbook_url, convert_gitbook_to_markdown
@@ -56,6 +56,11 @@ async def perform_parse_github(
     include_submodules: bool,
     include_gitignored: bool,
 ) -> ConvertResponse:
+    # Swagger UI often sends the placeholder value "string" for optional string fields.
+    # Treat that (and empty strings) as "no token" so public repos work out of the box.
+    if token is not None and token.strip().lower() in {"", "string", "null", "none"}:
+        token = None
+
     cleaned_url = clean_github_url(url)
     markdown_content = await convert_repo_to_markdown(
         cleaned_url,
@@ -85,7 +90,12 @@ async def perform_parse_github(
     summary="Parse a GitBook site into Markdown",
 )
 async def parse_gitbook_endpoint(request: ConvertGitbookRequest) -> ConvertResponse:
-    return await perform_parse_gitbook(str(request.url))
+    try:
+        return await perform_parse_gitbook(str(request.url))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post(
@@ -95,10 +105,19 @@ async def parse_gitbook_endpoint(request: ConvertGitbookRequest) -> ConvertRespo
     summary="Parse a GitHub repository into Markdown",
 )
 async def parse_github_endpoint(request: ConvertGithubRequest) -> ConvertResponse:
-    return await perform_parse_github(
-        url=str(request.url),
-        token=request.token,
-        include_submodules=request.include_submodules,
-        include_gitignored=request.include_gitignored,
-    )
+    try:
+        return await perform_parse_github(
+            url=str(request.url),
+            token=request.token,
+            include_submodules=request.include_submodules,
+            include_gitignored=request.include_gitignored,
+        )
+    except ValueError as e:
+        # Includes invalid GitHub URL, invalid token format, etc.
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except RuntimeError as e:
+        # Upstream ingestion failures (network, rate limit, etc.)
+        raise HTTPException(status_code=502, detail=str(e)) from e
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
