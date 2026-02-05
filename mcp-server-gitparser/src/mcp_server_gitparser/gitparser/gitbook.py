@@ -145,7 +145,8 @@ async def convert_gitbook_to_markdown(gitbook_url: str) -> str:
             return content
 
         crawled_content = await crawl_gitbook(session, base_url, return_json=False)
-        if crawled_content:
+        # crawl_gitbook may return "" (no content found) which is distinct from None (fetch failure).
+        if crawled_content is not None:
             return crawled_content
 
     raise RuntimeError(f"Failed to fetch content from {gitbook_url}")

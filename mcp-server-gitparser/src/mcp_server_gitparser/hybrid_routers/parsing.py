@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import re
 from pathlib import Path
 from urllib.parse import urlparse
@@ -39,7 +40,7 @@ async def perform_parse_gitbook(url: str) -> ConvertResponse:
     docs_dir = ensure_docs_dir()
     filename = generate_filename(cleaned_url, "md")
     file_path = docs_dir / filename
-    file_path.write_text(markdown_content, encoding="utf-8")
+    await asyncio.to_thread(file_path.write_text, markdown_content, encoding="utf-8")
 
     return ConvertResponse(
         success=True,
@@ -72,7 +73,7 @@ async def perform_parse_github(
     docs_dir = ensure_docs_dir()
     filename = generate_filename(cleaned_url, "md")
     file_path = docs_dir / filename
-    file_path.write_text(markdown_content, encoding="utf-8")
+    await asyncio.to_thread(file_path.write_text, markdown_content, encoding="utf-8")
 
     return ConvertResponse(
         success=True,

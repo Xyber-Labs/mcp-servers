@@ -10,6 +10,17 @@ PORT=8000
 CONTAINER_NAME="mcp-server-gitparser"
 IMAGE_NAME="mcp-server-gitparser"
 
+# Validate flags that require arguments.
+require_arg() {
+    local flag="$1"
+    local value="${2-}"
+    if [ -z "$value" ] || [[ "$value" == --* ]]; then
+        echo "Error: ${flag} requires a value"
+        echo "Use --help for usage information"
+        exit 1
+    fi
+}
+
 # Parse command-line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -23,14 +34,17 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --port)
+            require_arg "--port" "${2-}"
             PORT="$2"
             shift 2
             ;;
         --container-name)
+            require_arg "--container-name" "${2-}"
             CONTAINER_NAME="$2"
             shift 2
             ;;
         --image-name)
+            require_arg "--image-name" "${2-}"
             IMAGE_NAME="$2"
             shift 2
             ;;

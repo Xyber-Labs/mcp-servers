@@ -16,7 +16,11 @@ logger = logging.getLogger(__name__)
 
 def is_valid_github_url(url: str) -> bool:
     parsed = urlparse(url)
-    return parsed.netloc in {"github.com", "www.github.com"} and bool(parsed.path)
+    if parsed.netloc not in {"github.com", "www.github.com"}:
+        return False
+    # Require at least "owner/repo" (path "/" should not pass).
+    parts = [p for p in parsed.path.strip("/").split("/") if p]
+    return len(parts) >= 2
 
 
 def clean_github_url(url: str) -> str:
