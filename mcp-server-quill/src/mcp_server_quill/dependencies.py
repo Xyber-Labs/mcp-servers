@@ -1,4 +1,7 @@
 import logging
+from typing import Annotated
+
+from fastapi import Depends
 
 from mcp_server_quill.config import get_app_settings
 from mcp_server_quill.quill.client import QuillAPI
@@ -112,3 +115,7 @@ class DependencyContainer:
 # Alias the class methods for use as FastAPI dependencies
 get_quill_client = DependencyContainer.get_quill_client
 get_search_client = DependencyContainer.get_search_client
+
+# Typed dependencies for FastAPI injection
+QuillClientDep = Annotated[QuillAPI, Depends(get_quill_client)]
+SearchClientDep = Annotated[TokenSearchAPI, Depends(get_search_client)]

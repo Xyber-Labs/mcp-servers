@@ -55,6 +55,7 @@ CHAIN_ID_TO_NETWORK: dict[int, str] = {
     10: "eip155:10",  # Optimism
     42161: "eip155:42161",  # Arbitrum One
     137: "eip155:137",  # Polygon
+    43114: "eip155:43114",  # Avalanche C-Chain
     1187947933: "eip155:1187947933",  # SKALE Base (L3 on Base)
 }
 
