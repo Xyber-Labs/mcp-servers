@@ -9,11 +9,10 @@ import pytest_asyncio
 from eth_account import Account
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from x402.clients.base import x402Client
-from x402.types import PaymentPayload, PaymentRequirements, x402PaymentRequiredResponse
+from x402.schemas import PaymentPayload, PaymentRequired, PaymentRequirements
 
 from mcp_server_tavily.middlewares import X402WrapperMiddleware
-from mcp_server_tavily.x402_config import PaymentOption
+from mcp_server_tavily.x402_config import PaymentOptionConfig
 
 
 class DummyFacilitator:
@@ -39,10 +38,10 @@ class DummyFacilitator:
 
 
 @pytest.fixture
-def pricing() -> dict[str, list[PaymentOption]]:
+def pricing() -> dict[str, list[PaymentOptionConfig]]:
     return {
         "tavily_search": [
-            PaymentOption(
+            PaymentOptionConfig(
                 chain_id=8453,
                 token_address="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
                 token_amount=1000,

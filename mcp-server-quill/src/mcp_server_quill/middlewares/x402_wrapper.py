@@ -29,11 +29,14 @@ from x402.http import (
     safe_base64_encode,
 )
 from x402.mechanisms.evm.exact import ExactEvmServerScheme
+from x402.mechanisms.svm.exact import ExactSvmServerScheme
 from x402.schemas import Network, PaymentPayload, PaymentRequired, PaymentRequirements
 from x402.server import x402ResourceServer
 
 from mcp_server_quill.x402_config import (
     CHAIN_ID_TO_NETWORK,
+    EVM_NETWORKS,
+    SOLANA_NETWORKS,
     PaymentOptionConfig,
     X402Config,
     get_x402_settings,
@@ -49,6 +52,8 @@ _EXPLORER_BASE: dict[str, str] = {
     "eip155:10": "https://optimistic.etherscan.io",
     "eip155:42161": "https://arbiscan.io",
     "eip155:137": "https://polygonscan.com",
+    "eip155:43114": "https://snowtrace.io",
+    "eip155:1187947933": "https://mainnet-explorer.skalenodes.com/poa-network-skale-base",
 }
 
 
@@ -95,16 +100,16 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
             self.server = x402ResourceServer(self.facilitator)
             # Initialize the server (fetches supported schemes from facilitator)
             self.server.initialize()
-            # Register EVM scheme for all configured networks AFTER initialize
-            self._register_evm_schemes()
+            # Register schemes for all configured networks AFTER initialize
+            self._register_network_schemes()
         else:
             logger.warning(
                 "No x402 facilitator configured (missing CDP keys and URL). "
                 "Payment middleware will be disabled."
             )
 
-    def _register_evm_schemes(self) -> None:
-        """Register EVM scheme for all networks used in pricing config."""
+    def _register_network_schemes(self) -> None:
+        """Register appropriate schemes (EVM or Solana) for all networks in pricing config."""
         if not self.server:
             return
         networks_used: set[str] = set()
@@ -115,11 +120,21 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
                 else:
                     logger.warning(
                         f"Unknown chain_id '{opt.chain_id}' in pricing config. "
-                        f"Add it to CHAIN_ID_TO_NETWORK mapping in config.py"
+                        f"Add it to CHAIN_ID_TO_NETWORK mapping in x402_config.py"
                     )
+
         for network in networks_used:
-            self.server.register(network, ExactEvmServerScheme())
-            logger.info(f"Registered EVM scheme for network: {network}")
+            if network in EVM_NETWORKS:
+                self.server.register(network, ExactEvmServerScheme())
+                logger.info(f"Registered EVM scheme for network: {network}")
+            elif network in SOLANA_NETWORKS:
+                self.server.register(network, ExactSvmServerScheme())
+                logger.info(f"Registered Solana scheme for network: {network}")
+            else:
+                logger.warning(
+                    f"Network '{network}' not in EVM_NETWORKS or SOLANA_NETWORKS. "
+                    f"Update x402_config.py to classify this network."
+                )
 
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
@@ -150,6 +165,11 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
 
         try:
             payment_dict = json.loads(safe_base64_decode(payment_header))
+            payment_dict["resource"] = {
+                "url": str(request.url),
+                "description": "API access",
+                "mimeType": "application/json",
+            }
             payment = PaymentPayload(**payment_dict)
         except Exception as e:
             client_host = request.client.host if request.client else "<unknown>"
@@ -321,7 +341,7 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
                 network=network,
                 asset=option.token_address,
                 amount=str(option.token_amount),
-                pay_to=self.settings.payee_wallet_address,
+                pay_to=self.settings.get_payee_address(network),
                 max_timeout_seconds=60,
                 extra={},  # Will be enhanced below
             )

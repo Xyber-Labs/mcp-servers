@@ -13,8 +13,38 @@ import yaml
 from pydantic import BaseModel, Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from x402.http import AuthHeaders, FacilitatorConfig
+from x402.mechanisms.evm.utils import NETWORK_CONFIGS
 
 logger = logging.getLogger(__name__)
+
+
+def _register_custom_evm_networks() -> None:
+    """Register custom EVM networks not yet in x402 library."""
+    # SKALE Base (L3 on Base) - launched Jan 2026
+    # Docs: https://docs.skale.space/welcome/skale-on-base
+    if "eip155:1187947933" not in NETWORK_CONFIGS:
+        NETWORK_CONFIGS["eip155:1187947933"] = {
+            "chain_id": 1187947933,
+            "default_asset": {
+                "address": "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20",
+                "name": "Bridged USDC (SKALE Bridge)",  # Must match Kobaru's expected name
+                "version": "2",
+                "decimals": 6,
+            },
+            "supported_assets": {
+                "USDC": {
+                    "address": "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20",
+                    "name": "Bridged USDC (SKALE Bridge)",  # Must match Kobaru's expected name
+                    "version": "2",
+                    "decimals": 6,
+                },
+            },
+        }
+        logger.info("Registered custom EVM network: SKALE Base (eip155:1187947933)")
+
+
+# Register custom networks at module load time
+_register_custom_evm_networks()
 
 # Mapping from chain_id to CAIP-2 network identifier
 # See: https://chainagnostic.org/CAIPs/caip-2
@@ -25,6 +55,7 @@ CHAIN_ID_TO_NETWORK: dict[int, str] = {
     10: "eip155:10",  # Optimism
     42161: "eip155:42161",  # Arbitrum One
     137: "eip155:137",  # Polygon
+    1187947933: "eip155:1187947933",  # SKALE Base (L3 on Base)
 }
 
 # Load environment variables from the repo-root .env file (if present).
@@ -61,7 +92,7 @@ class X402Config(BaseSettings):
 
     pricing_mode: Literal["off", "on"] = "off"
     payee_wallet_address: str | None = None
-    facilitator_url: str | None = None
+    facilitator_url: str | None = "https://x402-facilitator.kobaru.xyz/v2"
     cdp_api_key_id: str | None = None
     cdp_api_key_secret: str | None = None
 

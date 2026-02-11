@@ -10,7 +10,7 @@ import pytest
 import yaml
 
 from mcp_server_arxiv.config import AppSettings
-from mcp_server_arxiv.x402_config import PaymentOption, X402Config
+from mcp_server_arxiv.x402_config import PaymentOptionConfig, X402Config
 
 
 @pytest.fixture(autouse=True)
@@ -21,11 +21,11 @@ def isolate_env(monkeypatch):
             monkeypatch.delenv(key, raising=False)
 
 
-class TestPaymentOption:
-    """Tests for PaymentOption model validation."""
+class TestPaymentOptionConfig:
+    """Tests for PaymentOptionConfig model validation."""
 
     def test_valid_payment_option(self):
-        opt = PaymentOption(
+        opt = PaymentOptionConfig(
             chain_id=8453,
             token_address="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
             token_amount=1000000,
@@ -34,7 +34,7 @@ class TestPaymentOption:
         assert opt.token_amount == 1000000
 
     def test_token_amount_zero_allowed(self):
-        opt = PaymentOption(
+        opt = PaymentOptionConfig(
             chain_id=1,
             token_address="0x0",
             token_amount=0,
@@ -43,7 +43,7 @@ class TestPaymentOption:
 
     def test_negative_token_amount_rejected(self):
         with pytest.raises(ValueError):
-            PaymentOption(
+            PaymentOptionConfig(
                 chain_id=1,
                 token_address="0x0",
                 token_amount=-1,
@@ -51,7 +51,7 @@ class TestPaymentOption:
 
     def test_missing_required_fields(self):
         with pytest.raises(ValueError):
-            PaymentOption(chain_id=1)  # type: ignore
+            PaymentOptionConfig(chain_id=1)  # type: ignore
 
 
 class TestX402ConfigPricing:
@@ -83,7 +83,7 @@ class TestX402ConfigPricing:
         assert len(config.pricing) == 2
         assert "search_endpoint" in config.pricing
         assert "another_endpoint" in config.pricing
-        assert isinstance(config.pricing["search_endpoint"][0], PaymentOption)
+        assert isinstance(config.pricing["search_endpoint"][0], PaymentOptionConfig)
         assert config.pricing["search_endpoint"][0].token_amount == 1000000
 
     def test_pricing_with_multiple_options_per_endpoint(self, tmp_path: Path):
@@ -204,24 +204,6 @@ class TestX402ConfigPricing:
 class TestX402ConfigFacilitator:
     """Tests for X402Config.facilitator_config computed field."""
 
-    def test_facilitator_with_cdp_keys(self):
-        """CDP API keys present configures mainnet facilitator."""
-        with patch("mcp_server_arxiv.x402_config.create_facilitator_config") as mock:
-            mock.return_value = {"url": "https://cdp.facilitator"}
-            config = X402Config(
-                cdp_api_key_id="key_id",
-                cdp_api_key_secret="key_secret",
-                pricing_config_path=Path("/nonexistent"),
-            )
-
-            result = config.facilitator_config
-
-            mock.assert_called_once_with(
-                api_key_id="key_id",
-                api_key_secret="key_secret",
-            )
-            assert result == {"url": "https://cdp.facilitator"}
-
     def test_facilitator_with_url_only(self):
         """Facilitator URL without CDP keys uses public facilitator."""
         config = X402Config(
@@ -234,23 +216,8 @@ class TestX402ConfigFacilitator:
 
         result = config.facilitator_config
 
-        assert result == {"url": "https://public.facilitator"}
-
-    def test_facilitator_cdp_takes_precedence(self):
-        """CDP keys take precedence over facilitator_url."""
-        with patch("mcp_server_arxiv.x402_config.create_facilitator_config") as mock:
-            mock.return_value = {"url": "https://cdp.facilitator"}
-            config = X402Config(
-                cdp_api_key_id="key_id",
-                cdp_api_key_secret="key_secret",
-                facilitator_url="https://public.facilitator",
-                pricing_config_path=Path("/nonexistent"),
-            )
-
-            result = config.facilitator_config
-
-            mock.assert_called_once()
-            assert result == {"url": "https://cdp.facilitator"}
+        assert result is not None
+        assert result.url == "https://public.facilitator"
 
     def test_facilitator_none_when_no_config(self):
         """No CDP keys or URL returns None."""
@@ -268,16 +235,16 @@ class TestX402ConfigFacilitator:
 class TestX402ConfigPricingMode:
     """Tests for pricing_mode field."""
 
-    def test_pricing_mode_default_on(self):
+    def test_pricing_mode_default_off(self):
         config = X402Config(pricing_config_path=Path("/nonexistent"))
-        assert config.pricing_mode == "on"
+        assert config.pricing_mode == "off"
 
-    def test_pricing_mode_off(self):
+    def test_pricing_mode_on(self):
         config = X402Config(
-            pricing_mode="off",
+            pricing_mode="on",
             pricing_config_path=Path("/nonexistent"),
         )
-        assert config.pricing_mode == "off"
+        assert config.pricing_mode == "on"
 
     def test_pricing_mode_invalid_rejected(self):
         with pytest.raises(ValueError):

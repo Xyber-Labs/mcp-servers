@@ -29,11 +29,14 @@ from x402.http import (
     safe_base64_encode,
 )
 from x402.mechanisms.evm.exact import ExactEvmServerScheme
+from x402.mechanisms.svm.exact import ExactSvmServerScheme
 from x402.schemas import Network, PaymentPayload, PaymentRequired, PaymentRequirements
 from x402.server import x402ResourceServer
 
 from mcp_server_weather.x402_config import (
     CHAIN_ID_TO_NETWORK,
+    EVM_NETWORKS,
+    SOLANA_NETWORKS,
     PaymentOptionConfig,
     X402Config,
     get_x402_settings,
@@ -41,14 +44,14 @@ from mcp_server_weather.x402_config import (
 
 logger = logging.getLogger(__name__)
 
-# CAIP-2 network -> block explorer base URL (for observable transactions, e.g. BaseScan)
+# CAIP-2 network -> block explorer base URL (for observable transactions)
 _EXPLORER_BASE: dict[str, str] = {
-    "eip155:1": "https://etherscan.io",
-    "eip155:8453": "https://basescan.org",
-    "eip155:84532": "https://sepolia.basescan.org",
-    "eip155:10": "https://optimistic.etherscan.io",
-    "eip155:42161": "https://arbiscan.io",
-    "eip155:137": "https://polygonscan.com",
+    # EVM Networks
+    "eip155:8453": "https://basescan.org",  # Base
+    "eip155:43114": "https://snowtrace.io",  # Avalanche
+    "eip155:1187947933": "https://skale-base-explorer.skalenodes.com",  # SKALE Base
+    # Solana Networks
+    "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": "https://solscan.io",  # Solana Mainnet
 }
 
 
@@ -95,16 +98,16 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
             self.server = x402ResourceServer(self.facilitator)
             # Initialize the server (fetches supported schemes from facilitator)
             self.server.initialize()
-            # Register EVM scheme for all configured networks AFTER initialize
-            self._register_evm_schemes()
+            # Register schemes for all configured networks AFTER initialize
+            self._register_network_schemes()
         else:
             logger.warning(
                 "No x402 facilitator configured (missing CDP keys and URL). "
                 "Payment middleware will be disabled."
             )
 
-    def _register_evm_schemes(self) -> None:
-        """Register EVM scheme for all networks used in pricing config."""
+    def _register_network_schemes(self) -> None:
+        """Register appropriate schemes (EVM or Solana) for all networks in pricing config."""
         if not self.server:
             return
         networks_used: set[str] = set()
@@ -115,11 +118,21 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
                 else:
                     logger.warning(
                         f"Unknown chain_id '{opt.chain_id}' in pricing config. "
-                        f"Add it to CHAIN_ID_TO_NETWORK mapping in config.py"
+                        f"Add it to CHAIN_ID_TO_NETWORK mapping in x402_config.py"
                     )
+
         for network in networks_used:
-            self.server.register(network, ExactEvmServerScheme())
-            logger.info(f"Registered EVM scheme for network: {network}")
+            if network in EVM_NETWORKS:
+                self.server.register(network, ExactEvmServerScheme())
+                logger.info(f"Registered EVM scheme for network: {network}")
+            elif network in SOLANA_NETWORKS:
+                self.server.register(network, ExactSvmServerScheme())
+                logger.info(f"Registered Solana scheme for network: {network}")
+            else:
+                logger.warning(
+                    f"Network '{network}' not in EVM_NETWORKS or SOLANA_NETWORKS. "
+                    f"Update x402_config.py to classify this network."
+                )
 
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
@@ -150,6 +163,14 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
 
         try:
             payment_dict = json.loads(safe_base64_decode(payment_header))
+            # Inject resource field for PayAI facilitator compatibility
+            # This field is required by PayAI but optional in x402 spec
+            # It also enables resource indexing in bazaar/x402 scan for visibility
+            payment_dict["resource"] = {
+                "url": str(request.url),
+                "description": "API access",
+                "mimeType": "application/json",
+            }
             payment = PaymentPayload(**payment_dict)
         except Exception as e:
             client_host = request.client.host if request.client else "<unknown>"
@@ -167,6 +188,17 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
             )
 
         try:
+            # Debug: log payment details being sent to facilitator
+            logger.info(
+                "Verifying payment: network=%s scheme=%s amount=%s payTo=%s",
+                selected_req.network,
+                selected_req.scheme,
+                selected_req.amount,
+                selected_req.pay_to,
+            )
+            logger.debug("Payment payload: %s", payment.model_dump_json(by_alias=True))
+            logger.debug("Requirements: %s", selected_req.model_dump_json(by_alias=True))
+
             verify_response = await self._verify_with_retry(
                 payment,
                 selected_req,
@@ -183,6 +215,18 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
             return self._create_402_response(
                 payment_requirements,
                 "Payment verification failed; please try again later.",
+            )
+        except ValueError as exc:
+            # Facilitator returned an error (e.g., 500)
+            logger.error(
+                "Facilitator error for '%s': %s. Payment: %s",
+                operation_id,
+                exc,
+                payment.model_dump_json(by_alias=True),
+            )
+            return self._create_402_response(
+                payment_requirements,
+                f"Facilitator error: {exc}",
             )
 
         if not verify_response.is_valid:
@@ -316,12 +360,20 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
                 )
                 continue
 
+            payee_address = self.settings.get_payee_address(network)
+            if not payee_address:
+                logger.warning(
+                    f"No payee address configured for network '{network}'. "
+                    "Skipping this payment option."
+                )
+                continue
+
             base_req = PaymentRequirements(
                 scheme="exact",
                 network=network,
                 asset=option.token_address,
                 amount=str(option.token_amount),
-                pay_to=self.settings.payee_wallet_address,
+                pay_to=payee_address,
                 max_timeout_seconds=60,
                 extra={},  # Will be enhanced below
             )

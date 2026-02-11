@@ -14,8 +14,39 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from x402.http import AuthHeaders, FacilitatorConfig
+from x402.mechanisms.evm.utils import NETWORK_CONFIGS
 
 logger = logging.getLogger(__name__)
+
+
+def _register_custom_evm_networks() -> None:
+    """Register custom EVM networks not yet in x402 library."""
+    # SKALE Base (L3 on Base) - launched Jan 2026
+    # Docs: https://docs.skale.space/welcome/skale-on-base
+    if "eip155:1187947933" not in NETWORK_CONFIGS:
+        NETWORK_CONFIGS["eip155:1187947933"] = {
+            "chain_id": 1187947933,
+            "default_asset": {
+                "address": "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20",
+                "name": "Bridged USDC (SKALE Bridge)",
+                "version": "2",
+                "decimals": 6,
+            },
+            "supported_assets": {
+                "USDC": {
+                    "address": "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20",
+                    "name": "Bridged USDC (SKALE Bridge)",
+                    "version": "2",
+                    "decimals": 6,
+                },
+            },
+        }
+        logger.info("Registered custom EVM network: SKALE Base (eip155:1187947933)")
+
+
+# Register custom networks at module load time
+_register_custom_evm_networks()
 
 # Mapping from chain_id to CAIP-2 network identifier
 # See: https://chainagnostic.org/CAIPs/caip-2
@@ -26,6 +57,7 @@ CHAIN_ID_TO_NETWORK: dict[int, str] = {
     10: "eip155:10",  # Optimism
     42161: "eip155:42161",  # Arbitrum One
     137: "eip155:137",  # Polygon
+    1187947933: "eip155:1187947933",  # SKALE Base (L3 on Base)
 }
 
 
@@ -60,7 +92,7 @@ class X402Config(BaseSettings):
 
     pricing_mode: Literal["off", "on"] = "off"
     payee_wallet_address: str | None = None
-    facilitator_url: str | None = None
+    facilitator_url: str | None = "https://kobaru.net/api/v2"
     cdp_api_key_id: str | None = None
     cdp_api_key_secret: str | None = None
 
@@ -68,32 +100,89 @@ class X402Config(BaseSettings):
 
     @computed_field
     @property
-    def facilitator_config(self) -> dict[str, str] | None:
+    def facilitator_config(self) -> FacilitatorConfig | None:
         """
         A computed field that creates the correct facilitator configuration.
-        - If CDP API keys are present, it configures for mainnet.
+        - If CDP API keys are present, it configures for mainnet CDP facilitator.
         - If a facilitator_url is provided, it configures for that URL.
         - If neither is provided, returns None, disabling payments.
         """
         if self.cdp_api_key_id and self.cdp_api_key_secret:
+            # CDP mainnet facilitator with API key authentication
+            # See: https://docs.cdp.coinbase.com/x402/docs/facilitator
             logger.info("CDP API keys found, configuring for mainnet facilitator.")
             try:
-                from cdp.x402 import create_facilitator_config
+                from cdp.auth.utils.http import GetAuthHeadersOptions, get_auth_headers
+                from cdp.x402.x402 import (
+                    COINBASE_FACILITATOR_BASE_URL,
+                    COINBASE_FACILITATOR_V2_ROUTE,
+                    X402_VERSION,
+                )
 
-                return create_facilitator_config(
-                    api_key_id=self.cdp_api_key_id,
-                    api_key_secret=self.cdp_api_key_secret,
+                api_key_id = self.cdp_api_key_id
+                api_key_secret = self.cdp_api_key_secret
+                request_host = COINBASE_FACILITATOR_BASE_URL.replace("https://", "")
+
+                class CDPAuthProvider:
+                    """AuthProvider that generates JWT auth for CDP facilitator."""
+
+                    def get_auth_headers(self) -> AuthHeaders:
+                        """Generate auth headers for CDP facilitator endpoints."""
+                        verify_headers = get_auth_headers(
+                            GetAuthHeadersOptions(
+                                api_key_id=api_key_id,
+                                api_key_secret=api_key_secret,
+                                request_host=request_host,
+                                request_path=f"{COINBASE_FACILITATOR_V2_ROUTE}/verify",
+                                request_method="POST",
+                                source="x402",
+                                source_version=X402_VERSION,
+                            )
+                        )
+                        settle_headers = get_auth_headers(
+                            GetAuthHeadersOptions(
+                                api_key_id=api_key_id,
+                                api_key_secret=api_key_secret,
+                                request_host=request_host,
+                                request_path=f"{COINBASE_FACILITATOR_V2_ROUTE}/settle",
+                                request_method="POST",
+                                source="x402",
+                                source_version=X402_VERSION,
+                            )
+                        )
+                        # CDP requires auth for /supported endpoint too (despite SDK comment)
+                        supported_headers = get_auth_headers(
+                            GetAuthHeadersOptions(
+                                api_key_id=api_key_id,
+                                api_key_secret=api_key_secret,
+                                request_host=request_host,
+                                request_path=f"{COINBASE_FACILITATOR_V2_ROUTE}/supported",
+                                request_method="GET",
+                                source="x402",
+                                source_version=X402_VERSION,
+                            )
+                        )
+                        return AuthHeaders(
+                            verify=verify_headers,
+                            settle=settle_headers,
+                            supported=supported_headers,
+                        )
+
+                facilitator_url = (
+                    f"{COINBASE_FACILITATOR_BASE_URL}{COINBASE_FACILITATOR_V2_ROUTE}"
+                )
+                return FacilitatorConfig(
+                    url=facilitator_url,
+                    auth_provider=CDPAuthProvider(),
                 )
             except ImportError:
                 logger.warning(
-                    "CDP SDK not available. Cannot use CDP API keys for facilitator. "
+                    "cdp-sdk not installed but CDP keys provided. "
                     "Install cdp-sdk or use facilitator_url instead."
                 )
                 return None
         if self.facilitator_url:
             logger.info(f"Using public facilitator at {self.facilitator_url}")
-            from x402.http import FacilitatorConfig
-
             return FacilitatorConfig(url=self.facilitator_url)
         return None
 

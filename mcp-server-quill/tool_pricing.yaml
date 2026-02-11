@@ -1,20 +1,35 @@
-# This file defines the payment options for all x402-protected endpoints.
-# The key for each entry is the endpoint's unique `operation_id`.
-# You can define one or more payment options for each tool, allowing for
-# flexibility with different tokens or networks.
+# Quill token info pricing
+# Supports: Base, Avalanche, SKALE Base
 
-# --- Paid Hybrid Endpoints ---
 search_token_address:
-  - token_amount: 1000  # ~0.001 USDC
-    chain_id: 8453      # Base Mainnet
+  - token_amount: 1000  # $0.001 USDC
+    chain_id: 8453  # Base
     token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+  - token_amount: 1000  # $0.001 USDC
+    chain_id: 43114  # Avalanche
+    token_address: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E"
+  - token_amount: 1000  # $0.001 USDC.e
+    chain_id: 1187947933  # SKALE Base
+    token_address: "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20"
 
 get_evm_token_info:
-  - token_amount: 2000  # ~0.002 USDC
-    chain_id: 8453      # Base Mainnet
+  - token_amount: 2000  # $0.002 USDC
+    chain_id: 8453  # Base
     token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+  - token_amount: 2000  # $0.002 USDC
+    chain_id: 43114  # Avalanche
+    token_address: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E"
+  - token_amount: 2000  # $0.002 USDC.e
+    chain_id: 1187947933  # SKALE Base
+    token_address: "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20"
 
 get_solana_token_info:
-  - token_amount: 2000  # ~0.002 USDC
-    chain_id: 8453      # Base Mainnet
+  - token_amount: 2000  # $0.002 USDC
+    chain_id: 8453  # Base
     token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+  - token_amount: 2000  # $0.002 USDC
+    chain_id: 43114  # Avalanche
+    token_address: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E"
+  - token_amount: 2000  # $0.002 USDC.e
+    chain_id: 1187947933  # SKALE Base
+    token_address: "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20"

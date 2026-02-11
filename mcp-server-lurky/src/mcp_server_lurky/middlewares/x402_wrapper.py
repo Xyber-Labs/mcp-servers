@@ -49,6 +49,7 @@ _EXPLORER_BASE: dict[str, str] = {
     "eip155:10": "https://optimistic.etherscan.io",
     "eip155:42161": "https://arbiscan.io",
     "eip155:137": "https://polygonscan.com",
+    "eip155:1187947933": "https://skale-base-explorer.skalenodes.com",  # SKALE Base
 }
 
 
@@ -150,6 +151,11 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
 
         try:
             payment_dict = json.loads(safe_base64_decode(payment_header))
+            payment_dict["resource"] = {
+                "url": str(request.url),
+                "description": "API access",
+                "mimeType": "application/json",
+            }
             payment = PaymentPayload(**payment_dict)
         except Exception as e:
             client_host = request.client.host if request.client else "<unknown>"

@@ -16,18 +16,96 @@ import yaml
 from pydantic import BaseModel, Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from x402.http import AuthHeaders, FacilitatorConfig
+from x402.mechanisms.evm.utils import NETWORK_CONFIGS
 
 logger = logging.getLogger(__name__)
 
+
+def _register_custom_evm_networks() -> None:
+    """Register custom EVM networks not yet in x402 library."""
+    # SKALE Base (L3 on Base) - launched Jan 2026
+    # Docs: https://docs.skale.space/welcome/skale-on-base
+    if "eip155:1187947933" not in NETWORK_CONFIGS:
+        NETWORK_CONFIGS["eip155:1187947933"] = {
+            "chain_id": 1187947933,
+            "default_asset": {
+                "address": "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20",
+                "name": "Bridged USDC (SKALE Bridge)",  # Must match Kobaru's expected name
+                "version": "2",
+                "decimals": 6,
+            },
+            "supported_assets": {
+                "USDC": {
+                    "address": "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20",
+                    "name": "Bridged USDC (SKALE Bridge)",  # Must match Kobaru's expected name
+                    "version": "2",
+                    "decimals": 6,
+                },
+                "USDT": {
+                    "address": "0x2bF5bF154b515EaA82C31a65ec11554fF5aF7fCA",
+                    "name": "Tether USD",
+                    "version": "1",
+                    "decimals": 6,
+                },
+            },
+        }
+        logger.info("Registered custom EVM network: SKALE Base (eip155:1187947933)")
+
+
+# Register custom networks at module load time
+_register_custom_evm_networks()
+
 # Mapping from chain_id to CAIP-2 network identifier
 # See: https://chainagnostic.org/CAIPs/caip-2
-CHAIN_ID_TO_NETWORK: dict[int, str] = {
+# EVM networks use integer chain IDs, Solana uses string identifiers
+CHAIN_ID_TO_NETWORK: dict[int | str, str] = {
+    # EVM Networks (integer chain_id -> CAIP-2)
     1: "eip155:1",  # Ethereum Mainnet
     8453: "eip155:8453",  # Base Mainnet
     84532: "eip155:84532",  # Base Sepolia
     10: "eip155:10",  # Optimism
     42161: "eip155:42161",  # Arbitrum One
     137: "eip155:137",  # Polygon
+    43114: "eip155:43114",  # Avalanche C-Chain (AVAX)
+    1187947933: "eip155:1187947933",  # SKALE Base (L3 on Base)
+    # Solana Networks (string identifier -> CAIP-2)
+    "solana": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",  # Solana Mainnet
+}
+
+# Network type classification for scheme registration
+EVM_NETWORKS = {
+    "eip155:1",  # Ethereum
+    "eip155:8453",  # Base
+    "eip155:84532",  # Base Sepolia
+    "eip155:10",  # Optimism
+    "eip155:42161",  # Arbitrum One
+    "eip155:137",  # Polygon
+    "eip155:43114",  # Avalanche
+    "eip155:1187947933",  # SKALE Base
+}
+SOLANA_NETWORKS = {
+    "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",  # Solana Mainnet
+}
+
+# Common stablecoin token addresses per network (for reference in tool_pricing.yaml)
+# All stablecoins use 6 decimals, so 1 USD = 1,000,000 token_amount
+USDC_ADDRESSES = {
+    "eip155:1": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",  # Ethereum
+    "eip155:8453": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",  # Base
+    "eip155:84532": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",  # Base Sepolia
+    "eip155:10": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",  # Optimism
+    "eip155:42161": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",  # Arbitrum One
+    "eip155:137": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",  # Polygon
+    "eip155:43114": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",  # Avalanche
+    "eip155:1187947933": "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20",  # SKALE Base (USDC.e)
+    "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",  # Solana
+}
+
+USDT_ADDRESSES = {
+    "eip155:1": "0xdAC17F958D2ee523a2206206994597C13D831ec7",  # Ethereum
+    "eip155:43114": "0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7",  # Avalanche
+    "eip155:1187947933": "0x2bF5bF154b515EaA82C31a65ec11554fF5aF7fCA",  # SKALE Base
+    "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",  # Solana
 }
 
 # Determine project root for .env file loading
@@ -43,9 +121,13 @@ class PaymentOptionConfig(BaseModel):
 
     Note: token_amount should be specified in the token's smallest unit.
     For example, USDC has 6 decimals, so 1 USDC = 1,000,000 token_amount.
+
+    chain_id can be:
+    - An integer for EVM networks (e.g., 8453 for Base, 43114 for Avalanche, 1187947933 for SKALE Base)
+    - A string for Solana networks (e.g., "solana" or "solana-devnet")
     """
 
-    chain_id: int
+    chain_id: int | str
     token_address: str
     token_amount: int = Field(ge=0)
 
@@ -66,8 +148,12 @@ class X402Config(BaseSettings):
     )
 
     pricing_mode: Literal["off", "on"] = "off"
-    payee_wallet_address: str | None = None
-    facilitator_url: str | None = None
+    # EVM wallet address (0x...) - used for Base, Avalanche, SKALE Base, Ethereum, etc.
+    payee_evm_address: str | None = None
+    # Solana wallet address (Base58) - used for Solana
+    payee_solana_address: str | None = None
+    # Default to Kobaru facilitator for SKALE Base support
+    facilitator_url: str | None = "https://facilitator.kobaru.org/v2"
     cdp_api_key_id: str | None = None
     cdp_api_key_secret: str | None = None
 
@@ -157,7 +243,7 @@ class X402Config(BaseSettings):
                 )
                 return None
         if self.facilitator_url:
-            logger.info(f"Using public facilitator at {self.facilitator_url}")
+            logger.info(f"Using facilitator at {self.facilitator_url}")
             return FacilitatorConfig(url=self.facilitator_url)
         return None
 
@@ -187,59 +273,10 @@ class X402Config(BaseSettings):
                     f"expected a YAML mapping (dict) but got {type(pricing_data).__name__}"
                 )
 
-            # Extract actual pricing dict
-            tools_pricing = pricing_data.get("pricing", pricing_data)
-
-            # If the yaml has a "pricing" key, use that. Otherwise assume the whole file is the pricing dict.
-            # But wait, our tool_pricing.yaml structure is:
-            # wallet_address: "..."
-            # pricing:
-            #   tool_name:
-            #     price_per_request: 0.5
-            #     currency: "USDC"
-
-            if "pricing" in pricing_data:
-                tools_pricing = pricing_data["pricing"]
-
-            validated_pricing = {}
-
-            # Helper to map currency to chain_id/address
-            # For simplicity, let's hardcode USDC on Base (8453) for now as an example,
-            # or we need a way to map "USDC" to specific chain/token in the config code.
-            # However, PaymentOption expects chain_id and token_address.
-            # The user provided YAML has 'price_per_request' and 'currency'.
-            # We need to adapt this parsing logic to support the user's simplified YAML format.
-
-            USDC_BASE_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-            BASE_CHAIN_ID = 8453
-            USDC_DECIMALS = 6
-
-            for op_id, opts in tools_pricing.items():
-                if isinstance(opts, dict) and "price_per_request" in opts:
-                    # Handle simplified format
-                    price = Decimal(str(opts["price_per_request"]))
-                    currency = opts.get("currency", "USDC")
-
-                    if currency == "USDC":
-                        token_amount = int(price * (Decimal(10) ** USDC_DECIMALS))
-                        validated_pricing[op_id] = [
-                            PaymentOptionConfig(
-                                chain_id=BASE_CHAIN_ID,
-                                token_address=USDC_BASE_ADDRESS,
-                                token_amount=token_amount,
-                            )
-                        ]
-                    else:
-                        logger.warning(
-                            f"Unsupported currency {currency} for {op_id}. Skipping."
-                        )
-                elif isinstance(opts, list):
-                    # Handle full format (list of options)
-                    validated_pricing[op_id] = [
-                        PaymentOptionConfig(**opt) for opt in opts
-                    ]
-                else:
-                    logger.warning(f"Invalid pricing format for {op_id}. Skipping.")
+            validated_pricing = {
+                op_id: [PaymentOptionConfig(**opt) for opt in opts]
+                for op_id, opts in pricing_data.items()
+            }
 
         except yaml.YAMLError as e:
             raise ValueError(f"Invalid YAML syntax: {e}") from e
@@ -331,6 +368,12 @@ class X402Config(BaseSettings):
                     f"  - The operation_id '{op_id}' is priced in your tool_pricing.yaml, "
                     "but no corresponding endpoint was found. (Typo?)"
                 )
+
+    def get_payee_address(self, network: str) -> str | None:
+        """Get the appropriate payee address for a given CAIP-2 network identifier."""
+        if network in SOLANA_NETWORKS:
+            return self.payee_solana_address
+        return self.payee_evm_address
 
 
 @lru_cache(maxsize=1)
