@@ -9,7 +9,7 @@ import os
 # Set pricing mode to off for testing
 os.environ["MCP_TELEGRAM_PARSER_X402_PRICING_MODE"] = "off"
 
-from mcp_server_telegram_parser.__main__ import create_app
+from mcp_server_telegram_parser.app import create_app
 from mcp_server_telegram_parser.hybrid_routers import routers
 from mcp_server_telegram_parser.x402_config import get_x402_settings
 
