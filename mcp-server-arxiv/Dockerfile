@@ -31,7 +31,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-COPY tool_pricing.yaml .
+# Copy the tool pricing file from the builder stage
+COPY --from=builder /app/tool_pricing.yaml .
 
 CMD ["tail", "-f", "/dev/null"]
 
@@ -44,7 +45,8 @@ COPY --from=builder /app/.venv /app/.venv
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-COPY tool_pricing.yaml .
+# Copy the tool pricing file from the builder stage
+COPY --from=builder /app/tool_pricing.yaml .
 
 CMD ["python", "-m", "mcp_server_arxiv", "--host", "0.0.0.0", "--port", "8000"]
 

@@ -36,7 +36,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Make container use python installed inside the venv
 ENV PATH="/app/.venv/bin:$PATH"
 
-COPY tool_pricing.yaml .
+# Copy the tool pricing file from the builder stage
+COPY --from=builder /app/tool_pricing.yaml .
 
 CMD ["tail", "-f", "/dev/null"]
 
@@ -47,7 +48,8 @@ WORKDIR /app
 
 COPY --from=builder /app/.venv /app/.venv
 
-COPY tool_pricing.yaml .
+# Copy the tool pricing file from the builder stage
+COPY --from=builder /app/tool_pricing.yaml .
 
 ENV PATH="/app/.venv/bin:$PATH"
 
