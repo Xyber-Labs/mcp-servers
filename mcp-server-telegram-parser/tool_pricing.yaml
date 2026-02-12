@@ -1,6 +1,5 @@
 # This file defines the payment options for all x402-protected endpoints.
 # The key for each entry is the endpoint's unique `operation_id`.
-# Payee wallet: 0x967018f889f9d277D96FA9589f8f04444dE00F98
 
 # --- Paid Hybrid Endpoints (REST + MCP) ---
 telegram_parser_parse_channels:
