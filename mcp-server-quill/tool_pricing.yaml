@@ -2,34 +2,34 @@
 # Supports: Base, Avalanche, SKALE Base
 
 search_token_address:
-  - token_amount: 1000  # $0.001 USDC
+  - token_amount: 500000  # $0.50 USDC
     chain_id: 8453  # Base
     token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-  - token_amount: 1000  # $0.001 USDC
+  - token_amount: 500000  # $0.50 USDC
     chain_id: 43114  # Avalanche
     token_address: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E"
-  - token_amount: 1000  # $0.001 USDC.e
+  - token_amount: 500000  # $0.50 USDC
     chain_id: 1187947933  # SKALE Base
     token_address: "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20"
 
 get_evm_token_info:
-  - token_amount: 2000  # $0.002 USDC
+  - token_amount: 500000  # $0.50 USDC
     chain_id: 8453  # Base
     token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-  - token_amount: 2000  # $0.002 USDC
+  - token_amount: 500000  # $0.50 USDC
     chain_id: 43114  # Avalanche
     token_address: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E"
-  - token_amount: 2000  # $0.002 USDC.e
+  - token_amount: 500000  # $0.50 USDC
     chain_id: 1187947933  # SKALE Base
     token_address: "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20"
 
 get_solana_token_info:
-  - token_amount: 2000  # $0.002 USDC
+  - token_amount: 500000  # $0.50 USDC
     chain_id: 8453  # Base
     token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-  - token_amount: 2000  # $0.002 USDC
+  - token_amount: 500000  # $0.50 USDC
     chain_id: 43114  # Avalanche
     token_address: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E"
-  - token_amount: 2000  # $0.002 USDC.e
+  - token_amount: 500000  # $0.50 USDC
     chain_id: 1187947933  # SKALE Base
     token_address: "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20"
