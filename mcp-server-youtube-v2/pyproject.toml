@@ -24,12 +24,12 @@ dependencies = [
     "cdp-sdk>=1.33.2",
     "httpx>=0.25.0",
     "pyyaml",
-    "x402==0.2.1",
     "apify-client>=1.0.0",
     "python-dotenv>=1.0.0",
     "pydantic>=2.0.0",
     "sqlalchemy>=2.0.0",
     "psycopg[binary]>=2.9.0",
+    "x402>=2.0.0",
 ]
 
 [dependency-groups]

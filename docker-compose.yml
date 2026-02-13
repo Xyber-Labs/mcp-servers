@@ -210,6 +210,32 @@ services:
       - ./mcp-server-quill/.env
     restart: unless-stopped
 
+  mcp_server_wikipedia:
+    build:
+      context: ./mcp-server-wikipedia
+      dockerfile: Dockerfile
+    image: mcp_server_wikipedia
+    container_name: mcp_server_wikipedia
+    command: ["python", "-m", "mcp_server_wikipedia", "--port", "8117"]
+    ports:
+      - "8117:8117"
+    env_file:
+      - ./mcp-server-wikipedia/.env
+    restart: unless-stopped
+
+  mcp_server_gitparser:
+    build:
+      context: ./mcp-server-gitparser
+      dockerfile: Dockerfile
+    image: mcp_server_gitparser
+    container_name: mcp_server_gitparser
+    command: ["python", "-m", "mcp_server_gitparser", "--port", "8118"]
+    ports:
+      - "8118:8118"
+    env_file:
+      - ./mcp-server-gitparser/.env
+    restart: unless-stopped
+
   qdrant:
     image: qdrant/qdrant:latest
     container_name: qdrant_storage

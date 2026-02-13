@@ -35,7 +35,7 @@ if __name__ == "__main__":
     logger.info(f"Starting Wikipedia MCP server on {args.host}:{args.port}")
 
     uvicorn.run(
-        "mcp_server_wikipedia.__main__:create_app",
+        "mcp_server_wikipedia.app:create_app",
         host=args.host,
         port=args.port,
         reload=args.reload,

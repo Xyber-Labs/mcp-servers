@@ -44,7 +44,7 @@ services:
       target: dev
     image: mcp_server_arxiv_debug
     container_name: mcp_server_arxiv_debug
-    command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5701", "--wait-for-client", "-m", "mcp_server_arxiv", "--port", "8101", "--reload"]
+    command: ["python", "-m", "mcp_server_arxiv", "--port", "8101", "--reload"]
     ports:
       - "8101:8101"
       - "5701:5701"
@@ -95,7 +95,7 @@ services:
       target: dev
     image: mcp_server_lurky_debug
     container_name: mcp_server_lurky_debug
-    command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5715", "--wait-for-client", "-m", "mcp_server_lurky"]
+    command: ["python", "-m", "mcp_server_lurky"]
     ports:
       - "8115:8115"
       - "5715:5715"
@@ -106,24 +106,6 @@ services:
     environment:
       MCP_LURKY_PORT: "8115"
       MCP_LURKY_HOT_RELOAD: "true"
-      <<: *debug-env
-
-  mcp_server_quill:
-    build:
-      context: ./mcp-server-quill
-      dockerfile: Dockerfile
-      target: dev
-    image: mcp_server_quill_debug
-    container_name: mcp_server_quill_debug
-    command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5716", "--wait-for-client", "-m", "mcp_server_quill", "--port", "8116", "--reload"]
-    ports:
-      - "8116:8116"
-      - "5716:5716"
-    volumes:
-      - ./mcp-server-quill/src/mcp_server_quill:/app/mcp_server_quill:ro
-    env_file: ./mcp-server-quill/.env
-    restart: unless-stopped
-    environment:
       <<: *debug-env
 
   mcp_server_qdrant:
@@ -169,7 +151,7 @@ services:
       target: dev
     image: mcp_server_tavily_debug
     container_name: mcp_server_tavily_debug
-    command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5708", "--wait-for-client", "-m", "mcp_server_tavily", "--port", "8108", "--reload"]
+    command: ["python", "-m", "mcp_server_tavily", "--port", "8108", "--reload"]
     ports:
       - "8108:8108"
       - "5708:5708"
@@ -186,7 +168,7 @@ services:
       target: dev
     image: mcp_server_telegram_debug
     container_name: mcp_server_telegram_debug
-    command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5709", "--wait-for-client", "-m", "mcp_server_telegram", "--port", "8109", "--reload"]
+    command: ["python", "-m", "mcp_server_tavily", "--port", "8109", "--reload"]
     ports:
       - "8109:8109"
       - "5709:5709"
@@ -274,13 +256,49 @@ services:
       target: dev
     image: mcp_server_youtube_debug
     container_name: mcp_server_youtube_debug
-    command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5714", "--wait-for-client", "-m", "mcp_server_youtube", "--port", "8114", "--reload"]
+    command: ["python", "-m", "mcp_server_youtube", "--port", "8114", "--reload"]
     ports:
       - "8114:8114"
       - "5714:5714"
     volumes:
       - ./mcp-server-youtube-v2/src/mcp_server_youtube:/app/mcp_server_youtube:ro
     env_file: ./mcp-server-youtube-v2/.env
+    restart: unless-stopped
+    environment:
+      <<: *debug-env
+
+  mcp_server_wikipedia:
+    build:
+      context: ./mcp-server-wikipedia
+      dockerfile: Dockerfile
+      target: dev
+    image: mcp_server_wikipedia_debug
+    container_name: mcp_server_wikipedia_debug
+    command: ["python", "-m", "mcp_server_wikipedia", "--port", "8117", "--reload"]
+    ports:
+      - "8117:8117"
+      - "5717:5717"
+    volumes:
+      - ./mcp-server-wikipedia/src/mcp_server_wikipedia:/app/mcp_server_wikipedia:ro
+    env_file: ./mcp-server-wikipedia/.env
+    restart: unless-stopped
+    environment:
+      <<: *debug-env
+
+  mcp_server_gitparser:
+    build:
+      context: ./mcp-server-gitparser
+      dockerfile: Dockerfile
+      target: dev
+    image: mcp_server_gitparser_debug
+    container_name: mcp_server_gitparser_debug
+    command: ["python", "-m", "mcp_server_gitparser", "--port", "8118", "--reload"]
+    ports:
+      - "8118:8118"
+      - "5718:5718"
+    volumes:
+      - ./mcp-server-gitparser/src/mcp_server_gitparser:/app/mcp_server_gitparser:ro
+    env_file: ./mcp-server-gitparser/.env
     restart: unless-stopped
     environment:
       <<: *debug-env

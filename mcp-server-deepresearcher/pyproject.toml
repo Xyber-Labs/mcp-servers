@@ -34,7 +34,7 @@ dependencies = [
     "langchain-mcp-adapters",
     "langfuse>=2.0.0",
     # x402 Payment Dependencies
-    "x402==0.2.1",
+    "x402[evm]>=2.0.0",
     "cdp-sdk>=1.33.2",
     "pyyaml",
     "psycopg2-binary>=2.9.9",

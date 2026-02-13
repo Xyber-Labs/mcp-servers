@@ -1,35 +1,35 @@
-# Lurky Twitter Spaces - $0.10 per call
+# Lurky Twitter Spaces - $0.01 per call 
 # Supports: Base, Avalanche, SKALE Base
 
 lurky_search_spaces:
-  - token_amount: 100000  # $0.10 USDC
+  - token_amount: 10000  # $0.01 USDC
     chain_id: 8453  # Base
     token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-  - token_amount: 100000  # $0.10 USDC
+  - token_amount: 10000  # $0.01 USDC
     chain_id: 43114  # Avalanche
     token_address: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E"
-  - token_amount: 100000  # $0.10 USDC.e
+  - token_amount: 10000  # $0.01 USDC.e
     chain_id: 1187947933  # SKALE Base
     token_address: "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20"
 
 lurky_get_space_details:
-  - token_amount: 100000  # $0.10 USDC
+  - token_amount: 10000  # $0.01 USDC
     chain_id: 8453  # Base
     token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-  - token_amount: 100000  # $0.10 USDC
+  - token_amount: 10000  # $0.01 USDC
     chain_id: 43114  # Avalanche
     token_address: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E"
-  - token_amount: 100000  # $0.10 USDC.e
+  - token_amount: 10000  # $0.01 USDC.e
     chain_id: 1187947933  # SKALE Base
     token_address: "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20"
 
 lurky_get_latest_summaries:
-  - token_amount: 100000  # $0.10 USDC
+  - token_amount: 10000  # $0.01 USDC
     chain_id: 8453  # Base
     token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-  - token_amount: 100000  # $0.10 USDC
+  - token_amount: 10000  # $0.01 USDC
     chain_id: 43114  # Avalanche
     token_address: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E"
-  - token_amount: 100000  # $0.10 USDC.e
+  - token_amount: 10000  # $0.01 USDC.e
     chain_id: 1187947933  # SKALE Base
     token_address: "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20"

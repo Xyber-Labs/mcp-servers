@@ -19,11 +19,11 @@ dependencies = [
     "cdp-sdk>=1.33.2",
     "httpx>=0.25.0",
     "pyyaml",
-    "x402==0.2.1",
     # ArXiv-specific dependencies
     "arxiv>=2.0.0",
     "PyPDF2>=3.0.0",
-    "PyMuPDF>=1.23.0"
+    "PyMuPDF>=1.23.0",
+    "x402>=2.0.0",
 ]
 
 [dependency-groups]
