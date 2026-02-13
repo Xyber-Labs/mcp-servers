@@ -124,7 +124,7 @@ These interfaces allow you to explore all REST-accessible endpoints, view their 
    # x402 Payment Configuration (Optional)
    # ============================================================================
    MCP_DEEP_RESEARCHER_X402_PRICING_MODE=off              # "on" or "off" (default: "on")
-   MCP_DEEP_RESEARCHER_X402_PAYEE_WALLET_ADDRESS=""      # Optional: Wallet address for payments
+   MCP_DEEP_RESEARCHER_X402_PAYEE_EVM_ADDRESS=""      # Optional: Wallet address for payments
 
    # CDP Facilitator (for mainnet payments)
    MCP_DEEP_RESEARCHER_X402_CDP_API_KEY_ID=""            # Optional: CDP API key ID
@@ -438,7 +438,7 @@ deep_research:
 ```dotenv
 # x402 Configuration
 MCP_DEEP_RESEARCHER_X402_PRICING_MODE=on  # or "off" to disable
-MCP_DEEP_RESEARCHER_X402_PAYEE_WALLET_ADDRESS=your_wallet_address
+MCP_DEEP_RESEARCHER_X402_PAYEE_EVM_ADDRESS=your_wallet_address
 
 # CDP Facilitator (for mainnet)
 MCP_DEEP_RESEARCHER_X402_CDP_API_KEY_ID=your_cdp_key_id

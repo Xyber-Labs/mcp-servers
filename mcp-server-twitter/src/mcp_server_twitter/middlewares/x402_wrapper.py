@@ -285,7 +285,7 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
                 network=network,
                 asset=option.token_address,
                 amount=str(option.token_amount),
-                pay_to=self.settings.payee_wallet_address,
+                pay_to=self.settings.payee_evm_address,
                 max_timeout_seconds=60,
                 extra={},
             )

@@ -67,7 +67,7 @@ async def payment_app(
 
     settings = SimpleNamespace(
         facilitator_config={"url": "https://facilitator"},
-        payee_wallet_address="0xD23ef9BAf3A2A9a9feb8035e4b3Be41878faF515",
+        payee_evm_address="0xD23ef9BAf3A2A9a9feb8035e4b3Be41878faF515",
     )
     monkeypatch.setattr(
         "mcp_server_deepresearcher.middlewares.x402_wrapper.get_x402_settings",
@@ -190,7 +190,7 @@ async def test_free_endpoint_bypasses_middleware(
 
     settings = SimpleNamespace(
         facilitator_config={"url": "https://facilitator"},
-        payee_wallet_address="0xD23ef9BAf3A2A9a9feb8035e4b3Be41878faF515",
+        payee_evm_address="0xD23ef9BAf3A2A9a9feb8035e4b3Be41878faF515",
     )
     monkeypatch.setattr(
         "mcp_server_deepresearcher.middlewares.x402_wrapper.get_x402_settings",
@@ -247,7 +247,7 @@ async def test_middleware_disabled_when_no_facilitator(
     """Test that middleware is disabled when no facilitator is configured."""
     settings = SimpleNamespace(
         facilitator_config=None,
-        payee_wallet_address=None,
+        payee_evm_address=None,
     )
     monkeypatch.setattr(
         "mcp_server_deepresearcher.middlewares.x402_wrapper.get_x402_settings",

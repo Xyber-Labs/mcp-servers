@@ -40,7 +40,14 @@ class DependencyContainer:
 
         config = get_lurky_config()
         cls._lurky_client = LurkyClient(config)
-        cls._db_manager = create_db_manager()
+
+        # Database is optional - used for caching only
+        try:
+            cls._db_manager = create_db_manager()
+            logger.info("Database connection established (caching enabled).")
+        except Exception as e:
+            logger.warning(f"Database not available, caching disabled: {e}")
+            cls._db_manager = None
 
         logger.info("Dependencies initialized successfully.")
 
@@ -75,19 +82,17 @@ class DependencyContainer:
         return cls._lurky_client
 
     @classmethod
-    def get_db_manager(cls) -> DatabaseManager:
+    def get_db_manager(cls) -> DatabaseManager | None:
         """
-        Get the DatabaseManager instance.
+        Get the DatabaseManager instance (optional - may be None if DB unavailable).
 
         Usage as FastAPI dependency:
             @router.get("/spaces")
-            async def get_spaces(db: DatabaseManager = Depends(get_db)):
+            async def get_spaces(db: DatabaseManager | None = Depends(get_db)):
+                if db:
+                    # use caching
                 ...
         """
-        if cls._db_manager is None:
-            raise RuntimeError(
-                "DependencyContainer not initialized. Call DependencyContainer.initialize() first."
-            )
         return cls._db_manager
 
 

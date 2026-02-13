@@ -71,7 +71,7 @@ async def payment_app(
 
     settings = SimpleNamespace(
         facilitator_config=SimpleNamespace(url="https://facilitator"),
-        payee_wallet_address="0xD23ef9BAf3A2A9a9feb8035e4b3Be41878faF515",
+        payee_evm_address="0xD23ef9BAf3A2A9a9feb8035e4b3Be41878faF515",
     )
     monkeypatch.setattr(
         "mcp_server_weather.middlewares.x402_wrapper.get_x402_settings",

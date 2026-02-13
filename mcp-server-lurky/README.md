@@ -163,7 +163,7 @@ This server uses the x402 protocol for monetization. Pricing for each tool and e
 To enable payments, configure the following in your `.env`:
 ```bash
 MCP_LURKY_X402_PRICING_MODE=on
-MCP_LURKY_X402_PAYEE_WALLET_ADDRESS=your_wallet_address
+MCP_LURKY_X402_PAYEE_EVM_ADDRESS=your_wallet_address
 MCP_LURKY_X402_CDP_API_KEY_ID=your_cdp_id
 MCP_LURKY_X402_CDP_API_KEY_SECRET=your_cdp_secret
 ```

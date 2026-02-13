@@ -232,7 +232,7 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
                     resource=str(request.url),
                     description=f"Payment for {request.url.path}",
                     mime_type=request.headers.get("content-type", ""),
-                    pay_to=self.settings.payee_wallet_address,
+                    pay_to=self.settings.payee_evm_address,
                     max_timeout_seconds=60,
                     extra={
                         "name": token_name,
