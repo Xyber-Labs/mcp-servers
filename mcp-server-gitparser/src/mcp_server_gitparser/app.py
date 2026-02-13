@@ -10,6 +10,8 @@ from mcp_server_gitparser.api_routers import routers as api_routers
 from mcp_server_gitparser.config import get_app_settings
 from mcp_server_gitparser.hybrid_routers import routers as hybrid_routers
 from mcp_server_gitparser.mcp_routers import routers as mcp_routers
+from mcp_server_gitparser.middlewares import X402WrapperMiddleware
+from mcp_server_gitparser.x402_config import get_x402_settings
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +82,21 @@ It exposes the same functionality via:
 
     # Mount the MCP server at /mcp
     app.mount("/mcp", mcp_app)
+
+    # --- Pricing Configuration Validation ---
+    x402_settings = get_x402_settings()
+    x402_settings.validate_pricing_mode()
+
+    # Validate that all priced endpoints actually exist
+    all_routes = app.routes + mcp_source_app.routes
+    x402_settings.validate_against_routes(all_routes)
+
+    # --- Middleware Configuration ---
+    if x402_settings.pricing_mode == "on":
+        app.add_middleware(X402WrapperMiddleware, tool_pricing=x402_settings.pricing)
+        logger.info("x402 payment middleware enabled.")
+    else:
+        logger.info("x402 payment middleware disabled (pricing_mode='off').")
 
     logger.info("Application setup complete.")
     return app
