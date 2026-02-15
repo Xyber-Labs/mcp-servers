@@ -8,6 +8,8 @@ import logging
 
 from fastapi import APIRouter
 
+from mcp_server_weather.schemas import GeolocationResponse
+
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
@@ -19,8 +21,9 @@ router = APIRouter()
     # tool. While optional in FastAPI, it is CRUCIAL for this template as it's
     # used by the pricing system and other integrations. Always define one.
     operation_id="geolocate_city",
+    response_model=GeolocationResponse,
 )
-async def geolocate_city(city: str) -> dict:
+async def geolocate_city(city: str) -> GeolocationResponse:
     """
     Converts a city name to geographic coordinates.
 
@@ -39,8 +42,8 @@ async def geolocate_city(city: str) -> dict:
     }
 
     coords = city_coords.get(city, {"latitude": 0.0, "longitude": 0.0})
-    return {
-        "city": city,
-        "latitude": coords["latitude"],
-        "longitude": coords["longitude"],
-    }
+    return GeolocationResponse(
+        city=city,
+        latitude=coords["latitude"],
+        longitude=coords["longitude"],
+    )

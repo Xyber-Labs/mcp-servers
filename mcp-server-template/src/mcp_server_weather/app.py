@@ -16,7 +16,7 @@ from mcp_server_weather.dependencies import DependencyContainer
 from mcp_server_weather.hybrid_routers import routers as hybrid_routers
 from mcp_server_weather.mcp_routers import routers as mcp_routers
 from mcp_server_weather.middlewares import X402WrapperMiddleware
-from mcp_server_weather.x402_config import get_x402_settings
+from mcp_server_weather.x402_integration import get_x402_settings
 
 logger = logging.getLogger(__name__)
 

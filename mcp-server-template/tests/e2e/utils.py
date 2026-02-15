@@ -141,3 +141,52 @@ async def call_mcp_tool_with_client(
         "mcp-session-id": session_id,
     }
     return await client.post("/mcp/", json=payload, headers=headers)
+
+
+# ============================================================================
+# MCP Response Parsing & Validation
+# ============================================================================
+
+
+def parse_mcp_response(response: httpx.Response) -> dict[str, Any]:
+    """Parse and validate MCP JSON-RPC response structure.
+
+    Ensures the MCP call succeeded and returns the result content.
+    Raises AssertionError if the MCP response indicates an error.
+    """
+    import json
+
+    assert response.status_code == 200, f"MCP request failed with status {response.status_code}"
+
+    # Handle SSE format responses (event: message\r\ndata: {...})
+    response_text = response.text
+    if response_text.startswith("event:"):
+        # Extract JSON from SSE format
+        lines = response_text.split("\n")
+        for line in lines:
+            if line.startswith("data:"):
+                json_str = line[5:].strip()  # Remove "data:" prefix
+                body = json.loads(json_str)
+                break
+        else:
+            raise AssertionError(f"No data line found in SSE response: {response_text[:200]}")
+    else:
+        # Regular JSON response
+        body = response.json()
+
+    assert "error" not in body or body.get("error") is None, f"MCP returned error: {body.get('error')}"
+    assert "result" in body, "MCP response missing 'result' field"
+
+    result = body["result"]
+
+    # Check if structuredContent is available (preferred)
+    if "structuredContent" in result:
+        return result["structuredContent"]
+
+    # Fallback to parsing text content
+    assert "content" in result, "MCP result missing 'content' field"
+    assert len(result["content"]) > 0, "MCP result content is empty"
+
+    # Parse the tool output from the first content item
+    content_text = result["content"][0].get("text", "")
+    return json.loads(content_text)

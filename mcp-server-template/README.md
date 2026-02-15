@@ -133,7 +133,12 @@ mcp-server-template/
 │       ├── hybrid_routers/          # Hybrid endpoints (REST + MCP)
 │       ├── mcp_routers/             # MCP-Only endpoints
 │       ├── middlewares/
-│       │   └── x402.py              # x402 payment middleware
+│       │   └── x402_wrapper.py      # x402 payment middleware
+│       │
+│       ├── x402_integration/        # x402 payment integration domain layer
+│       │   ├── __init__.py          # Public API exports
+│       │   ├── config.py            # x402 configuration & pricing
+│       │   └── blockchain.py        # Blockchain constants & utilities
 │       │
 │       └── weather/                 # Business logic layer
 │           ├── __init__.py

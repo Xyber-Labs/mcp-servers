@@ -237,13 +237,14 @@ services:
       target: dev
     image: mcp_server_weather_debug
     container_name: mcp_server_weather_debug
-    command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5713", "--wait-for-client", "-m", "mcp_server_weather", "--port", "8113", "--reload"]
-    # command: ["python", "-m", "mcp_server_weather", "--port", "8113", "--reload"]
+    #command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5713", "--wait-for-client", "-m", "mcp_server_weather", "--port", "8113", "--reload"]
+    command: ["python", "-m", "mcp_server_weather", "--port", "8113", "--reload"]
     ports:
       - "8113:8113"
       - "5713:5713"
     volumes:
       - ./mcp-server-template/src/mcp_server_weather:/app/mcp_server_weather:ro
+      - ./mcp-server-template/tool_pricing.dev.yaml:/app/tool_pricing.yaml:ro  
     env_file: ./mcp-server-template/.env
     restart: unless-stopped
     environment:

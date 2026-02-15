@@ -11,7 +11,7 @@ from httpx import ASGITransport, AsyncClient
 from x402.http import safe_base64_encode
 
 from mcp_server_weather.middlewares import X402WrapperMiddleware
-from mcp_server_weather.x402_config import PaymentOptionConfig
+from mcp_server_weather.x402_integration.config import PaymentOptionConfig
 
 
 class DummyServer:
@@ -55,7 +55,7 @@ def pricing() -> dict[str, list[PaymentOptionConfig]]:
             PaymentOptionConfig(
                 chain_id=84532,  # Base Sepolia - supported by public facilitator
                 token_address="0x036CbD53842c5426634e7929541eC2318f3dCF7e",  # USDC on Base Sepolia
-                token_amount=1000,
+                price_usd=0.001,  # $0.001 = 1000 token units with 6 decimals
             )
         ]
     }
@@ -69,17 +69,20 @@ async def payment_app(
 
     dummy_server = DummyServer()
 
+    # Mock facilitator config (must be a list)
+    mock_facilitator = SimpleNamespace(url="https://facilitator")
     settings = SimpleNamespace(
-        facilitator_config=SimpleNamespace(url="https://facilitator"),
-        payee_evm_address="0xD23ef9BAf3A2A9a9feb8035e4b3Be41878faF515",
+        facilitator_config=[mock_facilitator],
+        get_payee_address=lambda network: "0xD23ef9BAf3A2A9a9feb8035e4b3Be41878faF515",
     )
     monkeypatch.setattr(
         "mcp_server_weather.middlewares.x402_wrapper.get_x402_settings",
         lambda: settings,
     )
+    # Mock HTTPFacilitatorClient to return object with _url attribute
     monkeypatch.setattr(
         "mcp_server_weather.middlewares.x402_wrapper.HTTPFacilitatorClient",
-        lambda config: SimpleNamespace(),
+        lambda config: SimpleNamespace(_url=config.url),
     )
     monkeypatch.setattr(
         "mcp_server_weather.middlewares.x402_wrapper.x402ResourceServer",

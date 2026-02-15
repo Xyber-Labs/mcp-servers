@@ -55,3 +55,47 @@ class ForecastResponse(BaseModel):
     forecast: list[ForecastDayResponse] = Field(
         description="List of daily forecast data"
     )
+
+
+class GeolocationResponse(BaseModel):
+    """Response model for city geolocation."""
+
+    city: str = Field(description="City name")
+    latitude: float = Field(description="Latitude coordinate")
+    longitude: float = Field(description="Longitude coordinate")
+
+
+class WeatherAnalysisResponse(BaseModel):
+    """Response model for detailed weather analysis."""
+
+    analysis: str = Field(description="Natural language weather analysis text")
+
+
+class PricingResponse(BaseModel):
+    """Response model for pricing configuration."""
+
+    pricing: dict = Field(description="Pricing data for all endpoints")
+    message: str | None = Field(
+        default=None, description="Optional message about pricing status"
+    )
+
+
+class LogEntry(BaseModel):
+    """Single log entry."""
+
+    timestamp: str = Field(description="Log entry timestamp")
+    level: str = Field(description="Log level (INFO, WARNING, ERROR, etc.)")
+    message: str = Field(description="Log message")
+
+
+class AdminLogsResponse(BaseModel):
+    """Response model for admin logs endpoint."""
+
+    logs: list[LogEntry] = Field(description="List of log entries")
+
+
+class HealthCheckResponse(BaseModel):
+    """Response model for health check endpoint."""
+
+    status: str = Field(description="Server status")
+    service: str = Field(description="Service name")

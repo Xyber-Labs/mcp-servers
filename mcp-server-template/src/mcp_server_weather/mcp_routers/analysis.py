@@ -9,6 +9,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 
 from mcp_server_weather.dependencies import get_weather_client
+from mcp_server_weather.schemas import WeatherAnalysisResponse
 from mcp_server_weather.weather import WeatherClient
 
 logger = logging.getLogger(__name__)
@@ -22,11 +23,12 @@ router = APIRouter()
     # and the dynamic pricing configuration in `config.py` to identify this
     # specific tool for payment. It must be unique across all endpoints.
     operation_id="get_weather_analysis",
+    response_model=WeatherAnalysisResponse,
 )
 async def get_weather_analysis(
     city: str,
     weather_client: WeatherClient = Depends(get_weather_client),
-) -> str:
+) -> WeatherAnalysisResponse:
     """
     Provides a detailed, natural-language weather analysis.
 
@@ -52,7 +54,7 @@ async def get_weather_analysis(
             f"UV index is moderate; sun protection recommended during midday hours."
         )
 
-        return analysis
+        return WeatherAnalysisResponse(analysis=analysis)
 
     except Exception as e:
         logger.error(f"Error in get_weather_analysis: {e}", exc_info=True)

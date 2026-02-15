@@ -8,6 +8,8 @@ import logging
 
 from fastapi import APIRouter
 
+from mcp_server_weather.schemas import HealthCheckResponse
+
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
@@ -19,8 +21,9 @@ router = APIRouter()
     # endpoint. While optional in FastAPI, it is CRUCIAL for this template as it's
     # used by the pricing system and other integrations. Always define one.
     operation_id="get_server_health",
+    response_model=HealthCheckResponse,
 )
-async def get_server_health():
+async def get_server_health() -> HealthCheckResponse:
     """
     Returns the operational status of the server.
 
@@ -29,7 +32,7 @@ async def get_server_health():
     server health.
     """
     logger.info("Health check endpoint was called")
-    return {
-        "status": "ok",
-        "service": "mcp-server-weather",
-    }
+    return HealthCheckResponse(
+        status="ok",
+        service="mcp-server-weather",
+    )

@@ -8,6 +8,8 @@ import logging
 
 from fastapi import APIRouter
 
+from mcp_server_weather.schemas import AdminLogsResponse, LogEntry
+
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
@@ -19,8 +21,9 @@ router = APIRouter()
     # and the dynamic pricing configuration in `config.py` to identify this
     # specific endpoint for payment. It must be unique across all endpoints.
     operation_id="get_admin_logs",
+    response_model=AdminLogsResponse,
 )
-async def get_admin_logs():
+async def get_admin_logs() -> AdminLogsResponse:
     """
     Retrieves server logs for administrative purposes.
 
@@ -29,17 +32,17 @@ async def get_admin_logs():
     keeping them unavailable to AI agents.
     """
     logger.info("Paid endpoint '/admin/logs' was accessed successfully.")
-    return {
-        "logs": [
-            {
-                "timestamp": "2025-01-01T00:00:00Z",
-                "level": "INFO",
-                "message": "Server started",
-            },
-            {
-                "timestamp": "2025-01-01T00:01:00Z",
-                "level": "INFO",
-                "message": "Weather data cached",
-            },
+    return AdminLogsResponse(
+        logs=[
+            LogEntry(
+                timestamp="2025-01-01T00:00:00Z",
+                level="INFO",
+                message="Server started",
+            ),
+            LogEntry(
+                timestamp="2025-01-01T00:01:00Z",
+                level="INFO",
+                message="Weather data cached",
+            ),
         ]
-    }
+    )

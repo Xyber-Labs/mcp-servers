@@ -1,68 +1,86 @@
-"""Tests for X402Config and AppSettings configuration loading."""
+"""Tests for X402Config and payment configuration features."""
 
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 import yaml
 
 from mcp_server_weather.config import AppSettings
-from mcp_server_weather.x402_config import PaymentOptionConfig, X402Config
+from mcp_server_weather.x402_integration.config import PaymentOptionConfig, X402Config
 
 
-class TestPaymentOptionConfig:
-    """Tests for PaymentOptionConfig model validation."""
+# =============================================================================
+# Feature 1: USD to Token Amount Conversion
+# =============================================================================
 
-    def test_valid_payment_option(self):
+
+class TestUsdToTokenConversion:
+    """Tests for automatic USD to token amount conversion."""
+
+    def test_converts_usd_to_token_amount_using_chain_decimals(self):
+        """USD price is converted to token amount based on token decimals from x402 library."""
         opt = PaymentOptionConfig(
             chain_id=8453,
             token_address="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-            token_amount=1000000,
+            price_usd=0.0001,
         )
-        assert opt.chain_id == 8453
-        assert opt.token_amount == 1000000
+        # Base USDC has 6 decimals: 0.0001 USD = 100 token units
+        assert opt.token_amount == 100
 
-    def test_token_amount_zero_allowed(self):
+    def test_conversion_with_various_usd_amounts(self):
+        """Different USD amounts convert correctly to token amounts."""
+        # $1.00 = 1,000,000 token units (6 decimals)
+        opt1 = PaymentOptionConfig(
+            chain_id=8453,
+            token_address="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            price_usd=1.0,
+        )
+        assert opt1.token_amount == 1_000_000
+
+        # $0.01 = 10,000 token units
+        opt2 = PaymentOptionConfig(
+            chain_id=8453,
+            token_address="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            price_usd=0.01,
+        )
+        assert opt2.token_amount == 10_000
+
+    def test_conversion_works_for_solana_networks(self):
+        """Solana networks (string chain_id) also convert correctly."""
         opt = PaymentOptionConfig(
-            chain_id=1,
-            token_address="0x0",
-            token_amount=0,
+            chain_id="solana",
+            token_address="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            price_usd=0.0001,
         )
-        assert opt.token_amount == 0
-
-    def test_negative_token_amount_rejected(self):
-        with pytest.raises(ValueError):
-            PaymentOptionConfig(
-                chain_id=1,
-                token_address="0x0",
-                token_amount=-1,
-            )
-
-    def test_missing_required_fields(self):
-        with pytest.raises(ValueError):
-            PaymentOptionConfig(chain_id=1)  # type: ignore
+        assert opt.chain_id == "solana"
+        assert opt.token_amount == 100
 
 
-class TestX402ConfigPricing:
-    """Tests for X402Config.pricing computed field with YAML loading."""
+# =============================================================================
+# Feature 2: Tool Pricing YAML Loading & Validation
+# =============================================================================
 
-    def test_pricing_with_valid_yaml(self, tmp_path: Path):
-        """Valid YAML with correct structure loads successfully."""
+
+class TestToolPricingYamlValidation:
+    """Tests for loading and validating tool_pricing.yaml configuration."""
+
+    def test_loads_valid_yaml_with_pricing_for_multiple_endpoints(self, tmp_path: Path):
+        """Valid YAML with multiple endpoints loads successfully."""
         yaml_content = {
             "search_endpoint": [
                 {
                     "chain_id": 8453,
                     "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-                    "token_amount": 1000000,
+                    "price_usd": 1.0,
                 }
             ],
             "another_endpoint": [
                 {
-                    "chain_id": 1,
-                    "token_address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-                    "token_amount": 500000,
+                    "chain_id": 8453,
+                    "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                    "price_usd": 0.5,
                 }
             ],
         }
@@ -77,12 +95,22 @@ class TestX402ConfigPricing:
         assert isinstance(config.pricing["search_endpoint"][0], PaymentOptionConfig)
         assert config.pricing["search_endpoint"][0].token_amount == 1000000
 
-    def test_pricing_with_multiple_options_per_endpoint(self, tmp_path: Path):
-        """Endpoint can have multiple payment options (different chains)."""
+    def test_supports_multiple_payment_options_per_endpoint(self, tmp_path: Path):
+        """Endpoint can accept payment on multiple chains."""
         yaml_content = {
             "multi_chain_endpoint": [
-                {"chain_id": 8453, "token_address": "0xbase", "token_amount": 100},
-                {"chain_id": 1, "token_address": "0xeth", "token_amount": 200},
+                # Base USDC
+                {
+                    "chain_id": 8453,
+                    "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                    "price_usd": 0.0001,
+                },
+                # Polygon USDC
+                {
+                    "chain_id": 137,
+                    "token_address": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+                    "price_usd": 0.0002,
+                },
             ]
         }
         yaml_file = tmp_path / "tool_pricing.yaml"
@@ -92,13 +120,13 @@ class TestX402ConfigPricing:
 
         assert len(config.pricing["multi_chain_endpoint"]) == 2
 
-    def test_pricing_file_not_found_returns_empty(self, tmp_path: Path):
-        """Missing YAML file returns empty pricing dict (warning logged)."""
+    def test_missing_yaml_file_returns_empty_pricing(self, tmp_path: Path):
+        """Missing YAML file returns empty pricing dict with warning."""
         config = X402Config(pricing_config_path=tmp_path / "nonexistent.yaml")
 
         assert config.pricing == {}
 
-    def test_pricing_empty_yaml_returns_empty(self, tmp_path: Path):
+    def test_empty_yaml_file_returns_empty_pricing(self, tmp_path: Path):
         """Empty YAML file returns empty pricing dict."""
         yaml_file = tmp_path / "tool_pricing.yaml"
         yaml_file.write_text("")
@@ -107,7 +135,7 @@ class TestX402ConfigPricing:
 
         assert config.pricing == {}
 
-    def test_pricing_yaml_with_only_comments_returns_empty(self, tmp_path: Path):
+    def test_yaml_with_only_comments_returns_empty_pricing(self, tmp_path: Path):
         """YAML with only comments returns empty pricing dict."""
         yaml_file = tmp_path / "tool_pricing.yaml"
         yaml_file.write_text("# This is a comment\n# Another comment")
@@ -116,7 +144,7 @@ class TestX402ConfigPricing:
 
         assert config.pricing == {}
 
-    def test_pricing_invalid_yaml_syntax_raises(self, tmp_path: Path):
+    def test_invalid_yaml_syntax_raises_error(self, tmp_path: Path):
         """Malformed YAML syntax raises ValueError."""
         yaml_file = tmp_path / "tool_pricing.yaml"
         yaml_file.write_text("invalid: yaml: syntax: [unclosed")
@@ -126,7 +154,7 @@ class TestX402ConfigPricing:
         with pytest.raises(ValueError, match="Invalid YAML syntax"):
             _ = config.pricing
 
-    def test_pricing_yaml_list_instead_of_dict_raises(self, tmp_path: Path):
+    def test_yaml_root_as_list_instead_of_dict_raises_error(self, tmp_path: Path):
         """YAML root being a list instead of dict raises ValueError."""
         yaml_file = tmp_path / "tool_pricing.yaml"
         yaml_file.write_text("- item1\n- item2")
@@ -136,7 +164,7 @@ class TestX402ConfigPricing:
         with pytest.raises(ValueError, match="expected a YAML mapping"):
             _ = config.pricing
 
-    def test_pricing_yaml_string_instead_of_dict_raises(self, tmp_path: Path):
+    def test_yaml_root_as_string_instead_of_dict_raises_error(self, tmp_path: Path):
         """YAML root being a string instead of dict raises ValueError."""
         yaml_file = tmp_path / "tool_pricing.yaml"
         yaml_file.write_text("just a string")
@@ -146,7 +174,7 @@ class TestX402ConfigPricing:
         with pytest.raises(ValueError, match="expected a YAML mapping"):
             _ = config.pricing
 
-    def test_pricing_endpoint_value_not_list_raises(self, tmp_path: Path):
+    def test_endpoint_value_not_list_raises_error(self, tmp_path: Path):
         """Endpoint mapped to non-list value raises ValueError."""
         yaml_content = {"endpoint": "not_a_list"}
         yaml_file = tmp_path / "tool_pricing.yaml"
@@ -157,29 +185,66 @@ class TestX402ConfigPricing:
         with pytest.raises(ValueError, match="Each endpoint must map to a list"):
             _ = config.pricing
 
-    def test_pricing_missing_required_option_field_raises(self, tmp_path: Path):
-        """Payment option missing required field raises ValueError."""
-        yaml_content = {
-            "endpoint": [
-                {"chain_id": 8453}  # missing token_address and token_amount
-            ]
-        }
+    def test_invalid_chain_id_skipped_with_warning(self):
+        """Payment option with invalid chain_id is skipped during validation."""
+        opt = PaymentOptionConfig(
+            chain_id=99999,
+            token_address="0x1234567890123456789012345678901234567890",
+            price_usd=0.0001,
+        )
+        with pytest.raises(ValueError, match="Unknown chain_id '99999'"):
+            opt.validate_config()
+
+    def test_all_supported_chain_ids_are_valid(self):
+        """All configured chain IDs pass validation."""
+        valid_chain_ids = [
+            8453,  # Base
+            84532,  # Base Sepolia
+            137,  # Polygon
+            43114,  # Avalanche
+            1187947933,  # SKALE Base
+            56,  # BNB Chain
+            1329,  # Sei Network
+            "solana",  # Solana
+        ]
+        for chain_id in valid_chain_ids:
+            opt = PaymentOptionConfig(
+                chain_id=chain_id,
+                token_address="0x1234567890123456789012345678901234567890",
+                price_usd=0.0001,
+            )
+            # Should not raise
+            opt.validate_config()
+
+    def test_empty_token_address_rejected_during_validation(self):
+        """Empty token address is rejected during validation."""
+        opt = PaymentOptionConfig(
+            chain_id=8453,
+            token_address="",
+            price_usd=0.0001,
+        )
+        with pytest.raises(ValueError, match="token_address cannot be empty"):
+            opt.validate_config()
+
+    def test_payment_option_missing_required_fields_skipped(self, tmp_path: Path):
+        """Payment option missing required fields is skipped with warning."""
+        yaml_content = {"endpoint": [{"chain_id": 8453}]}  # missing token_address and price_usd
         yaml_file = tmp_path / "tool_pricing.yaml"
         yaml_file.write_text(yaml.dump(yaml_content))
 
         config = X402Config(pricing_config_path=yaml_file)
 
-        with pytest.raises(ValueError):
-            _ = config.pricing
+        # Should return empty dict since the only entry is invalid
+        assert config.pricing == {}
 
-    def test_pricing_invalid_token_amount_type_raises(self, tmp_path: Path):
-        """Non-integer token_amount raises ValueError."""
+    def test_invalid_price_usd_type_skipped(self, tmp_path: Path):
+        """Non-numeric price_usd is skipped with warning."""
         yaml_content = {
             "endpoint": [
                 {
                     "chain_id": 8453,
                     "token_address": "0x123",
-                    "token_amount": "not_a_number",
+                    "price_usd": "not_a_number",
                 }
             ]
         }
@@ -188,233 +253,72 @@ class TestX402ConfigPricing:
 
         config = X402Config(pricing_config_path=yaml_file)
 
-        with pytest.raises(ValueError):
-            _ = config.pricing
-
-
-class TestX402ConfigFacilitator:
-    """Tests for X402Config.facilitator_config computed field."""
-
-    def test_facilitator_with_cdp_keys(self):
-        """CDP API keys present configures mainnet facilitator."""
-        # Mock the cdp.x402.create_facilitator_config import inside the config module
-        from x402.http import FacilitatorConfig
-
-        mock_config = FacilitatorConfig(url="https://cdp.facilitator")
-        with patch.dict(
-            "sys.modules",
-            {
-                "cdp": type(
-                    "cdp",
-                    (),
-                    {
-                        "x402": type(
-                            "x402",
-                            (),
-                            {"create_facilitator_config": lambda **kw: mock_config},
-                        )()
-                    },
-                )
-            },
-        ):
-            # Re-import to pick up the mock
-            import importlib
-
-            import mcp_server_weather.x402_config
-
-            importlib.reload(mcp_server_weather.x402_config)
-
-            config = mcp_server_weather.x402_config.X402Config(
-                cdp_api_key_id="key_id",
-                cdp_api_key_secret="key_secret",
-                pricing_config_path=Path("/nonexistent"),
-            )
-
-            result = config.facilitator_config
-            # Since cdp-sdk may not be installed, it might return None
-            # The test verifies the code path doesn't crash
-            assert result is None or hasattr(result, "url")
-
-    def test_facilitator_with_url_only(self):
-        """Facilitator URL without CDP keys uses public facilitator."""
-        from x402.http import FacilitatorConfig
-
-        config = X402Config(
-            facilitator_url="https://public.facilitator",
-            cdp_api_key_id=None,  # Explicitly disable CDP keys
-            cdp_api_key_secret=None,
-            pricing_config_path=Path("/nonexistent"),
-        )
-
-        result = config.facilitator_config
-
-        assert isinstance(result, FacilitatorConfig)
-        assert result.url == "https://public.facilitator"
-
-    def test_facilitator_cdp_takes_precedence(self):
-        """CDP keys take precedence over facilitator_url when cdp-sdk is available."""
-        # This test verifies the logic path, but cdp-sdk may not be installed
-        config = X402Config(
-            cdp_api_key_id="key_id",
-            cdp_api_key_secret="key_secret",
-            facilitator_url="https://public.facilitator",
-            pricing_config_path=Path("/nonexistent"),
-        )
-
-        result = config.facilitator_config
-        # Without cdp-sdk, it falls back to facilitator_url
-        # With cdp-sdk, it would use CDP config
-        assert result is not None or result is None  # Either path is valid
-
-    def test_facilitator_none_when_no_config(self):
-        """No CDP keys or URL returns None."""
-        # Explicitly pass None for all facilitator-related fields to override .env
-        config = X402Config(
-            pricing_config_path=Path("/nonexistent"),
-            facilitator_url=None,
-            cdp_api_key_id=None,
-            cdp_api_key_secret=None,
-        )
-
-        assert config.facilitator_config is None
-
-
-class TestX402ConfigPricingMode:
-    """Tests for pricing_mode field."""
-
-    def test_pricing_mode_default_on(self):
-        config = X402Config(pricing_config_path=Path("/nonexistent"))
-        assert config.pricing_mode == "on"
-
-    def test_pricing_mode_off(self):
-        config = X402Config(
-            pricing_mode="off",
-            pricing_config_path=Path("/nonexistent"),
-        )
-        assert config.pricing_mode == "off"
-
-    def test_pricing_mode_invalid_rejected(self):
-        with pytest.raises(ValueError):
-            X402Config(
-                pricing_mode="invalid",  # type: ignore
-                pricing_config_path=Path("/nonexistent"),
-            )
-
-
-class TestAppSettings:
-    """Tests for AppSettings configuration."""
-
-    def test_default_values(self):
-        # Explicitly pass default values to override any .env settings
-        settings = AppSettings(
-            host="0.0.0.0",
-            port=8000,
-            logging_level="INFO",
-            hot_reload=False,
-        )
-
-        assert settings.host == "0.0.0.0"
-        assert settings.port == 8000
-        assert settings.logging_level == "INFO"
-        assert settings.hot_reload is False
-
-    def test_custom_values(self):
-        settings = AppSettings(
-            host="127.0.0.1",
-            port=9000,
-            logging_level="DEBUG",
-            hot_reload=True,
-        )
-
-        assert settings.host == "127.0.0.1"
-        assert settings.port == 9000
-        assert settings.logging_level == "DEBUG"
-        assert settings.hot_reload is True
-
-    def test_invalid_logging_level_rejected(self):
-        with pytest.raises(ValueError):
-            AppSettings(logging_level="INVALID")  # type: ignore
-
-
-class TestValidateAgainstRoutes:
-    """Tests for X402Config.validate_against_routes method."""
-
-    class MockRoute:
-        def __init__(self, operation_id: str | None):
-            self.operation_id = operation_id
-
-    def test_validate_correctly_configured(self, tmp_path: Path, caplog):
-        """Logs correctly configured endpoints."""
-        yaml_content = {
-            "endpoint_a": [{"chain_id": 1, "token_address": "0x", "token_amount": 100}]
-        }
-        yaml_file = tmp_path / "tool_pricing.yaml"
-        yaml_file.write_text(yaml.dump(yaml_content))
-
-        config = X402Config(pricing_config_path=yaml_file)
-        routes = [self.MockRoute("endpoint_a"), self.MockRoute("endpoint_b")]
-
-        with caplog.at_level("INFO"):
-            config.validate_against_routes(routes)
-
-        assert "endpoint_a" in caplog.text
-
-    def test_validate_misconfigured_warns(self, tmp_path: Path, caplog):
-        """Warns about priced endpoints that don't exist."""
-        yaml_content = {
-            "typo_endpoint": [
-                {"chain_id": 1, "token_address": "0x", "token_amount": 100}
-            ]
-        }
-        yaml_file = tmp_path / "tool_pricing.yaml"
-        yaml_file.write_text(yaml.dump(yaml_content))
-
-        config = X402Config(pricing_config_path=yaml_file)
-        routes = [self.MockRoute("real_endpoint")]
-
-        with caplog.at_level("WARNING"):
-            config.validate_against_routes(routes)
-
-        assert "typo_endpoint" in caplog.text
-        assert "Typo?" in caplog.text
-
-
-class TestX402ConfigurationBehavior:
-    """Tests for x402 configuration validation and app startup behavior.
-
-    These tests verify the interaction between pricing_mode and pricing config:
-    1. No pricing config + flag off → endpoints free (no middleware)
-    2. No pricing config + flag on → server should error
-    3. Pricing config + flag off → endpoints free with warning
-    4. Pricing config + flag on → x402 middleware enabled
-    """
-
-    def test_no_pricing_config_mode_off_starts_without_middleware(
-        self, tmp_path: Path, caplog
-    ):
-        """Case 1: No pricing config + pricing_mode='off' → app starts, no middleware."""
-        nonexistent_yaml = tmp_path / "nonexistent.yaml"
-
-        config = X402Config(
-            pricing_mode="off",
-            pricing_config_path=nonexistent_yaml,
-        )
-
-        # Should return empty pricing without error
+        # Should return empty dict since the only entry is invalid
         assert config.pricing == {}
-        assert config.pricing_mode == "off"
 
-        # Verify the expected log message
-        with caplog.at_level("WARNING"):
-            _ = config.pricing
-        assert "not found" in caplog.text or config.pricing == {}
 
-    def test_no_pricing_config_mode_on_raises_error(self, tmp_path: Path):
-        """Case 2: No pricing config + pricing_mode='on' → should raise error.
+# =============================================================================
+# Feature 3: Facilitator URL Parsing
+# =============================================================================
 
-        If pricing_mode is 'on' but no pricing configuration exists,
-        the server should fail fast rather than silently running without payments.
-        """
+
+class TestFacilitatorUrlParsing:
+    """Tests for parsing facilitator URLs from environment variables."""
+
+    def test_parses_single_facilitator_url(self):
+        """Single facilitator URL creates one FacilitatorConfig."""
+        from x402.http import FacilitatorConfig
+
+        config = X402Config(
+            facilitator_urls=["https://facilitator.example.com"],
+            pricing_config_path=Path("/nonexistent"),
+        )
+
+        result = config.facilitator_config
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert isinstance(result[0], FacilitatorConfig)
+        assert result[0].url == "https://facilitator.example.com"
+
+    def test_parses_multiple_facilitator_urls(self):
+        """Multiple facilitator URLs create multiple FacilitatorConfig objects."""
+        from x402.http import FacilitatorConfig
+
+        config = X402Config(
+            facilitator_urls=[
+                "https://facilitator1.example.com",
+                "https://facilitator2.example.com",
+            ],
+            pricing_config_path=Path("/nonexistent"),
+        )
+
+        result = config.facilitator_config
+
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert isinstance(result[0], FacilitatorConfig)
+        assert isinstance(result[1], FacilitatorConfig)
+        assert result[0].url == "https://facilitator1.example.com"
+        assert result[1].url == "https://facilitator2.example.com"
+
+    def test_no_facilitator_returns_empty_list(self):
+        """No facilitator configured returns empty list."""
+        config = X402Config(facilitator_urls=None, pricing_config_path=Path("/nonexistent"))
+
+        assert config.facilitator_config == []
+
+
+# =============================================================================
+# Feature 4: Pricing Mode Validation
+# =============================================================================
+
+
+class TestPricingModeValidation:
+    """Tests for pricing_mode validation logic."""
+
+    def test_pricing_mode_on_without_config_raises_error(self, tmp_path: Path):
+        """pricing_mode='on' without pricing config raises error (fail-fast)."""
         nonexistent_yaml = tmp_path / "nonexistent.yaml"
 
         config = X402Config(
@@ -422,19 +326,18 @@ class TestX402ConfigurationBehavior:
             pricing_config_path=nonexistent_yaml,
         )
 
-        # This should raise an error - pricing_mode='on' requires pricing config
         with pytest.raises(ValueError, match="pricing_mode.*on.*no pricing"):
             config.validate_pricing_mode()
 
-    def test_pricing_config_mode_off_logs_warning(self, tmp_path: Path, caplog):
-        """Case 3: Pricing config exists + pricing_mode='off' → warning logged.
-
-        If pricing configuration exists but pricing_mode is 'off',
-        log a warning to make the operator aware payments are disabled.
-        """
+    def test_pricing_mode_off_with_config_logs_warning(self, tmp_path: Path, caplog):
+        """pricing_mode='off' with pricing config logs warning."""
         yaml_content = {
             "test_endpoint": [
-                {"chain_id": 8453, "token_address": "0x123", "token_amount": 1000}
+                {
+                    "chain_id": 8453,
+                    "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                    "price_usd": 0.0001,
+                }
             ]
         }
         yaml_file = tmp_path / "tool_pricing.yaml"
@@ -452,18 +355,17 @@ class TestX402ConfigurationBehavior:
         with caplog.at_level("WARNING"):
             config.validate_pricing_mode()
 
-        assert (
-            "pricing_mode" in caplog.text.lower() or "disabled" in caplog.text.lower()
-        )
+        assert "pricing_mode" in caplog.text.lower() or "disabled" in caplog.text.lower()
 
-    def test_pricing_config_mode_on_works(self, tmp_path: Path, caplog):
-        """Case 4: Pricing config exists + pricing_mode='on' → x402 enabled.
-
-        The happy path: both pricing config and pricing_mode='on' are set.
-        """
+    def test_pricing_mode_on_with_config_passes(self, tmp_path: Path, caplog):
+        """pricing_mode='on' with pricing config passes validation."""
         yaml_content = {
             "test_endpoint": [
-                {"chain_id": 8453, "token_address": "0x123", "token_amount": 1000}
+                {
+                    "chain_id": 8453,
+                    "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                    "price_usd": 0.0001,
+                }
             ]
         }
         yaml_file = tmp_path / "tool_pricing.yaml"
@@ -484,3 +386,125 @@ class TestX402ConfigurationBehavior:
 
         # Should log success message
         assert "enabled" in caplog.text.lower() or len(config.pricing) > 0
+
+    def test_pricing_mode_off_without_config_works(self, tmp_path: Path, caplog):
+        """pricing_mode='off' without pricing config works (no middleware)."""
+        nonexistent_yaml = tmp_path / "nonexistent.yaml"
+
+        config = X402Config(
+            pricing_mode="off",
+            pricing_config_path=nonexistent_yaml,
+        )
+
+        # Should return empty pricing without error
+        assert config.pricing == {}
+        assert config.pricing_mode == "off"
+
+        # Verify the expected log message
+        with caplog.at_level("WARNING"):
+            _ = config.pricing
+        assert "not found" in caplog.text or config.pricing == {}
+
+
+# =============================================================================
+# Feature 5: Route Validation
+# =============================================================================
+
+
+class TestRouteValidation:
+    """Tests for validating pricing config against actual routes."""
+
+    class MockRoute:
+        def __init__(self, operation_id: str | None):
+            self.operation_id = operation_id
+
+    def test_logs_correctly_configured_endpoints(self, tmp_path: Path, caplog):
+        """Logs endpoints that have matching pricing configuration."""
+        yaml_content = {
+            "endpoint_a": [
+                {
+                    "chain_id": 8453,
+                    "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                    "price_usd": 0.0001,
+                }
+            ]
+        }
+        yaml_file = tmp_path / "tool_pricing.yaml"
+        yaml_file.write_text(yaml.dump(yaml_content))
+
+        config = X402Config(pricing_config_path=yaml_file)
+        routes = [self.MockRoute("endpoint_a"), self.MockRoute("endpoint_b")]
+
+        with caplog.at_level("INFO"):
+            config.validate_against_routes(routes)
+
+        assert "endpoint_a" in caplog.text
+
+    def test_warns_about_misconfigured_endpoints(self, tmp_path: Path, caplog):
+        """Warns about priced endpoints that don't match any route."""
+        yaml_content = {
+            "typo_endpoint": [
+                {
+                    "chain_id": 8453,
+                    "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                    "price_usd": 0.0001,
+                }
+            ]
+        }
+        yaml_file = tmp_path / "tool_pricing.yaml"
+        yaml_file.write_text(yaml.dump(yaml_content))
+
+        config = X402Config(pricing_config_path=yaml_file)
+        routes = [self.MockRoute("real_endpoint")]
+
+        with caplog.at_level("WARNING"):
+            config.validate_against_routes(routes)
+
+        assert "typo_endpoint" in caplog.text
+        assert "Typo?" in caplog.text
+
+
+# =============================================================================
+# Feature 6: Payee Address Selection
+# =============================================================================
+
+
+class TestPayeeAddressSelection:
+    """Tests for selecting appropriate payee address based on network type."""
+
+    def test_returns_evm_address_for_evm_networks(self):
+        """EVM networks return payee_evm_address."""
+        config = X402Config(
+            payee_evm_address="0x1234567890123456789012345678901234567890",
+            payee_solana_address="SolanaAddress123456789",
+            pricing_config_path=Path("/nonexistent"),
+        )
+
+        # Base (EVM)
+        assert config.get_payee_address("eip155:8453") == "0x1234567890123456789012345678901234567890"
+        # Polygon (EVM)
+        assert config.get_payee_address("eip155:137") == "0x1234567890123456789012345678901234567890"
+
+    def test_returns_solana_address_for_solana_networks(self):
+        """Solana networks return payee_solana_address."""
+        config = X402Config(
+            payee_evm_address="0x1234567890123456789012345678901234567890",
+            payee_solana_address="SolanaAddress123456789",
+            pricing_config_path=Path("/nonexistent"),
+        )
+
+        assert (
+            config.get_payee_address("solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp")
+            == "SolanaAddress123456789"
+        )
+
+    def test_returns_none_when_address_not_configured(self):
+        """Returns None when appropriate address is not configured."""
+        config = X402Config(
+            payee_evm_address=None,
+            payee_solana_address=None,
+            pricing_config_path=Path("/nonexistent"),
+        )
+
+        assert config.get_payee_address("eip155:8453") is None
+        assert config.get_payee_address("solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp") is None

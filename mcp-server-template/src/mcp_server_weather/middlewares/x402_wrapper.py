@@ -33,34 +33,16 @@ from x402.mechanisms.svm.exact import ExactSvmServerScheme
 from x402.schemas import Network, PaymentPayload, PaymentRequired, PaymentRequirements
 from x402.server import x402ResourceServer
 
-from mcp_server_weather.x402_config import (
+from mcp_server_weather.x402_integration import (
     CHAIN_ID_TO_NETWORK,
     EVM_NETWORKS,
     SOLANA_NETWORKS,
-    PaymentOptionConfig,
-    X402Config,
     get_x402_settings,
 )
+from mcp_server_weather.x402_integration.accepted_assets import CUSTOM_NETWORKS
+from mcp_server_weather.x402_integration.config import PaymentOptionConfig, X402Config
 
 logger = logging.getLogger(__name__)
-
-# CAIP-2 network -> block explorer base URL (for observable transactions)
-_EXPLORER_BASE: dict[str, str] = {
-    # EVM Networks
-    "eip155:8453": "https://basescan.org",  # Base
-    "eip155:43114": "https://snowtrace.io",  # Avalanche
-    "eip155:1187947933": "https://skale-base-explorer.skalenodes.com",  # SKALE Base
-    # Solana Networks
-    "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": "https://solscan.io",  # Solana Mainnet
-}
-
-
-def _explorer_tx_url(network: Network, tx_hash: str) -> str:
-    """Build block explorer tx URL for a given CAIP-2 network and tx hash."""
-    base = _EXPLORER_BASE.get(str(network), "")
-    if not base or not tx_hash:
-        return ""
-    return f"{base}/tx/{tx_hash}"
 
 
 class X402WrapperMiddleware(BaseHTTPMiddleware):
@@ -90,14 +72,26 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.tool_pricing = tool_pricing
         self.settings: X402Config = get_x402_settings()
-        self.facilitator: HTTPFacilitatorClient | None = None
+        self.facilitators: list[HTTPFacilitatorClient] = []
         self.server: x402ResourceServer | None = None
 
-        if facilitator_config := self.settings.facilitator_config:
-            self.facilitator = HTTPFacilitatorClient(facilitator_config)
-            self.server = x402ResourceServer(self.facilitator)
-            # Initialize the server (fetches supported schemes from facilitator)
+        facilitator_configs = self.settings.facilitator_config
+        if facilitator_configs:
+            # Create client for each facilitator
+            self.facilitators = [
+                HTTPFacilitatorClient(config)
+                for config in facilitator_configs
+            ]
+
+            # Pass all clients to server (SDK handles routing by chain)
+            self.server = x402ResourceServer(self.facilitators)
+
+            # Initialize server (queries all facilitators for supported chains)
             self.server.initialize()
+
+            logger.info(f"Initialized x402 with {len(self.facilitators)} facilitator(s):")
+            for client in self.facilitators:
+                logger.info(f"  - {client._url}")
             # Register schemes for all configured networks AFTER initialize
             self._register_network_schemes()
         else:
@@ -137,7 +131,7 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
-        if not self.facilitator or not self.server:
+        if not self.facilitators or not self.server:
             return await call_next(request)
 
         operation_id = await self._get_operation_id(request)
@@ -163,9 +157,6 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
 
         try:
             payment_dict = json.loads(safe_base64_decode(payment_header))
-            # Inject resource field for PayAI facilitator compatibility
-            # This field is required by PayAI but optional in x402 spec
-            # It also enables resource indexing in bazaar/x402 scan for visibility
             payment_dict["resource"] = {
                 "url": str(request.url),
                 "description": "API access",
@@ -181,7 +172,7 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
 
         # In v2, the payment already contains the accepted requirement
         # We need to find the matching requirement from our list
-        selected_req = self._find_matching_requirement(payment_requirements, payment)
+        selected_req: PaymentRequirements = self._find_matching_requirement(payment_requirements, payment)
         if not selected_req:
             return self._create_402_response(
                 payment_requirements, "No matching payment requirements found"
@@ -249,7 +240,10 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
                     tx_hash = getattr(settle_response, "transaction", None) or ""
                     network = getattr(settle_response, "network", None) or ""
                     if tx_hash:
-                        explorer_url = _explorer_tx_url(network, tx_hash)
+                        # selected_req.network is already CAIP-2 format like "eip155:8453"
+                        explorer_base = CUSTOM_NETWORKS.get(selected_req.network, {}).get("explorer_url", "")
+                        explorer_url = f"{explorer_base}{tx_hash}" if explorer_base else ""
+
                         logger.info(
                             "Payment settled: tx=%s network=%s%s",
                             tx_hash,
