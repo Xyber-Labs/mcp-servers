@@ -64,3 +64,26 @@ class ArxivPaperResponse(BaseModel):
             full_text=result.full_text,
             processing_error=result.processing_error,
         )
+
+
+class ArxivSearchResponse(BaseModel):
+    """Response model for ArXiv search endpoint."""
+
+    papers: list[ArxivPaperResponse] = Field(description="List of ArXiv papers")
+    total_results: int = Field(description="Total number of results returned")
+
+
+class PricingResponse(BaseModel):
+    """Response model for pricing configuration."""
+
+    pricing: dict = Field(description="Pricing data for all endpoints")
+    message: str | None = Field(
+        default=None, description="Optional message about pricing status"
+    )
+
+
+class HealthCheckResponse(BaseModel):
+    """Response model for health check endpoint."""
+
+    status: str = Field(description="Server status")
+    service: str = Field(description="Service name")

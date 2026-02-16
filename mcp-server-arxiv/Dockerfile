@@ -2,16 +2,27 @@ FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 
 WORKDIR /app
 
-ENV UV_COMPILE_BYTECODE=1
+# Tels uv to place dependencies source code inside the venv
 ENV UV_LINK_MODE=copy
+
+# Enable bytecode compilation: longer builds but faster startup
+ENV UV_COMPILE_BYTECODE=1
+
+# Install project dependencies using mounted uv.lock (ensure it exists locally)
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --frozen --no-install-project --no-dev --no-editable
 
-ADD . /app
+# Copy application code
+COPY src/ /app/src/
+
+# Install only the project itself
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-editable
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=README.md,target=README.md \
+    uv pip install --no-deps .
 
 # --- Dev stage --- #
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS dev
@@ -21,6 +32,7 @@ WORKDIR /app
 ENV UV_LINK_MODE=copy
 ENV UV_COMPILE_BYTECODE=1
 
+# Copy the application package from the builder stage
 COPY --from=builder /app/.venv /app/.venv
 
 # Additionally install dev and debug dependencies without removing the project
@@ -28,11 +40,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv pip install --group dev --group debug
 
+# Copy DEV pricing file (lower prices for testing)
+COPY tool_pricing.dev.yaml /app/tool_pricing.yaml
 
+# Make container use python installed inside the venv
 ENV PATH="/app/.venv/bin:$PATH"
-
-# Copy the tool pricing file from the builder stage
-COPY --from=builder /app/tool_pricing.yaml .
 
 CMD ["tail", "-f", "/dev/null"]
 
@@ -41,12 +53,13 @@ FROM python:3.12-slim-bookworm AS prod
 
 WORKDIR /app
 
+# Copy the application package from the builder stage
 COPY --from=builder /app/.venv /app/.venv
 
-ENV PATH="/app/.venv/bin:$PATH"
+# Copy PRODUCTION pricing file (full prices)
+COPY tool_pricing.yaml /app/tool_pricing.yaml
 
-# Copy the tool pricing file from the builder stage
-COPY --from=builder /app/tool_pricing.yaml .
+ENV PATH="/app/.venv/bin:$PATH"
 
 CMD ["python", "-m", "mcp_server_arxiv", "--host", "0.0.0.0", "--port", "8000"]
 

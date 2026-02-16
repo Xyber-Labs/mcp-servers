@@ -17,10 +17,10 @@ Standard REST endpoints for traditional clients (e.g., web apps, dashboards).
 
 Accessible via both REST and as MCP tools. Ideal for functionality shared between humans and AI.
 
-| Method/Tool                 | Price      | Description                                                    |
-| :-------------------------- | :--------- | :------------------------------------------------------------- |
-| `GET /hybrid/pricing`       | **Free**   | Returns tool pricing configuration                             |
-| `arxiv_search`              | **Free**   | Searches Arxiv for papers, downloads PDFs, and extracts text   |
+| Method/Tool                 | Price          | Description                                                    |
+| :-------------------------- | :------------- | :------------------------------------------------------------- |
+| `GET /hybrid/pricing`       | **Free**       | Returns tool pricing configuration                             |
+| `arxiv_search`              | **$0.01**      | Searches Arxiv for papers, downloads PDFs, and extracts text   |
 
 **`arxiv_search` Tool Details:**
 - **Input:**
@@ -30,6 +30,24 @@ Accessible via both REST and as MCP tools. Ideal for functionality shared betwee
 - **Output:** A formatted string containing the title, authors, summary, and extracted text for each paper found.
 
 *Note: Paid endpoints require x402 payment protocol configuration. See `.env.example` for details.*
+
+## Pricing Configuration
+
+This server uses two separate pricing files to support different deployment environments:
+
+### Development Pricing (`tool_pricing.dev.yaml`)
+- **Used in**: Development Docker stage (`dev`)
+- **Price**: $0.00001 per search (100x cheaper than production)
+- **Purpose**: Low-cost testing and development
+- **Networks**: Base, Polygon, Avalanche, SKALE Base, BNB Chain, Sei Network, Solana
+
+### Production Pricing (`tool_pricing.yaml`)
+- **Used in**: Production Docker stage (`prod`)
+- **Price**: $0.01 per search
+- **Purpose**: Live deployments
+- **Networks**: Base, Polygon, Avalanche, SKALE Base, BNB Chain, Sei Network, Solana
+
+The pricing format uses `price_usd` which is automatically converted to token amounts based on token decimals. All supported stablecoins use 6 decimals (USDC/USDT).
 
 ## API Documentation
 
@@ -122,7 +140,6 @@ mcp-server-arxiv/
 │       ├── logging_config.py        # Logging configuration
 │       ├── dependencies.py          # FastAPI dependency injection
 │       ├── schemas.py               # Pydantic request/response models
-│       ├── x402_config.py           # x402 payment configuration
 │       │
 │       ├── api_routers/             # API-Only endpoints (REST)
 │       │   ├── __init__.py
@@ -135,6 +152,11 @@ mcp-server-arxiv/
 │       │   ├── __init__.py
 │       │   └── x402_wrapper.py      # x402 payment middleware
 │       │
+│       ├── x402_integration/        # x402 payment integration
+│       │   ├── __init__.py          # Public API exports
+│       │   ├── config.py            # x402 configuration & pricing
+│       │   └── accepted_assets.py   # Blockchain constants & utilities
+│       │
 │       └── xy_arxiv/                # Business logic layer
 │           ├── __init__.py
 │           ├── config.py
@@ -143,8 +165,17 @@ mcp-server-arxiv/
 │           └── errors.py
 │
 ├── tests/
+│   ├── e2e/
+│   │   ├── conftest.py              # E2E test fixtures
+│   │   ├── config.py                # E2E test configuration
+│   │   ├── utils.py                 # E2E test utilities
+│   │   ├── test_api_routers.py      # API-only endpoint tests
+│   │   └── test_hybrid_routers.py   # Hybrid endpoint tests
+│   └── unit/                        # Unit tests
 ├── .env.example
 ├── Dockerfile
+├── tool_pricing.yaml                # Production pricing
+├── tool_pricing.dev.yaml            # Development pricing
 ├── pyproject.toml
 └── README.md
 ```

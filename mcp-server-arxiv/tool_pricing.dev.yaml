@@ -1,40 +1,41 @@
-# x402 Pricing Configuration
-# Supports: Base, Polygon, Avalanche, SKALE Base, BNB Chain, Sei Network, Solana
+# x402 Pricing Configuration - DEVELOPMENT
+# Lower prices for local testing and development
+# Production pricing: tool_pricing.yaml
 # Note: price_usd is automatically converted to token amounts based on token decimals
 
 # --- arxiv_search ---
 arxiv_search:
   # Base (chain_id: 8453)
-  - price_usd: 0.01
+  - price_usd: 0.00001
     chain_id: 8453
     token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
 
   # Polygon (chain_id: 137)
-  - price_usd: 0.01
+  - price_usd: 0.00001
     chain_id: 137
     token_address: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359"
 
   # Avalanche (chain_id: 43114)
-  - price_usd: 0.01
+  - price_usd: 0.00001
     chain_id: 43114
     token_address: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E"
 
   # SKALE Base (chain_id: 1187947933)
-  - price_usd: 0.01
+  - price_usd: 0.00001
     chain_id: 1187947933
     token_address: "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20"
 
   # BNB Chain (chain_id: 56) - XUSD (Unibase x402 wrapped stablecoin)
-  - price_usd: 0.01
+  - price_usd: 0.00001
     chain_id: 56
     token_address: "0xf3A3E4D9c163251124229Da6DC9C98D889647804"
 
   # Sei Network (chain_id: 1329) - Native USDC
-  - price_usd: 0.01
+  - price_usd: 0.00001
     chain_id: 1329
     token_address: "0xe15fC38F6D8c56aF07bbCBe3BAf5708A2Bf42392"
 
   # Solana (chain_id: "solana")
-  - price_usd: 0.01
+  - price_usd: 0.00001
     chain_id: "solana"
     token_address: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
