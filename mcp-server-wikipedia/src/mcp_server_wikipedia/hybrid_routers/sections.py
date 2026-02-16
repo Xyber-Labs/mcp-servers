@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from pydantic import ValidationError as PydanticValidationError
 
 from mcp_server_wikipedia.dependencies import get_wiki_service
-from mcp_server_wikipedia.schemas import GetSectionsRequest
+from mcp_server_wikipedia.schemas import GetSectionsRequest, SectionsResponse
 from mcp_server_wikipedia.wikipedia import (
     ArticleNotFoundError,
     WikipediaAPIError,
@@ -18,12 +18,13 @@ router = APIRouter()
 @router.post(
     "/sections",
     tags=["Wikipedia"],
-    operation_id="get_wikipedia_sections",
+    operation_id="get_sections",
+    response_model=SectionsResponse,
 )
 async def get_sections(
     params: GetSectionsRequest,
     wiki_service: _WikipediaService = Depends(get_wiki_service),
-) -> list[str]:
+) -> SectionsResponse:
     """
     Get the section titles of a Wikipedia article.
 
@@ -32,7 +33,7 @@ async def get_sections(
     """
     try:
         sections = await wiki_service.get_sections(params.title)
-        return sections
+        return SectionsResponse(title=params.title, sections=sections)
     except PydanticValidationError as ve:
         error_details = "\n".join(
             f"  - {'.'.join(str(loc).capitalize() for loc in err['loc'])}: {err['msg']}"

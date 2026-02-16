@@ -23,11 +23,17 @@ from x402.http import (
     safe_base64_encode,
 )
 from x402.mechanisms.evm.exact import ExactEvmServerScheme
+from x402.mechanisms.svm.exact import ExactSvmServerScheme
 from x402.schemas import Network, PaymentPayload, PaymentRequired, PaymentRequirements
 from x402.server import x402ResourceServer
 
-from mcp_server_wikipedia.x402_config import (
+from mcp_server_wikipedia.x402_integration.accepted_assets import (
+    BLOCK_EXPLORERS,
     CHAIN_ID_TO_NETWORK,
+    EVM_NETWORKS,
+    SOLANA_NETWORKS,
+)
+from mcp_server_wikipedia.x402_integration.config import (
     PaymentOptionConfig,
     X402Config,
     get_x402_settings,
@@ -35,24 +41,13 @@ from mcp_server_wikipedia.x402_config import (
 
 logger = logging.getLogger(__name__)
 
-# CAIP-2 network -> block explorer base URL (for observable transactions)
-_EXPLORER_BASE: dict[str, str] = {
-    "eip155:1": "https://etherscan.io",
-    "eip155:8453": "https://basescan.org",
-    "eip155:84532": "https://sepolia.basescan.org",
-    "eip155:10": "https://optimistic.etherscan.io",
-    "eip155:42161": "https://arbiscan.io",
-    "eip155:137": "https://polygonscan.com",
-    "eip155:1187947933": "https://juicy-low-small-testnet.explorer.testnet.skalenodes.com",
-}
-
 
 def _explorer_tx_url(network: Network, tx_hash: str) -> str:
     """Build block explorer tx URL for a given CAIP-2 network and tx hash."""
-    base = _EXPLORER_BASE.get(str(network), "")
+    base = BLOCK_EXPLORERS.get(str(network), "")
     if not base or not tx_hash:
         return ""
-    return f"{base}/tx/{tx_hash}"
+    return base + tx_hash
 
 
 class X402WrapperMiddleware(BaseHTTPMiddleware):
@@ -72,21 +67,32 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.tool_pricing = tool_pricing
         self.settings: X402Config = get_x402_settings()
-        self.facilitator: HTTPFacilitatorClient | None = None
+        self.facilitators: list[HTTPFacilitatorClient] = []
         self.server: x402ResourceServer | None = None
 
-        if facilitator_config := self.settings.facilitator_config:
-            self.facilitator = HTTPFacilitatorClient(facilitator_config)
-            self.server = x402ResourceServer(self.facilitator)
+        if facilitator_configs := self.settings.facilitator_config:
+            # Create client for each facilitator
+            self.facilitators = [
+                HTTPFacilitatorClient(config)
+                for config in facilitator_configs
+            ]
+
+            # Pass all clients to server (SDK handles routing by chain)
+            self.server = x402ResourceServer(self.facilitators)
             self.server.initialize()
-            self._register_evm_schemes()
+
+            logger.info(f"Initialized x402 with {len(self.facilitators)} facilitator(s):")
+            for client in self.facilitators:
+                logger.info(f"  - {client._url}")
+            # Register schemes for all configured networks AFTER initialize
+            self._register_network_schemes()
         else:
             logger.warning(
                 "No x402 facilitator configured. Payment middleware disabled."
             )
 
-    def _register_evm_schemes(self) -> None:
-        """Register EVM scheme for all networks used in pricing config."""
+    def _register_network_schemes(self) -> None:
+        """Register appropriate schemes (EVM or Solana) for all networks in pricing config."""
         if not self.server:
             return
         networks_used: set[str] = set()
@@ -96,16 +102,27 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
                     networks_used.add(network)
                 else:
                     logger.warning(
-                        f"Unknown chain_id '{opt.chain_id}' in pricing config."
+                        f"Unknown chain_id '{opt.chain_id}' in pricing config. "
+                        f"Add it to CHAIN_ID_TO_NETWORK mapping in x402_config.py"
                     )
+
         for network in networks_used:
-            self.server.register(network, ExactEvmServerScheme())
-            logger.info(f"Registered EVM scheme for network: {network}")
+            if network in EVM_NETWORKS:
+                self.server.register(network, ExactEvmServerScheme())
+                logger.info(f"Registered EVM scheme for network: {network}")
+            elif network in SOLANA_NETWORKS:
+                self.server.register(network, ExactSvmServerScheme())
+                logger.info(f"Registered Solana scheme for network: {network}")
+            else:
+                logger.warning(
+                    f"Network '{network}' not in EVM_NETWORKS or SOLANA_NETWORKS. "
+                    f"Update x402_config.py to classify this network."
+                )
 
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
-        if not self.facilitator or not self.server:
+        if not self.facilitators or not self.server:
             return await call_next(request)
 
         operation_id = await self._get_operation_id(request)

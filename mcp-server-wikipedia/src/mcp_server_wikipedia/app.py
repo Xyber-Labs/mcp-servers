@@ -8,7 +8,7 @@ from mcp_server_wikipedia.api_routers import routers as api_routers
 from mcp_server_wikipedia.dependencies import DependencyContainer
 from mcp_server_wikipedia.hybrid_routers import routers as hybrid_routers
 from mcp_server_wikipedia.middlewares import X402WrapperMiddleware
-from mcp_server_wikipedia.x402_config import get_x402_settings
+from mcp_server_wikipedia.x402_integration.config import get_x402_settings
 
 logger = logging.getLogger(__name__)
 

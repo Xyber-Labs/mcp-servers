@@ -1,9 +1,9 @@
 import argparse
 import logging
-import os
 
 import uvicorn
 
+from mcp_server_wikipedia.config import get_app_settings
 from mcp_server_wikipedia.logging_config import configure_logging, logging_level
 
 configure_logging()
@@ -11,24 +11,25 @@ logger = logging.getLogger(__name__)
 
 
 if __name__ == "__main__":
+    settings = get_app_settings()
+
     parser = argparse.ArgumentParser(description="Run Wikipedia MCP server")
     parser.add_argument(
         "--host",
-        default=os.getenv("MCP_WIKIPEDIA_HOST", "0.0.0.0"),
-        help="Host to bind to (Default: MCP_WIKIPEDIA_HOST or 0.0.0.0)",
+        default=settings.host,
+        help=f"Host to bind to (Default: {settings.host})",
     )
     parser.add_argument(
         "--port",
         type=int,
-        default=int(os.getenv("MCP_WIKIPEDIA_PORT", "8006")),
-        help="Port to listen on (Default: MCP_WIKIPEDIA_PORT or 8006)",
+        default=settings.port,
+        help=f"Port to listen on (Default: {settings.port})",
     )
     parser.add_argument(
         "--reload",
         action="store_true",
-        default=os.getenv("WIKIPEDIA_HOT_RELOAD", "false").lower()
-        in ("true", "1", "t", "yes"),
-        help="Enable hot reload (env: WIKIPEDIA_HOT_RELOAD)",
+        default=settings.hot_reload,
+        help=f"Enable hot reload (Default: {settings.hot_reload})",
     )
 
     args = parser.parse_args()

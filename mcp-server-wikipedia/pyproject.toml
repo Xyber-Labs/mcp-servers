@@ -14,10 +14,16 @@ dependencies = [
     "uvicorn[standard]",
     "fastmcp>=2.3.4",
     "fastapi>=0.115.12",
+    "tenacity>=8.2.3",
+    "cdp-sdk>=1.33.2",
+    "httpx>=0.25.0",
+    "pyyaml",
     # Wikipedia-specific dependencies
     "wikipedia-api>=0.6.0",
     "wikipedia>=1.4.0",
-    "x402[evm]>=2.0.0",
+    "x402>=2.0.0",
+    "solana>=0.36.11",
+    "solders>=0.27.1",
 ]
 
 
@@ -113,6 +119,6 @@ addopts = [
     "-v",
 ]
 markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
+    "payment_on: marks tests that require payment enforcement enabled",
+    "payment_off: marks tests that require payment enforcement disabled",
 ]

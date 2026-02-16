@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 # Import helper functions from conftest
-from conftest import (
+from tests.conftest import (
     _test_get_article,
     _test_get_links,
     _test_get_related_topics,
@@ -11,7 +11,6 @@ from conftest import (
     _test_get_summary,
     _test_search_wikipedia,
 )
-from mcp_server_wikipedia.server import _get_service, app_lifespan
 
 from mcp_server_wikipedia.wikipedia import (
     ArticleNotFoundError,
@@ -20,55 +19,9 @@ from mcp_server_wikipedia.wikipedia import (
 )
 
 # === Test Classes ===
-
-
-class TestAppLifespan:
-    """Test application lifespan management."""
-
-    @pytest.mark.asyncio
-    async def test_app_lifespan_successful_initialization(self):
-        """Test successful app lifespan initialization."""
-        mock_service = AsyncMock()
-
-        with patch(
-            "mcp_server_wikipedia.server.get_wikipedia_service",
-            return_value=mock_service,
-        ):
-            async with app_lifespan(None) as context:
-                assert "wiki_service" in context
-                assert context["wiki_service"] == mock_service
-
-    @pytest.mark.asyncio
-    async def test_app_lifespan_initialization_failure(self):
-        """Test app lifespan initialization failure."""
-        with patch(
-            "mcp_server_wikipedia.server.get_wikipedia_service",
-            side_effect=WikipediaServiceError("Service init failed"),
-        ):
-            with pytest.raises(WikipediaServiceError, match="Service init failed"):
-                async with app_lifespan(None) as context:
-                    pass
-
-
-class TestHelperFunctions:
-    """Test helper functions."""
-
-    def test_get_service_returns_correct_service(self):
-        """Test that _get_service returns the correct service from context."""
-        mock_service = Mock()
-        mock_context = Mock()
-        mock_context.request_context.lifespan_context = {"wiki_service": mock_service}
-
-        result = _get_service(mock_context)
-        assert result == mock_service
-
-    def test_get_service_with_missing_context(self):
-        """Test _get_service with missing context."""
-        mock_context = Mock()
-        mock_context.request_context.lifespan_context = {}
-
-        with pytest.raises(KeyError):
-            _get_service(mock_context)
+# NOTE: TestAppLifespan and TestHelperFunctions were removed as they tested
+# outdated server.py code that has been refactored into app.py with a different
+# architecture using DependencyContainer instead of direct service passing
 
 
 # --- Search Wikipedia Tests ---

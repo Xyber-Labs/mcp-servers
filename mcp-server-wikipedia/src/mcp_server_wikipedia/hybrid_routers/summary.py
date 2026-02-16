@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from pydantic import ValidationError as PydanticValidationError
 
 from mcp_server_wikipedia.dependencies import get_wiki_service
-from mcp_server_wikipedia.schemas import GetSummaryRequest
+from mcp_server_wikipedia.schemas import GetSummaryRequest, SummaryResponse
 from mcp_server_wikipedia.wikipedia import (
     ArticleNotFoundError,
     WikipediaAPIError,
@@ -18,12 +18,13 @@ router = APIRouter()
 @router.post(
     "/summary",
     tags=["Wikipedia"],
-    operation_id="get_wikipedia_summary",
+    operation_id="get_summary",
+    response_model=SummaryResponse,
 )
 async def get_summary(
     params: GetSummaryRequest,
     wiki_service: _WikipediaService = Depends(get_wiki_service),
-) -> str:
+) -> SummaryResponse:
     """
     Get a summary of a Wikipedia article.
 
@@ -32,7 +33,7 @@ async def get_summary(
     """
     try:
         summary = await wiki_service.get_summary(params.title)
-        return summary
+        return SummaryResponse(title=params.title, summary=summary)
     except PydanticValidationError as ve:
         error_details = "\n".join(
             f"  - {'.'.join(str(loc).capitalize() for loc in err['loc'])}: {err['msg']}"

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from pydantic import ValidationError as PydanticValidationError
 
 from mcp_server_wikipedia.dependencies import get_wiki_service
-from mcp_server_wikipedia.schemas import SearchWikipediaRequest
+from mcp_server_wikipedia.schemas import SearchWikipediaRequest, SearchWikipediaResponse
 from mcp_server_wikipedia.wikipedia import WikipediaAPIError, _WikipediaService
 
 logger = logging.getLogger(__name__)
@@ -15,11 +15,12 @@ router = APIRouter()
     "/search",
     tags=["Wikipedia"],
     operation_id="search_wikipedia",
+    response_model=SearchWikipediaResponse,
 )
 async def search_wikipedia(
     params: SearchWikipediaRequest,
     wiki_service: _WikipediaService = Depends(get_wiki_service),
-) -> list[str]:
+) -> SearchWikipediaResponse:
     """
     Search Wikipedia for articles matching a query and return a list of titles.
 
@@ -27,7 +28,7 @@ async def search_wikipedia(
     """
     try:
         results = await wiki_service.search(params.query, limit=params.limit)
-        return results
+        return SearchWikipediaResponse(results=results)
     except PydanticValidationError as ve:
         error_details = "\n".join(
             f"  - {'.'.join(str(loc).capitalize() for loc in err['loc'])}: {err['msg']}"

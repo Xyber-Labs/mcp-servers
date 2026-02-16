@@ -17,6 +17,12 @@ class SearchWikipediaRequest(BaseModel):
     )
 
 
+class SearchWikipediaResponse(BaseModel):
+    """Output schema for Wikipedia search results."""
+
+    results: list[str] = Field(..., description="List of Wikipedia article titles matching the query")
+
+
 class GetArticleRequest(BaseModel):
     """Input schema for retrieving a Wikipedia article by its exact title."""
 
@@ -29,16 +35,24 @@ class ArticleResponse(BaseModel):
     """Output schema representing a Wikipedia article with content and metadata."""
 
     title: str = Field(..., description="Title of the Wikipedia article")
-    content: str = Field(..., description="Full content of the Wikipedia article")
-    metadata: dict[str, Any] | None = Field(
-        None, description="Additional metadata about the article"
-    )
+    summary: str = Field(..., description="Summary of the Wikipedia article")
+    text: str = Field(..., description="Full text content of the Wikipedia article")
+    url: str = Field(..., description="URL of the Wikipedia article")
+    sections: list[str] = Field(..., description="List of section titles in the article")
+    links: list[str] = Field(..., description="List of links (article titles) within the article")
 
 
 class GetSummaryRequest(BaseModel):
     """Input schema for retrieving the summary of a Wikipedia article."""
 
     title: str = Field(..., description="Title of the Wikipedia article to summarize")
+
+
+class SummaryResponse(BaseModel):
+    """Output schema for Wikipedia article summary."""
+
+    title: str = Field(..., description="Title of the Wikipedia article")
+    summary: str = Field(..., description="Summary text of the Wikipedia article")
 
 
 class GetSectionsRequest(BaseModel):
@@ -49,12 +63,26 @@ class GetSectionsRequest(BaseModel):
     )
 
 
+class SectionsResponse(BaseModel):
+    """Output schema for Wikipedia article sections."""
+
+    title: str = Field(..., description="Title of the Wikipedia article")
+    sections: list[str] = Field(..., description="List of section titles in the article")
+
+
 class GetLinksRequest(BaseModel):
     """Input schema for retrieving links within a Wikipedia article."""
 
     title: str = Field(
         ..., description="Title of the Wikipedia article to get links from"
     )
+
+
+class LinksResponse(BaseModel):
+    """Output schema for links within a Wikipedia article."""
+
+    title: str = Field(..., description="Title of the Wikipedia article")
+    links: list[str] = Field(..., description="List of links (article titles) within the article")
 
 
 class GetRelatedTopicsRequest(BaseModel):
@@ -75,3 +103,19 @@ class RelatedTopicsResponse(BaseModel):
     """Output schema listing topics related to a Wikipedia article."""
 
     topics: list[str] = Field(..., description="List of related topic titles")
+
+
+class PricingResponse(BaseModel):
+    """Response model for pricing configuration."""
+
+    pricing: dict = Field(description="Pricing data for all endpoints")
+    message: str | None = Field(
+        default=None, description="Optional message about pricing status"
+    )
+
+
+class HealthCheckResponse(BaseModel):
+    """Response model for health check endpoint."""
+
+    status: str = Field(description="Server status")
+    service: str = Field(description="Service name")
