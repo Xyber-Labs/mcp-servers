@@ -41,7 +41,7 @@ def create_app() -> FastAPI:
 
     # Convert to MCP server
     mcp_server = FastMCP.from_fastapi(app=mcp_source_app, name="Lurky")
-    mcp_app = mcp_server.http_app(path="/")
+    mcp_app = mcp_server.http_app(path="/", stateless_http=True)
 
     # --- Combined Lifespan ---
     @asynccontextmanager

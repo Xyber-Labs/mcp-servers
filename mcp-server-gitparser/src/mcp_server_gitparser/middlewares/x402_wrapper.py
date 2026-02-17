@@ -231,37 +231,40 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
                 payment_requirements, f"Invalid payment: {reason}"
             )
 
+        try:
+            settle_response = await self.server.settle_payment(payment, selected_req)
+        except Exception as e:
+            logger.error(f"Exception during settlement for '{operation_id}': {e}")
+            return self._create_402_response(
+                payment_requirements, f"Payment settlement failed: {e}"
+            )
+
+        if not settle_response.success:
+            reason = settle_response.error_reason or "Unknown"
+            logger.error(f"Payment settlement failed for '{operation_id}': {reason}")
+            return self._create_402_response(
+                payment_requirements, f"Payment settlement failed: {reason}"
+            )
+
+        # Payment settled successfully - now call the handler
         response = await call_next(request)
 
+        # Add payment response header with transaction info
         if 200 <= response.status_code < 300:
-            try:
-                settle_response = await self.server.settle_payment(
-                    payment, selected_req
+            response.headers[self.PAYMENT_RESPONSE_HEADER] = safe_base64_encode(
+                settle_response.model_dump_json(by_alias=True)
+            )
+            tx_hash = getattr(settle_response, "transaction", None) or ""
+            network = getattr(settle_response, "network", None) or ""
+            if tx_hash:
+                explorer_base = CUSTOM_NETWORKS.get(selected_req.network, {}).get("explorer_url", "")
+                explorer_url = f"{explorer_base}{tx_hash}" if explorer_base else ""
+                logger.info(
+                    "Payment settled: tx=%s network=%s%s",
+                    tx_hash,
+                    network,
+                    f" | {explorer_url}" if explorer_url else "",
                 )
-                if settle_response.success:
-                    response.headers[self.PAYMENT_RESPONSE_HEADER] = safe_base64_encode(
-                        settle_response.model_dump_json(by_alias=True)
-                    )
-                    tx_hash = getattr(settle_response, "transaction", None) or ""
-                    network = getattr(settle_response, "network", None) or ""
-                    if tx_hash:
-                        # selected_req.network is already CAIP-2 format like "eip155:8453"
-                        explorer_base = CUSTOM_NETWORKS.get(selected_req.network, {}).get("explorer_url", "")
-                        explorer_url = f"{explorer_base}{tx_hash}" if explorer_base else ""
-
-                        logger.info(
-                            "Payment settled: tx=%s network=%s%s",
-                            tx_hash,
-                            network,
-                            f" | {explorer_url}" if explorer_url else "",
-                        )
-                else:
-                    reason = settle_response.error_reason or "Unknown"
-                    logger.error(
-                        f"Payment settlement failed for '{operation_id}': {reason}"
-                    )
-            except Exception as e:
-                logger.error(f"Exception during settlement for '{operation_id}': {e}")
 
         return response
 
