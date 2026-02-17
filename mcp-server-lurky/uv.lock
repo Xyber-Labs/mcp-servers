@@ -1564,6 +1564,8 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
+    { name = "solana" },
+    { name = "solders" },
     { name = "sqlalchemy" },
     { name = "tenacity" },
     { name = "uvicorn", extra = ["standard"] },
@@ -1596,6 +1598,8 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "pyyaml" },
+    { name = "solana", specifier = ">=0.36.11" },
+    { name = "solders", specifier = ">=0.27.1" },
     { name = "sqlalchemy", specifier = ">=2.0.0" },
     { name = "tenacity", specifier = ">=8.2.3" },
     { name = "uvicorn", extras = ["standard"] },
@@ -3126,15 +3130,16 @@ wheels = [
 
 [[package]]
 name = "x402"
-version = "2.0.0"
+version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "nest-asyncio" },
     { name = "pydantic" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/01/e1/b3d1c79afa25513d51ae1d9379c178eb2b4f1eb8b1b73a4207cfba7a91ea/x402-2.0.0.tar.gz", hash = "sha256:ba458b81f3889c0de5f140549998e32b1dfac36eee15f52ebc8035bb7c6c4958", size = 866901, upload-time = "2026-01-22T00:51:08.382Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/82/09/30f9807b8a7abe9a82eb287a13116aad2a0db682fce681f5a061b0d2af67/x402-2.1.0.tar.gz", hash = "sha256:3829d91fe65c8fab988cb9ab011120c47fd5977b62d9603f3e20471a7ffe3188", size = 886966, upload-time = "2026-02-11T21:52:27.493Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/63/82/fb15d27f1cf45d2e3fee17340672d38631df482f1be11029d5b4c2f72097/x402-2.0.0-py3-none-any.whl", hash = "sha256:9db08530b9daa0a00d8505f7cd0bddf45a27ff8948d11bb9961d324d10b91a50", size = 917873, upload-time = "2026-01-22T00:51:06.943Z" },
+    { url = "https://files.pythonhosted.org/packages/5f/70/e1bcce7f2f62a9411fc172f92d2eac8da464fb49ea8549c97454354176d5/x402-2.1.0-py3-none-any.whl", hash = "sha256:a8037d14c63c3bb660f42d464684a3f7df3f03fd8544f17384a448a09389decc", size = 943266, upload-time = "2026-02-11T21:52:25.913Z" },
 ]
 
 [[package]]

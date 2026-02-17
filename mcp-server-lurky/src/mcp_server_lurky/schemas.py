@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class DiscussionSchema(BaseModel):
@@ -47,3 +47,12 @@ class SearchResponseSchema(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     version: str
+
+
+class PricingResponse(BaseModel):
+    """Response model for pricing configuration."""
+
+    pricing: dict = Field(description="Pricing data for all endpoints")
+    message: str | None = Field(
+        default=None, description="Optional message about pricing status"
+    )

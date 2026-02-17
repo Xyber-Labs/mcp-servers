@@ -118,7 +118,7 @@ uv run python -m mcp_server_youtube --port 8002 --reload
 
 ```bash
 # Build the production image
-docker build --target prod -t mcp-server-youtube-v2:latest .
+docker build --target prod -t mcp-server-youtube:latest .
 
 # Run the container (ensure PostgreSQL is accessible from container)
 docker run --rm -d \
@@ -126,7 +126,7 @@ docker run --rm -d \
   -p 8002:8002 \
   --env-file .env \
   -v $(pwd)/logs:/app/logs \
-  mcp-server-youtube-v2:latest
+  mcp-server-youtube:latest
 ```
 
 **Database:** The server connects to an external PostgreSQL database. Ensure your PostgreSQL instance is accessible from the container (use `DB_HOST` to specify the host, or use Docker networking for container-to-container communication).
@@ -139,10 +139,10 @@ docker run --rm -d \
 cd mcp-server-youtube-v2
 
 # Build production image (recommended)
-docker build --target prod -t mcp-server-youtube-v2:latest .
+docker build --target prod -t mcp-server-youtube:latest .
 
 # Or build dev image (for development/debugging)
-docker build --target dev -t mcp-server-youtube-v2:dev .
+docker build --target dev -t mcp-server-youtube:dev .
 ```
 
 **2. Run with Named Volumes (Docker-Managed Storage)**
@@ -157,7 +157,7 @@ docker run --rm -d \
   -p 8002:8002 \
   --env-file .env \
   -v youtube-logs:/app/logs \
-  mcp-server-youtube-v2:latest
+  mcp-server-youtube:latest
 ```
 
 **3. Run with External PostgreSQL**
@@ -172,7 +172,7 @@ docker run --rm -d \
   -p 8002:8002 \
   --env-file .env \
   -v $(pwd)/logs:/app/logs \
-  mcp-server-youtube-v2:latest
+  mcp-server-youtube:latest
 ```
 
 **PostgreSQL Setup:**
@@ -193,7 +193,7 @@ docker run --rm -d \
   -e APIFY_TOKEN=your-token-here \
   -e MCP_YOUTUBE_PORT=8002 \
   -v youtube-logs:/app/logs \
-  mcp-server-youtube-v2:latest
+  mcp-server-youtube:latest
 ```
 
 **Note:** All examples above use `--env-file .env` to automatically load your `.env` file. Make sure your `.env` file exists in the same directory where you run the `docker run` command.
@@ -250,7 +250,7 @@ docker run --rm -d \
   -p 8002:8002 \
   --env-file .env \
   -v $(pwd)/logs:/app/logs \
-  mcp-server-youtube-v2:latest
+  mcp-server-youtube:latest
 
 # 6. Query database again - videos should still be there!
 psql -h localhost -U postgres -d mcp_youtube -c "SELECT video_id, title, transcript_success FROM youtube_videos LIMIT 5;"
@@ -279,7 +279,7 @@ docker run --rm -it \
   --env-file .env \
   -v $(pwd)/src:/app/src \
   -v $(pwd)/logs:/app/logs \
-  mcp-server-youtube-v2:dev \
+  mcp-server-youtube:dev \
   python -m mcp_server_youtube --port 8002 --reload
 ```
 
@@ -463,6 +463,93 @@ from mcp.client.stdio import stdio_client
 # Connect to HTTP MCP server
 # (implementation depends on your MCP client library)
 ```
+
+## x402 Payment Integration
+
+This server supports optional x402 micropayments for accessing premium endpoints. The payment protocol enables:
+- Multi-chain support (Base, Polygon, Avalanche, SKALE Base, BNB Chain, Sei, Solana)
+- Flexible pricing per tool/endpoint
+- Automatic payment verification via facilitators
+- On-chain settlement for completed requests
+
+### Pricing Configuration
+
+Pricing is configured in `tool_pricing.yaml` using USD amounts that are automatically converted to token amounts:
+
+```yaml
+# Example: Search with transcripts costs $0.01
+search_and_extract_transcripts:
+  # Base (chain_id: 8453)
+  - price_usd: 0.01
+    chain_id: 8453
+    token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+
+  # SKALE Base (chain_id: 1187947933)
+  - price_usd: 0.01
+    chain_id: 1187947933
+    token_address: "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20"
+```
+
+### Supported Networks
+
+The server accepts payments on:
+- **Base** (EVM, chain_id: 8453) - USDC
+- **Polygon** (EVM, chain_id: 137) - USDC
+- **Avalanche** (EVM, chain_id: 43114) - USDC
+- **SKALE Base** (L3, chain_id: 1187947933) - Bridged USDC
+- **BNB Chain** (EVM, chain_id: 56) - XUSD (Wrapped USDC)
+- **Sei Network** (EVM, chain_id: 1329) - USDC
+- **Solana** (SVM) - USDC
+
+### Environment Variables
+
+Configure x402 payments via environment variables:
+
+```bash
+# Enable/disable payment enforcement
+MCP_YOUTUBE_X402_PRICING_MODE=on  # or "off" (default)
+
+# Facilitator URLs (JSON array)
+MCP_YOUTUBE_X402_FACILITATOR_URLS='["https://facilitator.payai.network"]'
+
+# Payment recipient addresses
+MCP_YOUTUBE_X402_PAYEE_EVM_ADDRESS=0x...       # For EVM chains
+MCP_YOUTUBE_X402_PAYEE_SOLANA_ADDRESS=...     # For Solana
+
+# Pricing config file path (optional)
+MCP_YOUTUBE_X402_PRICING_CONFIG_PATH=tool_pricing.yaml
+```
+
+### Development vs Production Pricing
+
+- **Development** (`tool_pricing.dev.yaml`): Lower prices for testing ($0.00001 per call)
+- **Production** (`tool_pricing.yaml`): Full pricing ($0.0001-$0.01 per call)
+
+The Docker build automatically selects:
+- Dev stage: Uses `tool_pricing.dev.yaml`
+- Prod stage: Uses `tool_pricing.yaml`
+
+### Viewing Pricing
+
+Get current pricing configuration:
+
+```bash
+# Via REST API
+curl http://localhost:8002/hybrid/pricing
+
+# Via MCP tool
+# Use MCP client to call: youtube_get_pricing
+```
+
+### Making Payments
+
+When pricing is enabled, clients must include payment proofs in the `PAYMENT-SIGNATURE` header (or legacy `X-PAYMENT` header). Use an x402-compatible client library to automatically handle:
+1. Receiving 402 Payment Required responses
+2. Signing payment authorizations
+3. Including payment headers
+4. Processing payment receipts
+
+See the template's E2E tests in `tests/e2e/` for payment integration examples.
 
 ## Project Structure
 

@@ -160,12 +160,37 @@ mcp-server-lurky/
 
 This server uses the x402 protocol for monetization. Pricing for each tool and endpoint is defined in `tool_pricing.yaml`.
 
+### Supported Networks
+
+The server accepts payments on the following blockchain networks:
+- **Base (EVM)**: USDC on chain ID 8453
+- **Polygon (EVM)**: USDC on chain ID 137
+- **Avalanche (EVM)**: USDC on chain ID 43114
+- **SKALE Base (EVM)**: USDC on chain ID 1187947933
+- **BNB Chain (EVM)**: XUSD (wrapped USDC) on chain ID 56
+- **Sei Network (EVM)**: USDC on chain ID 1329
+- **Solana**: USDC SPL token
+
+### Pricing Configuration
+
+Prices are defined in USD and automatically converted to token amounts based on token decimals. See `tool_pricing.yaml` for current pricing:
+
+- **Production** (`tool_pricing.yaml`): $0.01 per call
+- **Development** (`tool_pricing.dev.yaml`): $0.00001 per call (for testing)
+
+### Setup
+
 To enable payments, configure the following in your `.env`:
 ```bash
 MCP_LURKY_X402_PRICING_MODE=on
 MCP_LURKY_X402_PAYEE_EVM_ADDRESS=your_wallet_address
-MCP_LURKY_X402_CDP_API_KEY_ID=your_cdp_id
-MCP_LURKY_X402_CDP_API_KEY_SECRET=your_cdp_secret
+MCP_LURKY_X402_PAYEE_SOLANA_ADDRESS=your_solana_wallet
+MCP_LURKY_X402_FACILITATOR_URLS='["https://facilitator.payai.network"]'
+```
+
+For multi-facilitator support, provide a JSON array:
+```bash
+MCP_LURKY_X402_FACILITATOR_URLS='["https://facilitator1.com","https://facilitator2.com"]'
 ```
 
 ## Contributing

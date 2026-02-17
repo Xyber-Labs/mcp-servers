@@ -34,7 +34,7 @@ def create_app() -> FastAPI:
         mcp_source_app.include_router(router)
 
     mcp_server = FastMCP.from_fastapi(app=mcp_source_app, name="MCP")
-    mcp_app = mcp_server.http_app(path="/")
+    mcp_app = mcp_server.http_app(path="/", stateless_http=True)
 
     @asynccontextmanager
     async def combined_lifespan(app: FastAPI):

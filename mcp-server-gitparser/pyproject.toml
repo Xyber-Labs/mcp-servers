@@ -19,7 +19,9 @@ dependencies = [
     "cdp-sdk>=1.33.2",
     "httpx>=0.25.0",
     "pyyaml",
-    "x402[evm]>=2.0.0",
+    "x402>=2.0.0",
+    "solana>=0.36.11",
+    "solders>=0.27.1",
 ]
 
 [build-system]
@@ -82,7 +84,7 @@ indent-style = "space"
 line-ending = "auto"
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "tests"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 python_files = ["test_*.py", "*_test.py"]
@@ -93,4 +95,8 @@ addopts = [
     "--strict-config",
     "--disable-warnings",
     "-v",
+]
+markers = [
+    "payment_on: marks tests that require payment enforcement enabled",
+    "payment_off: marks tests that require payment enforcement disabled",
 ]

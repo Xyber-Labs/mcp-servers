@@ -103,16 +103,16 @@ CUSTOM_NETWORKS = {
         "chain_id": 1329,
         "explorer_url": "https://seitrace.com/tx/",
         "default_asset": {
-            "address": "0x3894085Ef7Ff0f0aeDf52E2A2704928d1Ec074F1",
-            "name": "USD Coin",
-            "version": "1",
+            "address": "0xe15fC38F6D8c56aF07bbCBe3BAf5708A2Bf42392",
+            "name": "USDC",
+            "version": "2",
             "decimals": 6,
         },
         "supported_assets": {
             "USDC": {
-                "address": "0x3894085Ef7Ff0f0aeDf52E2A2704928d1Ec074F1",
-                "name": "USD Coin",
-                "version": "1",
+                "address": "0xe15fC38F6D8c56aF07bbCBe3BAf5708A2Bf42392",
+                "name": "USDC",
+                "version": "2",
                 "decimals": 6,
             },
         },

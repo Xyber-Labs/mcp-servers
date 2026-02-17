@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from mcp_server_youtube.config import DatabaseConfig
+from mcp_server_youtube.config import get_app_settings
 from mcp_server_youtube.youtube.models import Base, YouTubeVideo
 
 logger = logging.getLogger(__name__)
@@ -57,8 +57,8 @@ class DatabaseManager:
 
         """
         if database_url is None:
-            db_config = DatabaseConfig()
-            database_url = db_config.DATABASE_URL
+            settings = get_app_settings()
+            database_url = settings.database_url
 
         if not database_url:
             raise ValueError(

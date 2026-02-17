@@ -243,3 +243,19 @@ class SearchOnlyResponse(BaseModel):
     num_videos: int | None = None  # New field
     videos: list[VideoSearchResponse]
     total_found: int
+
+
+class PricingResponse(BaseModel):
+    """Response model for pricing configuration."""
+
+    pricing: dict = Field(description="Pricing data for all endpoints")
+    message: str | None = Field(
+        default=None, description="Optional message about pricing status"
+    )
+
+
+class HealthCheckResponse(BaseModel):
+    """Response model for health check endpoint."""
+
+    status: str = Field(description="Server status")
+    service: str = Field(description="Service name")

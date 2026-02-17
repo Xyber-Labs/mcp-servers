@@ -29,10 +29,8 @@ from tests.e2e.utils import (
 
 
 @pytest.mark.asyncio
-@pytest.mark.e2e
-@pytest.mark.smoke
 async def test_mcp_geolocate_city_mcp() -> None:
-    """Smoke test: geolocate_city MCP tool (always free)."""
+    "Geolocate_city MCP tool (always free)."
     config = load_e2e_config()
     require_base_url(config)
 
@@ -58,12 +56,10 @@ async def test_mcp_geolocate_city_mcp() -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.e2e
-@pytest.mark.smoke
 @pytest.mark.payment_off
 async def test_mcp_weather_analysis_mcp_pricing_off() -> None:
     """Priced MCP tool works without payment when PRICING_MODE=off."""
-    config = load_e2e_config()
+e2e_config()
     require_base_url(config)
 
     session_id = await negotiate_mcp_session_id(config)
@@ -82,8 +78,6 @@ async def test_mcp_weather_analysis_mcp_pricing_off() -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.e2e
-@pytest.mark.smoke
 @pytest.mark.payment_on
 async def test_mcp_weather_analysis_mcp_no_payment() -> None:
     """Priced MCP tool returns 402 when PRICING_MODE=on and no payment provided."""
@@ -104,8 +98,6 @@ async def test_mcp_weather_analysis_mcp_no_payment() -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.e2e
-@pytest.mark.smoke
 @pytest.mark.payment_on
 async def test_mcp_weather_analysis_mcp_with_payment(paid_client) -> None:
     """Priced MCP tool succeeds when PRICING_MODE=on and payment provided."""

@@ -8,7 +8,7 @@ from mcp_server_tavily.api_routers import routers as api_routers
 from mcp_server_tavily.dependencies import DependencyContainer
 from mcp_server_tavily.hybrid_routers import routers as hybrid_routers
 from mcp_server_tavily.middlewares import X402WrapperMiddleware
-from mcp_server_tavily.x402_config import get_x402_settings
+from mcp_server_tavily.x402_integration import get_x402_settings
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ def create_app() -> FastAPI:
         mcp_source_app.include_router(router)
 
     mcp_server = FastMCP.from_fastapi(app=mcp_source_app, name="MCP")
-    mcp_app = mcp_server.http_app(path="/")
+    mcp_app = mcp_server.http_app(path="/", stateless_http=True)
 
     @asynccontextmanager
     async def combined_lifespan(app: FastAPI):

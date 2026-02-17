@@ -11,7 +11,7 @@ from mcp_server_gitparser.config import get_app_settings
 from mcp_server_gitparser.hybrid_routers import routers as hybrid_routers
 from mcp_server_gitparser.mcp_routers import routers as mcp_routers
 from mcp_server_gitparser.middlewares import X402WrapperMiddleware
-from mcp_server_gitparser.x402_config import get_x402_settings
+from mcp_server_gitparser.x402_integration import get_x402_settings
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ def create_app() -> FastAPI:
         mcp_source_app.include_router(router)
 
     mcp_server = FastMCP.from_fastapi(app=mcp_source_app, name="Gitparser")
-    mcp_app = mcp_server.http_app(path="/")
+    mcp_app = mcp_server.http_app(path="/", stateless_http=True)
 
     @asynccontextmanager
     async def combined_lifespan(app: FastAPI):

@@ -6,6 +6,8 @@ import logging
 
 from fastapi import APIRouter
 
+from mcp_server_youtube.schemas import HealthCheckResponse
+
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
@@ -14,8 +16,9 @@ router = APIRouter()
     "/health",
     tags=["Admin"],
     operation_id="get_server_health",
+    response_model=HealthCheckResponse,
 )
-async def get_server_health():
+async def get_server_health() -> HealthCheckResponse:
     """
     Returns the operational status of the server.
 
@@ -24,7 +27,7 @@ async def get_server_health():
     server health.
     """
     logger.info("Health check endpoint was called")
-    return {
-        "status": "healthy",
-        "service": "mcp_youtube_api",
-    }
+    return HealthCheckResponse(
+        status="healthy",
+        service="mcp_youtube_api",
+    )

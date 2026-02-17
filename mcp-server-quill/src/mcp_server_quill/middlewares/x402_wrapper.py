@@ -33,36 +33,18 @@ from x402.mechanisms.svm.exact import ExactSvmServerScheme
 from x402.schemas import Network, PaymentPayload, PaymentRequired, PaymentRequirements
 from x402.server import x402ResourceServer
 
-from mcp_server_quill.x402_config import (
+from mcp_server_quill.x402_integration import (
+    BLOCK_EXPLORERS,
     CHAIN_ID_TO_NETWORK,
     EVM_NETWORKS,
     SOLANA_NETWORKS,
-    PaymentOptionConfig,
     X402Config,
     get_x402_settings,
 )
+from mcp_server_quill.x402_integration.accepted_assets import CUSTOM_NETWORKS
+from mcp_server_quill.x402_integration.config import PaymentOptionConfig
 
 logger = logging.getLogger(__name__)
-
-# CAIP-2 network -> block explorer base URL (for observable transactions, e.g. BaseScan)
-_EXPLORER_BASE: dict[str, str] = {
-    "eip155:1": "https://etherscan.io",
-    "eip155:8453": "https://basescan.org",
-    "eip155:84532": "https://sepolia.basescan.org",
-    "eip155:10": "https://optimistic.etherscan.io",
-    "eip155:42161": "https://arbiscan.io",
-    "eip155:137": "https://polygonscan.com",
-    "eip155:43114": "https://snowtrace.io",
-    "eip155:1187947933": "https://mainnet-explorer.skalenodes.com/poa-network-skale-base",
-}
-
-
-def _explorer_tx_url(network: Network, tx_hash: str) -> str:
-    """Build block explorer tx URL for a given CAIP-2 network and tx hash."""
-    base = _EXPLORER_BASE.get(str(network), "")
-    if not base or not tx_hash:
-        return ""
-    return f"{base}/tx/{tx_hash}"
 
 
 class X402WrapperMiddleware(BaseHTTPMiddleware):
@@ -120,7 +102,7 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
                 else:
                     logger.warning(
                         f"Unknown chain_id '{opt.chain_id}' in pricing config. "
-                        f"Add it to CHAIN_ID_TO_NETWORK mapping in x402_config.py"
+                        f"Add it to CHAIN_ID_TO_NETWORK mapping in x402_integration/accepted_assets.py"
                     )
 
         for network in networks_used:
@@ -133,7 +115,7 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
             else:
                 logger.warning(
                     f"Network '{network}' not in EVM_NETWORKS or SOLANA_NETWORKS. "
-                    f"Update x402_config.py to classify this network."
+                    f"Update x402_integration/accepted_assets.py to classify this network."
                 )
 
     async def dispatch(
@@ -225,7 +207,10 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
                     tx_hash = getattr(settle_response, "transaction", None) or ""
                     network = getattr(settle_response, "network", None) or ""
                     if tx_hash:
-                        explorer_url = _explorer_tx_url(network, tx_hash)
+                        # selected_req.network is already CAIP-2 format like "eip155:8453"
+                        explorer_base = CUSTOM_NETWORKS.get(selected_req.network, {}).get("explorer_url", "")
+                        explorer_url = f"{explorer_base}{tx_hash}" if explorer_base else ""
+
                         logger.info(
                             "Payment settled: tx=%s network=%s%s",
                             tx_hash,

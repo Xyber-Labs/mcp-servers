@@ -30,6 +30,7 @@ from x402.server import x402ResourceServer
 from mcp_server_wikipedia.x402_integration.accepted_assets import (
     BLOCK_EXPLORERS,
     CHAIN_ID_TO_NETWORK,
+    CUSTOM_NETWORKS,
     EVM_NETWORKS,
     SOLANA_NETWORKS,
 )
@@ -205,7 +206,10 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
                     tx_hash = getattr(settle_response, "transaction", None) or ""
                     network = getattr(settle_response, "network", None) or ""
                     if tx_hash:
-                        explorer_url = _explorer_tx_url(network, tx_hash)
+                        # Use selected_req.network (CAIP-2) for explorer lookup
+                        explorer_base = CUSTOM_NETWORKS.get(selected_req.network, {}).get("explorer_url", "")
+                        explorer_url = f"{explorer_base}{tx_hash}" if explorer_base else ""
+
                         logger.info(
                             "Payment settled: tx=%s network=%s%s",
                             tx_hash,
@@ -303,12 +307,20 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
                 )
                 continue
 
+            payee_address = self.settings.get_payee_address(network)
+            if not payee_address:
+                logger.warning(
+                    f"No payee address configured for network '{network}'. "
+                    "Skipping this payment option."
+                )
+                continue
+
             base_req = PaymentRequirements(
                 scheme="exact",
                 network=network,
                 asset=option.token_address,
                 amount=str(option.token_amount),
-                pay_to=self.settings.payee_evm_address,
+                pay_to=payee_address,
                 max_timeout_seconds=60,
                 extra={},
             )

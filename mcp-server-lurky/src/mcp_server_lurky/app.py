@@ -9,7 +9,7 @@ from mcp_server_lurky.dependencies import DependencyContainer
 from mcp_server_lurky.hybrid_routers import routers as hybrid_routers
 from mcp_server_lurky.mcp_routers import routers as mcp_routers
 from mcp_server_lurky.middlewares.x402_wrapper import X402WrapperMiddleware
-from mcp_server_lurky.x402_config import get_x402_settings
+from mcp_server_lurky.x402_integration import get_x402_settings
 
 logger = logging.getLogger(__name__)
 

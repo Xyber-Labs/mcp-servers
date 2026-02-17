@@ -3,6 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Path, Query
 
 from mcp_server_quill.dependencies import SearchClientDep
+from mcp_server_quill.schemas import TokenSearchResponse
 
 logger = logging.getLogger(__name__)
 
@@ -15,11 +16,12 @@ router = APIRouter(tags=["Search"])
     summary="Search for Token Address",
     description="""
     Search for a token's contract address by its name or symbol.
-    
+
     This endpoint uses DexScreener to find token addresses across multiple blockchains.
     It's useful when you only know the token's name or symbol and need its contract address.
     """,
     response_description="Token address information including contract address, name, symbol, and chain.",
+    response_model=TokenSearchResponse,
 )
 async def search_token_address(
     search_client: SearchClientDep,
@@ -32,7 +34,7 @@ async def search_token_address(
         None,
         description="""
         Optional chain filter to narrow down search results.
-        
+
         **Supported chains:**
         - `ethereum` or `eth` - Ethereum Mainnet
         - `bsc` - Binance Smart Chain
@@ -40,7 +42,7 @@ async def search_token_address(
         - `polygon` - Polygon
         - `arbitrum` - Arbitrum
         - `avalanche` - Avalanche
-        
+
         If not provided, returns the first match across all chains.
         """,
         example="ethereum",

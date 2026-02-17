@@ -16,7 +16,7 @@ from mcp_server_youtube.config import get_app_settings
 from mcp_server_youtube.dependencies import DependencyContainer
 from mcp_server_youtube.hybrid_routers import routers as hybrid_routers
 from mcp_server_youtube.middlewares import X402WrapperMiddleware
-from mcp_server_youtube.x402_config import get_x402_settings
+from mcp_server_youtube.x402_integration.config import get_x402_settings
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ async def app_lifespan(app: FastAPI):
     logger.info("Lifespan: Initializing application services...")
 
     settings = get_app_settings()
-    apify_token_loaded = bool(settings.apify.apify_token)
+    apify_token_loaded = bool(settings.apify_token)
     logger.info(
         "Lifespan: Apify token %s (transcript extraction %s).",
         "detected" if apify_token_loaded else "NOT detected",
@@ -72,7 +72,7 @@ def create_app() -> FastAPI:
 
     # Convert to MCP server
     mcp_server = FastMCP.from_fastapi(app=mcp_source_app, name="MCP")
-    mcp_app = mcp_server.http_app(path="/")
+    mcp_app = mcp_server.http_app(path="/", stateless_http=True)
 
     # --- Combined Lifespan ---
     @asynccontextmanager

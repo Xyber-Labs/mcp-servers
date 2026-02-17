@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 
 from mcp_server_arxiv.dependencies import get_arxiv_service
 from mcp_server_arxiv.schemas import ArxivPaperResponse, SearchRequest
@@ -17,7 +17,20 @@ router = APIRouter()
     response_model=list[ArxivPaperResponse],
 )
 async def arxiv_search(
-    search: SearchRequest,
+    search: SearchRequest = Body(
+        openapi_examples={
+            "search_by_query": {
+                "summary": "Search by query",
+                "description": "Search for papers matching a query string",
+                "value": {"query": "transformer neural networks", "max_results": 5},
+            },
+            "fetch_by_id": {
+                "summary": "Fetch by arXiv ID",
+                "description": "Fetch a specific paper by its arXiv ID",
+                "value": {"arxiv_id": "1706.03762", "max_text_length": 5000},
+            },
+        }
+    ),
     arxiv_client: _ArxivService = Depends(get_arxiv_service),
 ) -> list[ArxivPaperResponse]:
     """

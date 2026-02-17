@@ -2,7 +2,7 @@
 ## Your project information, dependencies, tool configurations...
 
 [project]
-name = "mcp-server-youtube-v2"
+name = "mcp-server-youtube"
 version = "2.0.0"
 description = "MCP Server providing YouTube video search and transcript retrieval"
 authors = [
@@ -24,12 +24,14 @@ dependencies = [
     "cdp-sdk>=1.33.2",
     "httpx>=0.25.0",
     "pyyaml",
+    "x402>=2.0.0",
     "apify-client>=1.0.0",
     "python-dotenv>=1.0.0",
     "pydantic>=2.0.0",
     "sqlalchemy>=2.0.0",
     "psycopg[binary]>=2.9.0",
-    "x402>=2.0.0",
+    "solana>=0.36.10",
+    "solders>=0.27.1",
 ]
 
 [dependency-groups]
@@ -125,6 +127,6 @@ addopts = [
     "-v",
 ]
 markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
+    "payment_on: marks tests that require payment enforcement enabled",
+    "payment_off: marks tests that require payment enforcement disabled",
 ]

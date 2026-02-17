@@ -9,7 +9,7 @@ from mcp_server_quill.dependencies import DependencyContainer
 from mcp_server_quill.hybrid_routers import routers as hybrid_routers
 from mcp_server_quill.mcp_routers import routers as mcp_only_routers
 from mcp_server_quill.middlewares.x402_wrapper import X402WrapperMiddleware
-from mcp_server_quill.x402_config import get_x402_settings
+from mcp_server_quill.x402_integration import get_x402_settings
 
 logger = logging.getLogger(__name__)
 

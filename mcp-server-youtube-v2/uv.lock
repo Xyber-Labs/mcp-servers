@@ -1579,7 +1579,7 @@ wheels = [
 ]
 
 [[package]]
-name = "mcp-server-youtube-v2"
+name = "mcp-server-youtube"
 version = "2.0.0"
 source = { editable = "." }
 dependencies = [
@@ -1594,6 +1594,8 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
+    { name = "solana" },
+    { name = "solders" },
     { name = "sqlalchemy" },
     { name = "tenacity" },
     { name = "uvicorn", extra = ["standard"] },
@@ -1628,6 +1630,8 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "pyyaml" },
+    { name = "solana", specifier = ">=0.36.10" },
+    { name = "solders", specifier = ">=0.27.1" },
     { name = "sqlalchemy", specifier = ">=2.0.0" },
     { name = "tenacity", specifier = ">=8.2.3" },
     { name = "uvicorn", extras = ["standard"] },

@@ -110,10 +110,6 @@ addopts = [
     "-v",
 ]
 markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "e2e: marks tests as end-to-end tests requiring a running server",
-    "payment_enabled: marks tests that require payment to be enabled on the server",
-    "payment_disabled: marks tests that require payment to be disabled on the server",
-    "payment_agnostic: marks tests that work regardless of payment configuration",
+    "payment_on: marks tests that require payment enforcement enabled",
+    "payment_off: marks tests that require payment enforcement disabled",
 ]

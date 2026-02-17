@@ -99,20 +99,21 @@ CUSTOM_NETWORKS = {
         },
     },
     # Sei Network Mainnet - Custom network
+    # Native USDC issued by Circle. EIP-712 domain: name="USDC", version="2"
     "eip155:1329": {
         "chain_id": 1329,
         "explorer_url": "https://seitrace.com/tx/",
         "default_asset": {
             "address": "0xe15fC38F6D8c56aF07bbCBe3BAf5708A2Bf42392",
-            "name": "USD Coin",
-            "version": "1",
+            "name": "USDC",
+            "version": "2",
             "decimals": 6,
         },
         "supported_assets": {
             "USDC": {
                 "address": "0xe15fC38F6D8c56aF07bbCBe3BAf5708A2Bf42392",
-                "name": "USD Coin",
-                "version": "1",
+                "name": "USDC",
+                "version": "2",
                 "decimals": 6,
             },
         },

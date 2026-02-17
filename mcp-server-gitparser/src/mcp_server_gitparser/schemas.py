@@ -51,3 +51,19 @@ class ErrorResponse(BaseModel):
     success: bool = Field(False, description="Always false for errors.")
     error: str = Field(..., description="Error message.")
     url: str | None = Field(None, description="The URL that caused the error.")
+
+
+class PricingResponse(BaseModel):
+    """Response model for pricing configuration."""
+
+    pricing: dict = Field(description="Pricing data for all endpoints")
+    message: str | None = Field(
+        default=None, description="Optional message about pricing status"
+    )
+
+
+class HealthCheckResponse(BaseModel):
+    """Response model for health check endpoint."""
+
+    status: str = Field(description="Server status")
+    service: str = Field(description="Service name")

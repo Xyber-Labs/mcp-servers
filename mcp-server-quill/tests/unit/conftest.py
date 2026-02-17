@@ -6,7 +6,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 from mcp_server_quill.app import create_app
-from mcp_server_quill.x402_config import X402Config
+from mcp_server_quill.x402_integration import X402Config
 
 
 @pytest_asyncio.fixture

@@ -19,8 +19,6 @@ from mcp_server_weather.schemas import AdminLogsResponse, HealthCheckResponse
 
 
 @pytest.mark.asyncio
-@pytest.mark.e2e
-@pytest.mark.smoke
 async def test_api_health_rest(rest_client) -> None:
     """Smoke test: /api/health endpoint (always free)."""
     config, client = rest_client
@@ -38,8 +36,6 @@ async def test_api_health_rest(rest_client) -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.e2e
-@pytest.mark.smoke
 @pytest.mark.payment_off
 async def test_api_admin_logs_rest_pricing_off(rest_client) -> None:
     """Priced endpoint works without payment when PRICING_MODE=off."""
@@ -53,8 +49,6 @@ async def test_api_admin_logs_rest_pricing_off(rest_client) -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.e2e
-@pytest.mark.smoke
 @pytest.mark.payment_on
 async def test_api_admin_logs_rest_no_payment(rest_client) -> None:
     """Priced endpoint returns 402 when PRICING_MODE=on and no payment provided."""
@@ -67,8 +61,6 @@ async def test_api_admin_logs_rest_no_payment(rest_client) -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.e2e
-@pytest.mark.smoke
 @pytest.mark.payment_on
 async def test_api_admin_logs_rest_with_payment(paid_client) -> None:
     """Priced endpoint succeeds when PRICING_MODE=on and payment provided."""

@@ -1482,9 +1482,11 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
+    { name = "solana" },
+    { name = "solders" },
     { name = "tenacity" },
     { name = "uvicorn", extra = ["standard"] },
-    { name = "x402", extra = ["evm"] },
+    { name = "x402" },
 ]
 
 [package.dev-dependencies]
@@ -1513,9 +1515,11 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "pyyaml" },
+    { name = "solana", specifier = ">=0.36.11" },
+    { name = "solders", specifier = ">=0.27.1" },
     { name = "tenacity", specifier = ">=8.2.3" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.24.0" },
-    { name = "x402", extras = ["evm"], specifier = ">=2.0.0" },
+    { name = "x402", specifier = ">=2.0.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -2979,15 +2983,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/82/09/30f9807b8a7abe9a82eb287a13116aad2a0db682fce681f5a061b0d2af67/x402-2.1.0.tar.gz", hash = "sha256:3829d91fe65c8fab988cb9ab011120c47fd5977b62d9603f3e20471a7ffe3188", size = 886966, upload-time = "2026-02-11T21:52:27.493Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5f/70/e1bcce7f2f62a9411fc172f92d2eac8da464fb49ea8549c97454354176d5/x402-2.1.0-py3-none-any.whl", hash = "sha256:a8037d14c63c3bb660f42d464684a3f7df3f03fd8544f17384a448a09389decc", size = 943266, upload-time = "2026-02-11T21:52:25.913Z" },
-]
-
-[package.optional-dependencies]
-evm = [
-    { name = "eth-abi" },
-    { name = "eth-account" },
-    { name = "eth-keys" },
-    { name = "eth-utils" },
-    { name = "web3" },
 ]
 
 [[package]]

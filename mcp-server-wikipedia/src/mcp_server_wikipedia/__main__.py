@@ -4,9 +4,8 @@ import logging
 import uvicorn
 
 from mcp_server_wikipedia.config import get_app_settings
-from mcp_server_wikipedia.logging_config import configure_logging, logging_level
+from mcp_server_wikipedia.logging_config import get_logging_config
 
-configure_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -40,6 +39,6 @@ if __name__ == "__main__":
         host=args.host,
         port=args.port,
         reload=args.reload,
-        log_level=logging_level.lower(),
+        log_config=get_logging_config(),
         factory=True,
     )

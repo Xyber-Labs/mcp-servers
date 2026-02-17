@@ -22,10 +22,9 @@ def get_env_path() -> Path | str:
 class E2ETestConfig(BaseSettings):
     """Configuration for end-to-end tests, driven by environment variables."""
 
-    base_url: str = "http://localhost:8000"
+    base_url: str = "http://localhost:8115"
     timeout_seconds: int = 60
     private_key: str | None = None
-    lurky_api_key: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=get_env_path(),
@@ -47,7 +46,7 @@ def require_base_url(config: E2ETestConfig) -> None:
     if not config.base_url:
         import pytest
 
-        pytest.skip("Set MCP_LURKY_E2E_BASE_URL to run E2E tests.")
+        pytest.skip("Set MCP_WEATHER_E2E_BASE_URL to run E2E tests.")
 
 
 def require_wallet(config: E2ETestConfig) -> None:
@@ -55,11 +54,3 @@ def require_wallet(config: E2ETestConfig) -> None:
         import pytest
 
         pytest.skip("Set MCP_LURKY_TEST_PRIVATE_KEY to run x402 payment E2E tests.")
-
-
-def require_lurky_api_key(config: E2ETestConfig) -> str:
-    if not config.lurky_api_key:
-        import pytest
-
-        pytest.skip("Set MCP_LURKY_TEST_LURKY_API_KEY to run Lurky API E2E tests.")
-    return config.lurky_api_key

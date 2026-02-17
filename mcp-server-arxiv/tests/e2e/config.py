@@ -6,9 +6,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def get_env_path() -> Path | str:
-    """Find the .env file recursively from current directory up to root."""
-    current = Path(__file__).resolve().parent
-    for parent in [current] + list(current.parents):
+    """Find the .env.tests file in the tests directory."""
+    tests_dir = Path(__file__).resolve().parent.parent
+    env_test = tests_dir / ".env.tests"
+    if env_test.exists():
+        return env_test
+    # Fallback to root .env for backwards compatibility
+    for parent in [tests_dir] + list(tests_dir.parents):
         env_file = parent / ".env"
         if env_file.exists():
             return env_file
@@ -33,6 +37,7 @@ class E2ETestConfig(BaseSettings):
 
 def load_e2e_config() -> E2ETestConfig:
     config = E2ETestConfig()
+    # Normalise base_url to avoid trailing slashes inconsistencies.
     config.base_url = config.base_url.rstrip("/")  # type: ignore[misc]
     return config
 
@@ -41,7 +46,7 @@ def require_base_url(config: E2ETestConfig) -> None:
     if not config.base_url:
         import pytest
 
-        pytest.skip("Set MCP_ARXIV_TEST_BASE_URL to run E2E tests.")
+        pytest.skip("Set MCP_ARXIV_E2E_BASE_URL to run E2E tests.")
 
 
 def require_wallet(config: E2ETestConfig) -> None:

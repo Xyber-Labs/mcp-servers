@@ -3,6 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Path, Query
 
 from mcp_server_quill.dependencies import QuillClientDep, SearchClientDep
+from mcp_server_quill.schemas import TokenSecurityResponse
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +17,12 @@ router = APIRouter()
     summary="Get EVM Token Security Analysis",
     description="""
     Get comprehensive security analysis for an EVM-compatible token.
-    
+
     This endpoint performs a two-step process:
     1. **Searches** for the token's contract address using the token name/symbol
     2. **Analyzes** the token's security using QuillCheck API
     """,
+    response_model=TokenSecurityResponse,
 )
 async def get_evm_token_info(
     quill_client: QuillClientDep,
@@ -88,11 +90,12 @@ async def get_evm_token_info(
     summary="Get Solana Token Security Analysis",
     description="""
     Get comprehensive security analysis for a Solana token.
-    
+
     This endpoint performs a two-step process:
     1. **Searches** for the token's mint address using the token name/symbol
     2. **Analyzes** the token's security using QuillCheck API
     """,
+    response_model=TokenSecurityResponse,
 )
 async def get_solana_token_info(
     quill_client: QuillClientDep,

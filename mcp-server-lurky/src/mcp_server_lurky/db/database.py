@@ -28,9 +28,11 @@ class DatabaseManager:
                 database_url,
                 echo=False,
                 pool_pre_ping=True,
+                connect_args={"connect_timeout": 3},  # 3 second timeout
             )
             self.SessionLocal = sessionmaker(bind=self.engine, expire_on_commit=False)
 
+            # Test connection with timeout
             with self.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
 

@@ -42,9 +42,9 @@ class DependencyContainer:
 
         settings = get_app_settings()
 
-        if settings.quill.api_key:
+        if settings.quill__api_key:
             cls._quill_client = QuillAPI(
-                api_key=settings.quill.api_key, base_url=settings.quill.base_url
+                api_key=settings.quill__api_key, base_url=settings.quill__base_url
             )
             logger.info("Quill API client initialized successfully.")
         else:
@@ -52,7 +52,7 @@ class DependencyContainer:
                 "Quill API key is not configured; Quill endpoints will be unavailable."
             )
 
-        cls._search_client = TokenSearchAPI(config=settings.dexscreener)
+        cls._search_client = TokenSearchAPI(base_url=settings.dexscreener__base_url)
         logger.info("Token search client initialized successfully.")
 
         logger.info("Dependencies initialized successfully.")
@@ -70,8 +70,6 @@ class DependencyContainer:
             await cls._quill_client.close()
         cls._quill_client = None
 
-        if cls._search_client:
-            await cls._search_client.close()
         cls._search_client = None
 
         logger.info("Dependencies shut down successfully.")

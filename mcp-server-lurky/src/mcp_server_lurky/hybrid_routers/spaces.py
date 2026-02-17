@@ -34,8 +34,10 @@ async def perform_get_space_details(
     db,
 ) -> SpaceDetailsSchema:
     """Core logic for getting space details with caching."""
-    # 1. Check cache
-    cached = db.get_space(space_id)
+    # 1. Check cache (if database available)
+    cached = None
+    if db:
+        cached = db.get_space(space_id)
     if cached:
         return SpaceDetailsSchema(
             id=cached.id,
@@ -91,8 +93,9 @@ async def perform_get_space_details(
     # 3. Normalize to SpaceDetailsSchema for consistent response shape
     details_schema = SpaceDetailsSchema(**details.model_dump())
 
-    # 4. Save to cache
-    db.save_space(details_schema.model_dump())
+    # 4. Save to cache (if database available)
+    if db:
+        db.save_space(details_schema.model_dump())
 
     return details_schema
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import base64
 import json
+import sys
+from pathlib import Path
 
 import httpx
 import pytest_asyncio
@@ -10,8 +12,40 @@ from x402.client import x402Client
 from x402.http.clients import x402HttpxClient
 from x402.mechanisms.evm.exact import register_exact_evm_client
 from x402.mechanisms.evm.signers import EthAccountSigner
+from x402.mechanisms.evm.utils import NETWORK_CONFIGS
 
-from tests.e2e.config import load_e2e_config, require_base_url, require_wallet
+# Add tests directory to sys.path to enable imports
+_tests_dir = Path(__file__).resolve().parent.parent
+if str(_tests_dir) not in sys.path:
+    sys.path.insert(0, str(_tests_dir))
+
+from e2e.config import load_e2e_config, require_base_url, require_wallet
+
+# Register SKALE Base network (not yet in x402 library)
+if "eip155:1187947933" not in NETWORK_CONFIGS:
+    NETWORK_CONFIGS["eip155:1187947933"] = {
+        "chain_id": 1187947933,
+        "default_asset": {
+            "address": "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20",
+            "name": "Bridged USDC (SKALE Bridge)",  # Must match Kobaru's expected name
+            "version": "2",
+            "decimals": 6,
+        },
+        "supported_assets": {
+            "USDC": {
+                "address": "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20",
+                "name": "Bridged USDC (SKALE Bridge)",  # Must match Kobaru's expected name
+                "version": "2",
+                "decimals": 6,
+            },
+            "USDT": {
+                "address": "0x2bF5bF154b515EaA82C31a65ec11554fF5aF7fCA",
+                "name": "Tether USD",
+                "version": "1",
+                "decimals": 6,
+            },
+        },
+    }
 
 
 def print_payment_info(response):

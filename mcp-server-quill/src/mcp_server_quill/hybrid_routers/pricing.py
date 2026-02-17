@@ -3,14 +3,15 @@ import logging
 import yaml
 from fastapi import APIRouter, status
 
-from mcp_server_quill.x402_config import get_x402_settings
+from mcp_server_quill.schemas import PricingResponse
+from mcp_server_quill.x402_integration import get_x402_settings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-@router.get("/pricing", status_code=status.HTTP_200_OK)
+@router.get("/pricing", status_code=status.HTTP_200_OK, response_model=PricingResponse)
 async def get_pricing() -> dict:
     """Get tool pricing configuration."""
     settings = get_x402_settings()

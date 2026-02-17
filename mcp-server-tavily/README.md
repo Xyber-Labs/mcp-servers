@@ -117,7 +117,6 @@ mcp-server-tavily/
 │       ├── logging_config.py        # Logging configuration
 │       ├── dependencies.py          # FastAPI dependency injection
 │       ├── schemas.py               # Pydantic request/response models
-│       ├── x402_config.py           # x402 payment configuration
 │       │
 │       ├── api_routers/             # API-Only endpoints (REST)
 │       │   ├── __init__.py
@@ -130,6 +129,11 @@ mcp-server-tavily/
 │       │   ├── __init__.py
 │       │   └── x402_wrapper.py      # x402 payment middleware
 │       │
+│       ├── x402_integration/        # x402 payment integration
+│       │   ├── __init__.py          # Public API exports
+│       │   ├── config.py            # x402 configuration & pricing
+│       │   └── accepted_assets.py   # Blockchain constants & utilities
+│       │
 │       └── tavily/                  # Business logic layer
 │           ├── __init__.py
 │           ├── config.py
@@ -140,9 +144,57 @@ mcp-server-tavily/
 ├── tests/
 ├── .env.example
 ├── Dockerfile
+├── tool_pricing.yaml                # Production pricing configuration
+├── tool_pricing.dev.yaml            # Development pricing configuration
 ├── pyproject.toml
 └── README.md
 ```
+
+## Payment Configuration (x402)
+
+This server supports optional micropayments via the [x402 protocol](https://x402.org). Paid endpoints accept payments on multiple blockchain networks:
+
+- **Base** (chain_id: 8453) - USDC
+- **Polygon** (chain_id: 137) - USDC
+- **Avalanche** (chain_id: 43114) - USDC
+- **SKALE Base** (chain_id: 1187947933) - USDC
+- **BNB Chain** (chain_id: 56) - XUSD
+- **Sei Network** (chain_id: 1329) - USDC
+- **Solana** - USDC
+
+### Pricing Configuration
+
+Pricing is defined in `tool_pricing.yaml` (production) or `tool_pricing.dev.yaml` (development). Example:
+
+```yaml
+tavily_search:
+  - price_usd: 0.01  # $0.01 per search
+    chain_id: 8453
+    token_address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+```
+
+### Environment Variables
+
+Configure x402 payments via environment variables in your `.env` file:
+
+```bash
+# Enable/disable payment enforcement
+MCP_TAVILY_X402_PRICING_MODE=on  # or 'off' for free access
+
+# Facilitator URLs (JSON array for multi-chain support)
+MCP_TAVILY_X402_FACILITATOR_URLS='["https://facilitator.payai.network","https://api.x402.unibase.com/v2"]'
+
+# Wallet addresses for receiving payments
+MCP_TAVILY_X402_PAYEE_EVM_ADDRESS=0x...      # For EVM chains (Base, Polygon, etc.)
+MCP_TAVILY_X402_PAYEE_SOLANA_ADDRESS=...     # For Solana
+
+# Path to pricing configuration
+MCP_TAVILY_X402_PRICING_CONFIG_PATH=tool_pricing.yaml
+```
+
+### Testing with x402
+
+See `.env.example` for complete configuration options. For development, use `tool_pricing.dev.yaml` with lower prices ($0.00001) for testing.
 
 ## Contributing
 

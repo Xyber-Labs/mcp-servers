@@ -3,25 +3,21 @@ from typing import Any
 
 import httpx
 
-from mcp_server_quill.config import DexScreenerConfig
-
 logger = logging.getLogger(__name__)
 
 
 class TokenSearchAPI:
     """Class to search for token addresses using DexScreener API."""
 
-    def __init__(self, config: DexScreenerConfig | None = None):
+    def __init__(self, base_url: str = "https://api.dexscreener.com/latest/dex/search"):
         """
         Initialize TokenSearchAPI.
 
         Args:
-            config: DexScreenerConfig instance. If None, creates a new instance.
+            base_url: DexScreener API base URL.
 
         """
-        if config is None:
-            config = DexScreenerConfig()
-        self.base_url = config.base_url
+        self.base_url = base_url
 
     async def search_token(
         self, query: str, chain_id: str | None = None

@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from mcp_server_arxiv.middlewares import X402WrapperMiddleware
-from mcp_server_arxiv.x402_config import PaymentOptionConfig
+from mcp_server_arxiv.x402_integration import PaymentOptionConfig
 
 
 class DummyFacilitator:
@@ -40,9 +40,9 @@ def pricing() -> dict[str, list[PaymentOptionConfig]]:
     return {
         "arxiv_search": [
             PaymentOptionConfig(
-                chain_id=1187947933,  # SKALE Base
-                token_address="0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20",
-                token_amount=10000,
+                chain_id=8453,  # Base Mainnet
+                token_address="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                price_usd=0.01,
             )
         ]
     }

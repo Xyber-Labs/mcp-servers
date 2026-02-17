@@ -6,9 +6,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def get_env_path() -> Path | str:
-    """Find the .env file recursively from current directory up to root."""
-    current = Path(__file__).resolve().parent
-    for parent in [current] + list(current.parents):
+    """Find the .env.tests file in the tests directory."""
+    tests_dir = Path(__file__).resolve().parent.parent
+    env_test = tests_dir / ".env.tests"
+    if env_test.exists():
+        return env_test
+    # Fallback to root .env for backwards compatibility
+    for parent in [tests_dir] + list(tests_dir.parents):
         env_file = parent / ".env"
         if env_file.exists():
             return env_file
@@ -18,7 +22,7 @@ def get_env_path() -> Path | str:
 class E2ETestConfig(BaseSettings):
     """Configuration for end-to-end tests, driven by environment variables."""
 
-    base_url: str
+    base_url: str = "http://localhost:8110"
     timeout_seconds: int = 60
     private_key: str | None = None
     tavily_api_key: str | None = None

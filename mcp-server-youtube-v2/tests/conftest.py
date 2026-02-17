@@ -144,19 +144,19 @@ def set_test_database_url(monkeypatch):
         "TEST_DATABASE_URL",
         "postgresql://postgres:postgres@localhost:5432/mcp_youtube_test",
     )
-    # Set individual DB env vars for DatabaseConfig
-    monkeypatch.setenv("DB_NAME", "mcp_youtube_test")
-    monkeypatch.setenv("DB_USER", "postgres")
-    monkeypatch.setenv("DB_PASSWORD", "postgres")
-    monkeypatch.setenv("DB_HOST", "localhost")
-    monkeypatch.setenv("DB_PORT", "5432")
+    # Set individual DB env vars for AppSettings
+    monkeypatch.setenv("MCP_YOUTUBE_DB_NAME", "mcp_youtube_test")
+    monkeypatch.setenv("MCP_YOUTUBE_DB_USER", "postgres")
+    monkeypatch.setenv("MCP_YOUTUBE_DB_PASSWORD", "postgres")
+    monkeypatch.setenv("MCP_YOUTUBE_DB_HOST", "localhost")
+    monkeypatch.setenv("MCP_YOUTUBE_DB_PORT", "5432")
 
 
 @pytest.fixture(autouse=True)
 def reset_config_cache():
     """Reset config cache before each test."""
     from mcp_server_youtube.config import get_app_settings
-    from mcp_server_youtube.x402_config import get_x402_settings
+    from mcp_server_youtube.x402_integration import get_x402_settings
 
     # Clear LRU cache
     get_app_settings.cache_clear()

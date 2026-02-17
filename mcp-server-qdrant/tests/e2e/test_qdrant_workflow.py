@@ -10,7 +10,7 @@ def unique_collection_name() -> str:
     return f"e2e_test_collection_{uuid.uuid4().hex[:8]}"
 
 
-@pytest.mark.e2e
+
 @pytest.mark.asyncio
 async def test_qdrant_full_workflow(
     subtests,
@@ -126,7 +126,7 @@ async def test_qdrant_full_workflow(
             print(f"\n[Find] Message: {results}")
 
 
-@pytest.mark.e2e
+
 @pytest.mark.asyncio
 async def test_store_with_metadata_filters(
     subtests,
@@ -200,7 +200,7 @@ async def test_store_with_metadata_filters(
                         )
 
 
-@pytest.mark.e2e
+
 @pytest.mark.asyncio
 async def test_find_nonexistent_collection(
     server_url: str,
@@ -240,7 +240,7 @@ async def test_find_nonexistent_collection(
         assert response.status_code in (400, 404, 500)
 
 
-@pytest.mark.e2e
+
 @pytest.mark.asyncio
 async def test_get_collection_info_nonexistent(
     server_url: str,
@@ -264,7 +264,7 @@ async def test_get_collection_info_nonexistent(
     assert "error" in result, f"Expected error key in response: {result}"
 
 
-@pytest.mark.e2e
+
 @pytest.mark.asyncio
 async def test_store_validation_missing_information(
     server_url: str,
@@ -289,7 +289,7 @@ async def test_store_validation_missing_information(
     )
 
 
-@pytest.mark.e2e
+
 @pytest.mark.asyncio
 async def test_find_validation_missing_query(
     server_url: str,
@@ -314,7 +314,7 @@ async def test_find_validation_missing_query(
     )
 
 
-@pytest.mark.e2e
+
 @pytest.mark.asyncio
 async def test_get_collections_empty_request(
     server_url: str,

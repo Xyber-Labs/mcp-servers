@@ -30,6 +30,10 @@ from mcp_server_weather.x402_integration.accepted_assets import (
 
 logger = logging.getLogger(__name__)
 
+# Register custom EVM networks at module load time, BEFORE X402Config class is used.
+# This ensures networks like SEI are available when pricing validation runs.
+register_custom_evm_networks()
+
 
 class PaymentOptionConfig(BaseModel):
     """

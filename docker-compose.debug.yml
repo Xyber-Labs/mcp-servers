@@ -50,6 +50,7 @@ services:
       - "5701:5701"
     volumes:
       - ./mcp-server-arxiv/src/mcp_server_arxiv:/app/mcp_server_arxiv:ro
+      - ./mcp-server-arxiv/tool_pricing.dev.yaml:/app/tool_pricing.yaml:ro
     env_file: ./mcp-server-arxiv/.env
     restart: unless-stopped
     environment:
@@ -87,26 +88,6 @@ services:
       - ./mcp-server-hangman/src/mcp_server_hangman:/app/mcp_server_hangman:ro
     restart: unless-stopped
     environment: {}
-
-  mcp_server_lurky:
-    build:
-      context: ./mcp-server-lurky
-      dockerfile: Dockerfile
-      target: dev
-    image: mcp_server_lurky_debug
-    container_name: mcp_server_lurky_debug
-    command: ["python", "-m", "mcp_server_lurky"]
-    ports:
-      - "8115:8115"
-      - "5715:5715"
-    volumes:
-      - ./mcp-server-lurky/src/mcp_server_lurky:/app/mcp_server_lurky:ro
-    env_file: ./mcp-server-lurky/.env
-    restart: unless-stopped
-    environment:
-      MCP_LURKY_PORT: "8115"
-      MCP_LURKY_HOT_RELOAD: "true"
-      <<: *debug-env
 
   mcp_server_qdrant:
     build:
@@ -157,6 +138,7 @@ services:
       - "5708:5708"
     volumes:
       - ./mcp-server-tavily/src/mcp_server_tavily:/app/mcp_server_tavily:ro
+      - ./mcp-server-tavily/tool_pricing.dev.yaml:/app/tool_pricing.yaml:ro
     env_file: ./mcp-server-tavily/.env
     restart: unless-stopped
     environment: {}
@@ -263,7 +245,48 @@ services:
       - "5714:5714"
     volumes:
       - ./mcp-server-youtube-v2/src/mcp_server_youtube:/app/mcp_server_youtube:ro
+      - ./mcp-server-youtube-v2/tool_pricing.dev.yaml:/app/tool_pricing.yaml:ro
     env_file: ./mcp-server-youtube-v2/.env
+    restart: unless-stopped
+    environment:
+      <<: *debug-env
+
+  mcp_server_lurky:
+    build:
+      context: ./mcp-server-lurky
+      dockerfile: Dockerfile
+      target: dev
+    image: mcp_server_lurky_debug
+    container_name: mcp_server_lurky_debug
+    command: ["python", "-m", "mcp_server_lurky"]
+    ports:
+      - "8115:8115"
+      - "5715:5715"
+    volumes:
+      - ./mcp-server-lurky/src/mcp_server_lurky:/app/mcp_server_lurky:ro
+      - ./mcp-server-lurky/tool_pricing.dev.yaml:/app/tool_pricing.yaml:ro
+    env_file: ./mcp-server-lurky/.env
+    restart: unless-stopped
+    environment:
+      MCP_LURKY_PORT: "8115"
+      MCP_LURKY_HOT_RELOAD: "true"
+      <<: *debug-env
+
+  mcp_server_quill:
+    build:
+      context: ./mcp-server-quill
+      dockerfile: Dockerfile
+      target: dev
+    image: mcp_server_quill_debug
+    container_name: mcp_server_quill_debug
+    command: ["python", "-m", "mcp_server_quill", "--port", "8116", "--reload"]
+    ports:
+      - "8116:8116"
+      - "5716:5716"
+    volumes:
+      - ./mcp-server-quill/src/mcp_server_quill:/app/mcp_server_quill:ro
+      - ./mcp-server-quill/tool_pricing.dev.yaml:/app/tool_pricing.yaml:ro
+    env_file: ./mcp-server-quill/.env
     restart: unless-stopped
     environment:
       <<: *debug-env
@@ -281,6 +304,7 @@ services:
       - "5717:5717"
     volumes:
       - ./mcp-server-wikipedia/src/mcp_server_wikipedia:/app/mcp_server_wikipedia:ro
+      - ./mcp-server-wikipedia/tool_pricing.dev.yaml:/app/tool_pricing.yaml:ro
     env_file: ./mcp-server-wikipedia/.env
     restart: unless-stopped
     environment:
@@ -299,6 +323,7 @@ services:
       - "5718:5718"
     volumes:
       - ./mcp-server-gitparser/src/mcp_server_gitparser:/app/mcp_server_gitparser:ro
+      - ./mcp-server-gitparser/tool_pricing.dev.yaml:/app/tool_pricing.yaml:ro
     env_file: ./mcp-server-gitparser/.env
     restart: unless-stopped
     environment:

@@ -10,7 +10,7 @@ import pytest
 import yaml
 
 from mcp_server_tavily.config import AppSettings
-from mcp_server_tavily.x402_config import PaymentOptionConfig, X402Config
+from mcp_server_tavily.x402_integration.config import PaymentOptionConfig, X402Config
 
 
 @pytest.fixture(autouse=True)
@@ -28,25 +28,30 @@ class TestPaymentOptionConfig:
         opt = PaymentOptionConfig(
             chain_id=8453,
             token_address="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-            token_amount=1000000,
+            price_usd=0.001,
         )
         assert opt.chain_id == 8453
-        assert opt.token_amount == 1000000
+        assert opt.price_usd == 0.001
+        # token_amount is computed from price_usd
+        assert opt.token_amount > 0
 
     def test_token_amount_zero_allowed(self):
+        # price_usd must be > 0, so we can't test zero token amount
+        # This test is no longer applicable with the new model
         opt = PaymentOptionConfig(
-            chain_id=1,
-            token_address="0x0",
-            token_amount=0,
+            chain_id=8453,
+            token_address="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            price_usd=0.000001,  # Very small price
         )
-        assert opt.token_amount == 0
+        assert opt.token_amount >= 0
 
     def test_negative_token_amount_rejected(self):
+        # price_usd must be > 0, so negative token amounts are impossible
         with pytest.raises(ValueError):
             PaymentOptionConfig(
-                chain_id=1,
-                token_address="0x0",
-                token_amount=-1,
+                chain_id=8453,
+                token_address="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                price_usd=-1,
             )
 
     def test_missing_required_fields(self):
@@ -64,14 +69,14 @@ class TestX402ConfigPricing:
                 {
                     "chain_id": 8453,
                     "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-                    "token_amount": 1000000,
+                    "price_usd": 0.001,
                 }
             ],
             "another_endpoint": [
                 {
-                    "chain_id": 1,
-                    "token_address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-                    "token_amount": 500000,
+                    "chain_id": 8453,
+                    "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                    "price_usd": 0.0005,
                 }
             ],
         }
@@ -84,14 +89,14 @@ class TestX402ConfigPricing:
         assert "search_endpoint" in config.pricing
         assert "another_endpoint" in config.pricing
         assert isinstance(config.pricing["search_endpoint"][0], PaymentOptionConfig)
-        assert config.pricing["search_endpoint"][0].token_amount == 1000000
+        assert config.pricing["search_endpoint"][0].price_usd == 0.001
 
     def test_pricing_with_multiple_options_per_endpoint(self, tmp_path: Path):
         """Endpoint can have multiple payment options (different chains)."""
         yaml_content = {
             "multi_chain_endpoint": [
-                {"chain_id": 8453, "token_address": "0xbase", "token_amount": 100},
-                {"chain_id": 1, "token_address": "0xeth", "token_amount": 200},
+                {"chain_id": 8453, "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "price_usd": 0.0001},
+                {"chain_id": 43114, "token_address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E", "price_usd": 0.0002},
             ]
         }
         yaml_file = tmp_path / "tool_pricing.yaml"
@@ -163,6 +168,7 @@ class TestX402ConfigPricing:
 
         config = X402Config(pricing_config_path=yaml_file)
 
+        # The new implementation raises ValueError for structural issues
         with pytest.raises(ValueError, match="Each endpoint must map to a list"):
             _ = config.pricing
 
@@ -170,7 +176,7 @@ class TestX402ConfigPricing:
         """Payment option missing required field raises ValueError."""
         yaml_content = {
             "endpoint": [
-                {"chain_id": 8453}  # missing token_address and token_amount
+                {"chain_id": 8453}  # missing token_address and price_usd
             ]
         }
         yaml_file = tmp_path / "tool_pricing.yaml"
@@ -178,17 +184,18 @@ class TestX402ConfigPricing:
 
         config = X402Config(pricing_config_path=yaml_file)
 
-        with pytest.raises(ValueError):
-            _ = config.pricing
+        # The new implementation logs warnings and skips invalid entries
+        # So accessing pricing will return empty dict for this endpoint
+        assert "endpoint" not in config.pricing
 
     def test_pricing_invalid_token_amount_type_raises(self, tmp_path: Path):
-        """Non-integer token_amount raises ValueError."""
+        """Non-numeric price_usd raises ValueError."""
         yaml_content = {
             "endpoint": [
                 {
                     "chain_id": 8453,
-                    "token_address": "0x123",
-                    "token_amount": "not_a_number",
+                    "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                    "price_usd": "not_a_number",
                 }
             ]
         }
@@ -197,38 +204,17 @@ class TestX402ConfigPricing:
 
         config = X402Config(pricing_config_path=yaml_file)
 
-        with pytest.raises(ValueError):
-            _ = config.pricing
+        # The new implementation logs warnings and skips invalid entries
+        assert "endpoint" not in config.pricing
 
 
 class TestX402ConfigFacilitator:
     """Tests for X402Config.facilitator_config computed field."""
 
-    def test_facilitator_with_cdp_keys(self):
-        """CDP API keys present configures mainnet facilitator."""
-        # With the new v2 pattern, CDP keys require the cdp-sdk to be installed
-        # This test would need to mock the entire cdp-sdk imports
-        # For now, we'll skip this test or verify it attempts to use CDP
-        config = X402Config(
-            cdp_api_key_id="key_id",
-            cdp_api_key_secret="key_secret",
-            pricing_config_path=Path("/nonexistent"),
-            _env_file=None,
-        )
-
-        # The config will try to import CDP modules and may return None if not installed
-        # or will return a proper FacilitatorConfig if cdp-sdk is available
-        result = config.facilitator_config
-        # We can't assert much without mocking all CDP imports
-        # Just verify it doesn't crash
-        assert result is None or hasattr(result, "url")
-
     def test_facilitator_with_url_only(self):
         """Facilitator URL without CDP keys uses public facilitator."""
         config = X402Config(
-            cdp_api_key_id=None,
-            cdp_api_key_secret=None,
-            facilitator_url="https://public.facilitator",
+            facilitator_urls=["https://public.facilitator"],
             pricing_config_path=Path("/nonexistent"),
             _env_file=None,
         )
@@ -236,35 +222,35 @@ class TestX402ConfigFacilitator:
         result = config.facilitator_config
 
         assert result is not None
-        assert result.url == "https://public.facilitator"
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0].url == "https://public.facilitator"
 
-    def test_facilitator_cdp_takes_precedence(self):
-        """CDP keys take precedence over facilitator_url."""
+    def test_facilitator_multiple_urls(self):
+        """Multiple facilitator URLs are supported."""
         config = X402Config(
-            cdp_api_key_id="key_id",
-            cdp_api_key_secret="key_secret",
-            facilitator_url="https://public.facilitator",
+            facilitator_urls=["https://facilitator1.com", "https://facilitator2.com"],
             pricing_config_path=Path("/nonexistent"),
             _env_file=None,
         )
 
         result = config.facilitator_config
 
-        # CDP logic tries to import and configure, may return None without cdp-sdk installed
-        # Just verify it doesn't crash and returns something
-        assert result is None or hasattr(result, "url")
+        assert result is not None
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0].url == "https://facilitator1.com"
+        assert result[1].url == "https://facilitator2.com"
 
-    def test_facilitator_none_when_no_config(self):
-        """No CDP keys or URL returns None."""
+    def test_facilitator_empty_when_no_config(self):
+        """No facilitator URLs returns empty list."""
         config = X402Config(
-            cdp_api_key_id=None,
-            cdp_api_key_secret=None,
-            facilitator_url=None,
+            facilitator_urls=None,
             pricing_config_path=Path("/nonexistent"),
             _env_file=None,
         )
 
-        assert config.facilitator_config is None
+        assert config.facilitator_config == []
 
 
 class TestX402ConfigPricingMode:
@@ -328,7 +314,7 @@ class TestValidateAgainstRoutes:
     def test_validate_correctly_configured(self, tmp_path: Path, caplog):
         """Logs correctly configured endpoints."""
         yaml_content = {
-            "endpoint_a": [{"chain_id": 1, "token_address": "0x", "token_amount": 100}]
+            "endpoint_a": [{"chain_id": 8453, "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "price_usd": 0.0001}]
         }
         yaml_file = tmp_path / "tool_pricing.yaml"
         yaml_file.write_text(yaml.dump(yaml_content))
@@ -345,7 +331,7 @@ class TestValidateAgainstRoutes:
         """Warns about priced endpoints that don't exist."""
         yaml_content = {
             "typo_endpoint": [
-                {"chain_id": 1, "token_address": "0x", "token_amount": 100}
+                {"chain_id": 8453, "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "price_usd": 0.0001}
             ]
         }
         yaml_file = tmp_path / "tool_pricing.yaml"

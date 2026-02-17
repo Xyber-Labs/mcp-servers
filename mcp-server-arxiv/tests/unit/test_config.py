@@ -10,7 +10,7 @@ import pytest
 import yaml
 
 from mcp_server_arxiv.config import AppSettings
-from mcp_server_arxiv.x402_config import PaymentOptionConfig, X402Config
+from mcp_server_arxiv.x402_integration import PaymentOptionConfig, X402Config
 
 
 @pytest.fixture(autouse=True)
@@ -28,25 +28,25 @@ class TestPaymentOptionConfig:
         opt = PaymentOptionConfig(
             chain_id=8453,
             token_address="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-            token_amount=1000000,
+            price_usd=1.0,
         )
         assert opt.chain_id == 8453
         assert opt.token_amount == 1000000
 
-    def test_token_amount_zero_allowed(self):
-        opt = PaymentOptionConfig(
-            chain_id=1,
-            token_address="0x0",
-            token_amount=0,
-        )
-        assert opt.token_amount == 0
-
-    def test_negative_token_amount_rejected(self):
+    def test_price_usd_positive_required(self):
         with pytest.raises(ValueError):
             PaymentOptionConfig(
-                chain_id=1,
-                token_address="0x0",
-                token_amount=-1,
+                chain_id=8453,
+                token_address="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                price_usd=0,
+            )
+
+    def test_negative_price_usd_rejected(self):
+        with pytest.raises(ValueError):
+            PaymentOptionConfig(
+                chain_id=8453,
+                token_address="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                price_usd=-1,
             )
 
     def test_missing_required_fields(self):
@@ -64,14 +64,14 @@ class TestX402ConfigPricing:
                 {
                     "chain_id": 8453,
                     "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-                    "token_amount": 1000000,
+                    "price_usd": 1.0,
                 }
             ],
             "another_endpoint": [
                 {
-                    "chain_id": 1,
-                    "token_address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-                    "token_amount": 500000,
+                    "chain_id": 137,  # Changed from 1 to 137 (Polygon)
+                    "token_address": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+                    "price_usd": 0.5,
                 }
             ],
         }
@@ -90,8 +90,8 @@ class TestX402ConfigPricing:
         """Endpoint can have multiple payment options (different chains)."""
         yaml_content = {
             "multi_chain_endpoint": [
-                {"chain_id": 8453, "token_address": "0xbase", "token_amount": 100},
-                {"chain_id": 1, "token_address": "0xeth", "token_amount": 200},
+                {"chain_id": 8453, "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "price_usd": 0.0001},
+                {"chain_id": 137, "token_address": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359", "price_usd": 0.0002},
             ]
         }
         yaml_file = tmp_path / "tool_pricing.yaml"
@@ -166,11 +166,11 @@ class TestX402ConfigPricing:
         with pytest.raises(ValueError, match="Each endpoint must map to a list"):
             _ = config.pricing
 
-    def test_pricing_missing_required_option_field_raises(self, tmp_path: Path):
-        """Payment option missing required field raises ValueError."""
+    def test_pricing_missing_required_option_field_logs_warning(self, tmp_path: Path, caplog):
+        """Payment option missing required field logs warning and skips entry."""
         yaml_content = {
             "endpoint": [
-                {"chain_id": 8453}  # missing token_address and token_amount
+                {"chain_id": 8453}  # missing token_address and price_usd
             ]
         }
         yaml_file = tmp_path / "tool_pricing.yaml"
@@ -178,17 +178,22 @@ class TestX402ConfigPricing:
 
         config = X402Config(pricing_config_path=yaml_file)
 
-        with pytest.raises(ValueError):
-            _ = config.pricing
+        # Should not raise, but log warning and skip the invalid entry
+        with caplog.at_level("WARNING"):
+            pricing = config.pricing
 
-    def test_pricing_invalid_token_amount_type_raises(self, tmp_path: Path):
-        """Non-integer token_amount raises ValueError."""
+        # The endpoint should not be in pricing since all its options were invalid
+        assert "endpoint" not in pricing
+        assert "Skipping invalid payment option" in caplog.text
+
+    def test_pricing_invalid_price_usd_type_logs_warning(self, tmp_path: Path, caplog):
+        """Non-numeric price_usd logs warning and skips entry."""
         yaml_content = {
             "endpoint": [
                 {
                     "chain_id": 8453,
-                    "token_address": "0x123",
-                    "token_amount": "not_a_number",
+                    "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                    "price_usd": "not_a_number",
                 }
             ]
         }
@@ -197,19 +202,22 @@ class TestX402ConfigPricing:
 
         config = X402Config(pricing_config_path=yaml_file)
 
-        with pytest.raises(ValueError):
-            _ = config.pricing
+        # Should not raise, but log warning and skip the invalid entry
+        with caplog.at_level("WARNING"):
+            pricing = config.pricing
+
+        # The endpoint should not be in pricing since all its options were invalid
+        assert "endpoint" not in pricing
+        assert "Skipping invalid payment option" in caplog.text
 
 
 class TestX402ConfigFacilitator:
     """Tests for X402Config.facilitator_config computed field."""
 
     def test_facilitator_with_url_only(self):
-        """Facilitator URL without CDP keys uses public facilitator."""
+        """Facilitator URLs creates list of facilitator configs."""
         config = X402Config(
-            cdp_api_key_id=None,
-            cdp_api_key_secret=None,
-            facilitator_url="https://public.facilitator",
+            facilitator_urls=["https://public.facilitator"],
             pricing_config_path=Path("/nonexistent"),
             _env_file=None,
         )
@@ -217,19 +225,19 @@ class TestX402ConfigFacilitator:
         result = config.facilitator_config
 
         assert result is not None
-        assert result.url == "https://public.facilitator"
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0].url == "https://public.facilitator"
 
-    def test_facilitator_none_when_no_config(self):
-        """No CDP keys or URL returns None."""
+    def test_facilitator_empty_when_no_config(self):
+        """No facilitator URLs returns empty list."""
         config = X402Config(
-            cdp_api_key_id=None,
-            cdp_api_key_secret=None,
-            facilitator_url=None,
+            facilitator_urls=None,
             pricing_config_path=Path("/nonexistent"),
             _env_file=None,
         )
 
-        assert config.facilitator_config is None
+        assert config.facilitator_config == []
 
 
 class TestX402ConfigPricingMode:
@@ -293,7 +301,7 @@ class TestValidateAgainstRoutes:
     def test_validate_correctly_configured(self, tmp_path: Path, caplog):
         """Logs correctly configured endpoints."""
         yaml_content = {
-            "endpoint_a": [{"chain_id": 1, "token_address": "0x", "token_amount": 100}]
+            "endpoint_a": [{"chain_id": 1, "token_address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "price_usd": 0.0001}]
         }
         yaml_file = tmp_path / "tool_pricing.yaml"
         yaml_file.write_text(yaml.dump(yaml_content))
@@ -307,10 +315,10 @@ class TestValidateAgainstRoutes:
         assert "endpoint_a" in caplog.text
 
     def test_validate_misconfigured_warns(self, tmp_path: Path, caplog):
-        """Warns about priced endpoints that don't exist."""
+        """Warns about priced endpoints that don't exist (when using valid chain_id)."""
         yaml_content = {
             "typo_endpoint": [
-                {"chain_id": 1, "token_address": "0x", "token_amount": 100}
+                {"chain_id": 8453, "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "price_usd": 0.0001}
             ]
         }
         yaml_file = tmp_path / "tool_pricing.yaml"

@@ -121,7 +121,7 @@ def set_test_database_url(monkeypatch):
 def reset_config_cache():
     """Reset config cache before each test."""
     from mcp_server_lurky.config import get_app_settings
-    from mcp_server_lurky.x402_config import get_x402_settings
+    from mcp_server_lurky.x402_integration import get_x402_settings
 
     # Clear LRU cache if available
     if hasattr(get_app_settings, "cache_clear"):

@@ -32,8 +32,8 @@ def get_youtube_client() -> YouTubeVideoSearchAndTranscript:
     """
     settings = get_app_settings()
     return YouTubeVideoSearchAndTranscript(
-        delay_between_requests=settings.youtube.delay_between_requests,
-        apify_api_token=settings.apify.apify_token,
+        delay_between_requests=settings.delay_between_requests,
+        apify_api_token=settings.apify_token,
     )
 
 
@@ -55,13 +55,13 @@ class YouTubeVideoSearchAndTranscript:
 
         """
         settings = get_app_settings()
-        self.delay = delay_between_requests or settings.youtube.delay_between_requests
+        self.delay = delay_between_requests or settings.delay_between_requests
 
         # Rely on Pydantic BaseSettings - no hidden logic
         if apify_api_token is not None:
             self.apify_api_token = apify_api_token
         else:
-            self.apify_api_token = settings.apify.apify_token
+            self.apify_api_token = settings.apify_token
 
         if require_apify and not self.apify_api_token:
             # Keep initialization non-fatal so the server can still run for
@@ -128,7 +128,7 @@ class YouTubeVideoSearchAndTranscript:
         """
         settings = get_app_settings()
         if max_results is None:
-            max_results = settings.youtube.max_results
+            max_results = settings.max_results
 
         if not self.apify_client:
             logger.error(
@@ -421,7 +421,7 @@ class YouTubeVideoSearchAndTranscript:
         """
         settings = get_app_settings()
         if num_videos is None:
-            num_videos = settings.youtube.num_videos
+            num_videos = settings.num_videos
 
         logger.info(f"🔍 Searching for: '{query}' (num_videos: {num_videos})")
         videos = await self.search_videos(query, max_results=num_videos)

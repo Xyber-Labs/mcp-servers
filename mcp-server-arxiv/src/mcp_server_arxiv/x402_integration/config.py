@@ -30,6 +30,10 @@ from mcp_server_arxiv.x402_integration.accepted_assets import (
 
 logger = logging.getLogger(__name__)
 
+# Register custom EVM networks at module load time, BEFORE X402Config class is used.
+# This ensures networks like SEI are available when pricing validation runs.
+register_custom_evm_networks()
+
 
 class PaymentOptionConfig(BaseModel):
     """
@@ -154,12 +158,10 @@ class X402Config(BaseSettings):
 
     def model_post_init(self, __context) -> None:
         """
-        Called after model initialization to perform setup that requires
-        side effects (like registering custom networks in x402 library).
+        Called after model initialization to perform any additional setup.
+        Note: Custom network registration now happens at module load time.
         """
-        # Register custom EVM networks when config is instantiated
-        # This ensures networks are available when middleware is initialized
-        register_custom_evm_networks()
+        pass
 
     @field_validator("facilitator_urls", mode="before")
     @classmethod
