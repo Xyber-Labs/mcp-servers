@@ -30,26 +30,81 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 CUSTOM_NETWORKS = {
-    # Base Mainnet (EVM) - Supported by x402 library by default
+    # Base Mainnet (EVM) - Native USDC (Circle)
     "eip155:8453": {
         "chain_id": 8453,
         "explorer_url": "https://basescan.org/tx/",
-        # x402 library already has Base configured, so we only need explorer URL
+        "default_asset": {
+            "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            "name": "USD Coin",
+            "version": "2",
+            "decimals": 6,
+        },
+        "supported_assets": {
+            "USDC": {
+                "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                "name": "USD Coin",
+                "version": "2",
+                "decimals": 6,
+            },
+        },
     },
     # Base Sepolia Testnet (EVM) - Testnet for development/testing
     "eip155:84532": {
         "chain_id": 84532,
         "explorer_url": "https://sepolia.basescan.org/tx/",
+        "default_asset": {
+            "address": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+            "name": "USD Coin",
+            "version": "2",
+            "decimals": 6,
+        },
+        "supported_assets": {
+            "USDC": {
+                "address": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+                "name": "USD Coin",
+                "version": "2",
+                "decimals": 6,
+            },
+        },
     },
-    # Polygon Mainnet (EVM) - Supported by x402 library by default
+    # Polygon Mainnet (EVM) - Native USDC (Circle)
     "eip155:137": {
         "chain_id": 137,
         "explorer_url": "https://polygonscan.com/tx/",
+        "default_asset": {
+            "address": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+            "name": "USD Coin",
+            "version": "2",
+            "decimals": 6,
+        },
+        "supported_assets": {
+            "USDC": {
+                "address": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+                "name": "USD Coin",
+                "version": "2",
+                "decimals": 6,
+            },
+        },
     },
-    # Avalanche C-Chain (EVM) - Supported by x402 library by default
+    # Avalanche C-Chain (EVM) - Native USDC (Circle)
     "eip155:43114": {
         "chain_id": 43114,
         "explorer_url": "https://snowtrace.io/tx/",
+        "default_asset": {
+            "address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+            "name": "USD Coin",
+            "version": "2",
+            "decimals": 6,
+        },
+        "supported_assets": {
+            "USDC": {
+                "address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+                "name": "USD Coin",
+                "version": "2",
+                "decimals": 6,
+            },
+        },
     },
     # SKALE Base (L3 on Base) - Custom network, not in x402 library by default
     # Launched Jan 2026. Docs: https://docs.skale.space/welcome/skale-on-base
