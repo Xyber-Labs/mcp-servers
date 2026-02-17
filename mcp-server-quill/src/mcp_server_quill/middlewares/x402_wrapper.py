@@ -74,14 +74,23 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.tool_pricing = tool_pricing
         self.settings: X402Config = get_x402_settings()
-        self.facilitator: HTTPFacilitatorClient | None = None
+        self.facilitators: list[HTTPFacilitatorClient] = []
         self.server: x402ResourceServer | None = None
 
-        if facilitator_config := self.settings.facilitator_config:
-            self.facilitator = HTTPFacilitatorClient(facilitator_config)
-            self.server = x402ResourceServer(self.facilitator)
-            # Initialize the server (fetches supported schemes from facilitator)
+        facilitator_configs = self.settings.facilitator_config
+        if facilitator_configs:
+            # Create client for each facilitator
+            self.facilitators = [
+                HTTPFacilitatorClient(config)
+                for config in facilitator_configs
+            ]
+            # Pass all clients to server (SDK handles routing by chain)
+            self.server = x402ResourceServer(self.facilitators)
+            # Initialize server (queries all facilitators for supported chains)
             self.server.initialize()
+            logger.info(f"Initialized x402 with {len(self.facilitators)} facilitator(s):")
+            for client in self.facilitators:
+                logger.info(f"  - {client._url}")
             # Register schemes for all configured networks AFTER initialize
             self._register_network_schemes()
         else:
@@ -121,7 +130,7 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
-        if not self.facilitator or not self.server:
+        if not self.facilitators or not self.server:
             return await call_next(request)
 
         operation_id = await self._get_operation_id(request)

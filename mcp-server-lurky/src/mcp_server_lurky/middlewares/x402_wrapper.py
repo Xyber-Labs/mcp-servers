@@ -29,12 +29,15 @@ from x402.http import (
     safe_base64_encode,
 )
 from x402.mechanisms.evm.exact import ExactEvmServerScheme
+from x402.mechanisms.svm.exact import ExactSvmServerScheme
 from x402.schemas import Network, PaymentPayload, PaymentRequired, PaymentRequirements
 from x402.server import x402ResourceServer
 
 from mcp_server_lurky.x402_integration import (
     BLOCK_EXPLORERS,
     CHAIN_ID_TO_NETWORK,
+    EVM_NETWORKS,
+    SOLANA_NETWORKS,
     get_x402_settings,
 )
 from mcp_server_lurky.x402_integration.config import PaymentOptionConfig, X402Config
@@ -77,24 +80,33 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.tool_pricing = tool_pricing
         self.settings: X402Config = get_x402_settings()
-        self.facilitator: HTTPFacilitatorClient | None = None
+        self.facilitators: list[HTTPFacilitatorClient] = []
         self.server: x402ResourceServer | None = None
 
-        if facilitator_config := self.settings.facilitator_config:
-            self.facilitator = HTTPFacilitatorClient(facilitator_config)
-            self.server = x402ResourceServer(self.facilitator)
-            # Initialize the server (fetches supported schemes from facilitator)
+        facilitator_configs = self.settings.facilitator_config
+        if facilitator_configs:
+            # Create client for each facilitator
+            self.facilitators = [
+                HTTPFacilitatorClient(config)
+                for config in facilitator_configs
+            ]
+            # Pass all clients to server (SDK handles routing by chain)
+            self.server = x402ResourceServer(self.facilitators)
+            # Initialize server (queries all facilitators for supported chains)
             self.server.initialize()
-            # Register EVM scheme for all configured networks AFTER initialize
-            self._register_evm_schemes()
+            logger.info(f"Initialized x402 with {len(self.facilitators)} facilitator(s):")
+            for client in self.facilitators:
+                logger.info(f"  - {client._url}")
+            # Register schemes for all configured networks AFTER initialize
+            self._register_network_schemes()
         else:
             logger.warning(
                 "No x402 facilitator configured (missing CDP keys and URL). "
                 "Payment middleware will be disabled."
             )
 
-    def _register_evm_schemes(self) -> None:
-        """Register EVM scheme for all networks used in pricing config."""
+    def _register_network_schemes(self) -> None:
+        """Register appropriate schemes (EVM or Solana) for all networks in pricing config."""
         if not self.server:
             return
         networks_used: set[str] = set()
@@ -107,14 +119,24 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
                         f"Unknown chain_id '{opt.chain_id}' in pricing config. "
                         f"Add it to CHAIN_ID_TO_NETWORK mapping in config.py"
                     )
+
         for network in networks_used:
-            self.server.register(network, ExactEvmServerScheme())
-            logger.info(f"Registered EVM scheme for network: {network}")
+            if network in EVM_NETWORKS:
+                self.server.register(network, ExactEvmServerScheme())
+                logger.info(f"Registered EVM scheme for network: {network}")
+            elif network in SOLANA_NETWORKS:
+                self.server.register(network, ExactSvmServerScheme())
+                logger.info(f"Registered Solana scheme for network: {network}")
+            else:
+                logger.warning(
+                    f"Network '{network}' not in EVM_NETWORKS or SOLANA_NETWORKS. "
+                    f"Update x402_integration/accepted_assets.py to classify this network."
+                )
 
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
-        if not self.facilitator or not self.server:
+        if not self.facilitators or not self.server:
             return await call_next(request)
 
         operation_id = await self._get_operation_id(request)
@@ -338,12 +360,20 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
                 )
                 continue
 
+            payee_address = self.settings.get_payee_address(network)
+            if not payee_address:
+                logger.warning(
+                    f"No payee address configured for network '{network}'. "
+                    "Skipping this payment option."
+                )
+                continue
+
             base_req = PaymentRequirements(
                 scheme="exact",
                 network=network,
                 asset=option.token_address,
                 amount=str(option.token_amount),
-                pay_to=self.settings.payee_evm_address,
+                pay_to=payee_address,
                 max_timeout_seconds=60,
                 extra={},  # Will be enhanced below
             )
