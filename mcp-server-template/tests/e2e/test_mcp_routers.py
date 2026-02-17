@@ -30,7 +30,7 @@ from tests.e2e.utils import (
 
 @pytest.mark.asyncio
 async def test_mcp_geolocate_city_mcp() -> None:
-    "Geolocate_city MCP tool (always free)."
+    """Geolocate_city MCP tool (always free)."""
     config = load_e2e_config()
     require_base_url(config)
 
@@ -38,9 +38,9 @@ async def test_mcp_geolocate_city_mcp() -> None:
     await initialize_mcp_session(config, session_id)
     response = await call_mcp_tool(
         config,
-        session_id,
         name="geolocate_city",
         arguments={"city": "Tokyo"},
+        session_id=session_id,
     )
     # Parse MCP response and validate against schema
     result_data = parse_mcp_response(response)
@@ -59,16 +59,16 @@ async def test_mcp_geolocate_city_mcp() -> None:
 @pytest.mark.payment_off
 async def test_mcp_weather_analysis_mcp_pricing_off() -> None:
     """Priced MCP tool works without payment when PRICING_MODE=off."""
-e2e_config()
+    config = load_e2e_config()
     require_base_url(config)
 
     session_id = await negotiate_mcp_session_id(config)
     await initialize_mcp_session(config, session_id)
     response = await call_mcp_tool(
         config,
-        session_id,
         name="get_weather_analysis",
         arguments={"city": "London"},
+        session_id=session_id,
     )
     # Parse MCP response and validate against schema
     result_data = parse_mcp_response(response)
@@ -88,9 +88,9 @@ async def test_mcp_weather_analysis_mcp_no_payment() -> None:
     await initialize_mcp_session(config, session_id)
     response = await call_mcp_tool(
         config,
-        session_id,
         name="get_weather_analysis",
         arguments={"city": "London"},
+        session_id=session_id,
     )
     assert response.status_code == 402
     body = response.json()
@@ -108,9 +108,9 @@ async def test_mcp_weather_analysis_mcp_with_payment(paid_client) -> None:
     response = await call_mcp_tool_with_client(
         config,
         client,
-        session_id,
         name="get_weather_analysis",
         arguments={"city": "London"},
+        session_id=session_id,
     )
     # Parse MCP response and validate against schema
     result_data = parse_mcp_response(response)

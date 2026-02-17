@@ -61,9 +61,9 @@ async def test_hybrid_current_weather_mcp() -> None:
     await initialize_mcp_session(config, session_id)
     response = await call_mcp_tool(
         config,
-        session_id,
         name="get_current_weather",
         arguments={"latitude": "51.5074", "longitude": "-0.1278"},
+        session_id=session_id,
     )
     # Parse MCP response and validate against schema
     result_data = parse_mcp_response(response)
@@ -136,9 +136,9 @@ async def test_hybrid_forecast_mcp_pricing_off() -> None:
     await initialize_mcp_session(config, session_id)
     response = await call_mcp_tool(
         config,
-        session_id,
         name="get_weather_forecast",
         arguments={"days": 5},
+        session_id=session_id,
     )
     # Parse MCP response and validate against schema
     result_data = parse_mcp_response(response)
@@ -159,9 +159,9 @@ async def test_hybrid_forecast_mcp_no_payment() -> None:
     await initialize_mcp_session(config, session_id)
     response = await call_mcp_tool(
         config,
-        session_id,
         name="get_weather_forecast",
         arguments={"days": 5},
+        session_id=session_id,
     )
     assert response.status_code == 402
     body = response.json()
@@ -179,9 +179,9 @@ async def test_hybrid_forecast_mcp_with_payment(paid_client) -> None:
     response = await call_mcp_tool_with_client(
         config,
         client,
-        session_id,
         name="get_weather_forecast",
         arguments={"days": 5},
+        session_id=session_id,
     )
     # Parse MCP response and validate against schema
     result_data = parse_mcp_response(response)
@@ -217,9 +217,9 @@ async def test_hybrid_pricing_mcp() -> None:
     await initialize_mcp_session(config, session_id)
     response = await call_mcp_tool(
         config,
-        session_id,
         name="weather_get_pricing",
         arguments={},
+        session_id=session_id,
     )
     # Parse MCP response and validate against schema
     result_data = parse_mcp_response(response)

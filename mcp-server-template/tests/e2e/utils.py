@@ -1,15 +1,30 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from typing import Any
 
 import httpx
 
 from .config import E2ETestConfig
 
+# Toggle between stateless and stateful MCP testing modes.
+# Set MCP_TEST_STATELESS=false in .env.tests to test stateful servers.
+MCP_STATELESS_MODE = os.getenv("MCP_TEST_STATELESS", "true").lower() == "true"
 
-async def negotiate_mcp_session_id(config: E2ETestConfig) -> str:
-    """Perform StreamableHTTP handshake and return MCP session ID."""
+
+# =============================================================================
+# Session Management (for stateful mode)
+# =============================================================================
+
+
+async def negotiate_mcp_session_id(config: E2ETestConfig) -> str | None:
+    """Perform StreamableHTTP handshake and return MCP session ID.
+
+    Returns None in stateless mode (no session needed).
+    """
+    if MCP_STATELESS_MODE:
+        return None
 
     headers = {"Accept": "text/event-stream"}
     async with httpx.AsyncClient(
@@ -31,8 +46,13 @@ async def negotiate_mcp_session_id(config: E2ETestConfig) -> str:
             return session_id
 
 
-async def initialize_mcp_session(config: E2ETestConfig, session_id: str) -> None:
-    """Send MCP initialize call for a given session ID."""
+async def initialize_mcp_session(config: E2ETestConfig, session_id: str | None) -> None:
+    """Send MCP initialize call for a given session ID.
+
+    No-op in stateless mode.
+    """
+    if MCP_STATELESS_MODE or session_id is None:
+        return
 
     payload: dict[str, Any] = {
         "jsonrpc": "2.0",
@@ -58,12 +78,14 @@ async def initialize_mcp_session(config: E2ETestConfig, session_id: str) -> None
 
 async def call_mcp_tool(
     config: E2ETestConfig,
-    session_id: str,
     name: str,
     arguments: dict[str, Any],
+    session_id: str | None = None,
 ) -> httpx.Response:
-    """Call an MCP tool via tools/call and return the raw HTTPX response."""
+    """Call an MCP tool via tools/call and return the raw HTTPX response.
 
+    Works in both stateless and stateful modes.
+    """
     payload: dict[str, Any] = {
         "jsonrpc": "2.0",
         "id": 1,
@@ -73,21 +95,29 @@ async def call_mcp_tool(
     headers = {
         "Accept": "application/json, text/event-stream",
         "Content-Type": "application/json",
-        "mcp-session-id": session_id,
     }
+    if session_id and not MCP_STATELESS_MODE:
+        headers["mcp-session-id"] = session_id
+
     async with httpx.AsyncClient(
         base_url=config.base_url, timeout=config.timeout_seconds
     ) as client:
         return await client.post("/mcp/", json=payload, headers=headers)
 
 
-# ============================================================================
+# =============================================================================
 # Variants that use a pre-configured x402 client (for paid tests)
-# ============================================================================
+# =============================================================================
 
 
-async def negotiate_mcp_session_id_with_client(config: E2ETestConfig, client) -> str:
-    """Perform StreamableHTTP handshake using provided client."""
+async def negotiate_mcp_session_id_with_client(config: E2ETestConfig, client) -> str | None:
+    """Perform StreamableHTTP handshake using provided client.
+
+    Returns None in stateless mode.
+    """
+    if MCP_STATELESS_MODE:
+        return None
+
     headers = {"Accept": "text/event-stream"}
     response = await client.get("/mcp/", headers=headers)
     session_id = response.headers.get("mcp-session-id")
@@ -99,9 +129,15 @@ async def negotiate_mcp_session_id_with_client(config: E2ETestConfig, client) ->
 
 
 async def initialize_mcp_session_with_client(
-    config: E2ETestConfig, client, session_id: str
+    config: E2ETestConfig, client, session_id: str | None
 ) -> None:
-    """Send MCP initialize call using provided client."""
+    """Send MCP initialize call using provided client.
+
+    No-op in stateless mode.
+    """
+    if MCP_STATELESS_MODE or session_id is None:
+        return
+
     payload: dict[str, Any] = {
         "jsonrpc": "2.0",
         "id": 0,
@@ -124,11 +160,14 @@ async def initialize_mcp_session_with_client(
 async def call_mcp_tool_with_client(
     config: E2ETestConfig,
     client,
-    session_id: str,
     name: str,
     arguments: dict[str, Any],
+    session_id: str | None = None,
 ) -> httpx.Response:
-    """Call an MCP tool using provided x402 client."""
+    """Call an MCP tool using provided x402 client.
+
+    Works in both stateless and stateful modes.
+    """
     payload: dict[str, Any] = {
         "jsonrpc": "2.0",
         "id": 1,
@@ -138,14 +177,16 @@ async def call_mcp_tool_with_client(
     headers = {
         "Accept": "application/json, text/event-stream",
         "Content-Type": "application/json",
-        "mcp-session-id": session_id,
     }
+    if session_id and not MCP_STATELESS_MODE:
+        headers["mcp-session-id"] = session_id
+
     return await client.post("/mcp/", json=payload, headers=headers)
 
 
-# ============================================================================
+# =============================================================================
 # MCP Response Parsing & Validation
-# ============================================================================
+# =============================================================================
 
 
 def parse_mcp_response(response: httpx.Response) -> dict[str, Any]:
