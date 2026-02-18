@@ -31,7 +31,6 @@ API_KEY_HEADER = "Weather-Api-Key"
 # =============================================================================
 
 
-@pytest.mark.asyncio
 async def test_hybrid_current_weather_rest(rest_client) -> None:
     """Smoke test: /hybrid/current via REST (always free)."""
     config, client = rest_client
@@ -50,7 +49,6 @@ async def test_hybrid_current_weather_rest(rest_client) -> None:
     assert weather_data.humidity
 
 
-@pytest.mark.asyncio
 async def test_hybrid_current_weather_mcp() -> None:
     """Smoke test: current weather via MCP (always free)."""
     config = load_e2e_config()
@@ -78,7 +76,6 @@ async def test_hybrid_current_weather_mcp() -> None:
 # =============================================================================
 
 
-@pytest.mark.asyncio
 @pytest.mark.payment_off
 async def test_hybrid_forecast_rest_pricing_off(rest_client) -> None:
     """Priced endpoint works via REST without payment when PRICING_MODE=off."""
@@ -92,7 +89,6 @@ async def test_hybrid_forecast_rest_pricing_off(rest_client) -> None:
     assert len(forecast_data.forecast) > 0
 
 
-@pytest.mark.asyncio
 @pytest.mark.payment_on
 async def test_hybrid_forecast_rest_no_payment(rest_client) -> None:
     """Priced endpoint returns 402 via REST when PRICING_MODE=on and no payment."""
@@ -104,7 +100,6 @@ async def test_hybrid_forecast_rest_no_payment(rest_client) -> None:
     assert body.get("error")
 
 
-@pytest.mark.asyncio
 @pytest.mark.payment_on
 async def test_hybrid_forecast_rest_with_payment(paid_client) -> None:
     """Priced endpoint succeeds via REST when PRICING_MODE=on and payment provided."""
@@ -125,7 +120,6 @@ async def test_hybrid_forecast_rest_with_payment(paid_client) -> None:
     assert len(forecast_data.forecast) > 0
 
 
-@pytest.mark.asyncio
 @pytest.mark.payment_off
 async def test_hybrid_forecast_mcp_pricing_off() -> None:
     """Priced endpoint works via MCP without payment when PRICING_MODE=off."""
@@ -148,7 +142,6 @@ async def test_hybrid_forecast_mcp_pricing_off() -> None:
     assert len(forecast_data.forecast) > 0
 
 
-@pytest.mark.asyncio
 @pytest.mark.payment_on
 async def test_hybrid_forecast_mcp_no_payment() -> None:
     """Priced endpoint returns 402 via MCP when PRICING_MODE=on and no payment."""
@@ -168,7 +161,6 @@ async def test_hybrid_forecast_mcp_no_payment() -> None:
     assert "accepts" in body or "error" in body
 
 
-@pytest.mark.asyncio
 @pytest.mark.payment_on
 async def test_hybrid_forecast_mcp_with_payment(paid_client) -> None:
     """Priced endpoint succeeds via MCP when PRICING_MODE=on and payment provided."""
@@ -196,7 +188,6 @@ async def test_hybrid_forecast_mcp_with_payment(paid_client) -> None:
 # =============================================================================
 
 
-@pytest.mark.asyncio
 async def test_hybrid_pricing_rest(rest_client) -> None:
     """Smoke test: /hybrid/pricing via REST (always free)."""
     config, client = rest_client
@@ -207,7 +198,6 @@ async def test_hybrid_pricing_rest(rest_client) -> None:
     assert isinstance(pricing_data.pricing, dict)
 
 
-@pytest.mark.asyncio
 async def test_hybrid_pricing_mcp() -> None:
     """Smoke test: pricing info via MCP (always free)."""
     config = load_e2e_config()

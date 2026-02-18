@@ -46,7 +46,6 @@ def _attach_http_client(
     weather_client._client = http_client
 
 
-@pytest.mark.asyncio
 async def test_get_weather_success(
     monkeypatch: pytest.MonkeyPatch, weather_client: WeatherClient
 ) -> None:
@@ -64,7 +63,6 @@ async def test_get_weather_success(
     assert len(http_client.calls) == 1
 
 
-@pytest.mark.asyncio
 async def test_get_weather_uses_cache(
     monkeypatch: pytest.MonkeyPatch, weather_client: WeatherClient
 ) -> None:
@@ -78,7 +76,6 @@ async def test_get_weather_uses_cache(
     assert len(http_client.calls) == 1
 
 
-@pytest.mark.asyncio
 async def test_cache_expires(
     monkeypatch: pytest.MonkeyPatch, weather_client: WeatherClient
 ) -> None:
@@ -103,7 +100,6 @@ async def test_cache_expires(
     assert len(http_client.calls) == 2
 
 
-@pytest.mark.asyncio
 async def test_http_error_translates_to_weather_api_error(
     monkeypatch: pytest.MonkeyPatch,
     weather_client: WeatherClient,
@@ -125,7 +121,6 @@ async def test_http_error_translates_to_weather_api_error(
         await weather_client.get_weather(LATITUDE, LONGITUDE, api_key=API_KEY)
 
 
-@pytest.mark.asyncio
 async def test_parsing_error_translates_to_weather_client_error(
     monkeypatch: pytest.MonkeyPatch,
     weather_client: WeatherClient,
@@ -138,7 +133,6 @@ async def test_parsing_error_translates_to_weather_client_error(
         await weather_client.get_weather(LATITUDE, LONGITUDE, api_key=API_KEY)
 
 
-@pytest.mark.asyncio
 async def test_close_closes_underlying_http_client(
     monkeypatch: pytest.MonkeyPatch,
     weather_client: WeatherClient,
@@ -159,7 +153,6 @@ async def test_close_closes_underlying_http_client(
     assert http_client.aclose_called is True
 
 
-@pytest.mark.asyncio
 async def test_config_no_header_works(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -181,7 +174,6 @@ async def test_config_no_header_works(
     assert call["params"]["appid"] == "config-api-key"
 
 
-@pytest.mark.asyncio
 async def test_no_config_header_works(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -203,7 +195,6 @@ async def test_no_config_header_works(
     assert call["params"]["appid"] == "header-api-key"
 
 
-@pytest.mark.asyncio
 async def test_no_config_no_header_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -225,7 +216,6 @@ async def test_no_config_no_header_fails(
     assert http_client.calls == []
 
 
-@pytest.mark.asyncio
 async def test_header_overrides_config(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

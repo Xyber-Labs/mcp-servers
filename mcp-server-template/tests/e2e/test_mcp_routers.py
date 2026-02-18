@@ -28,7 +28,6 @@ from tests.e2e.utils import (
 # =============================================================================
 
 
-@pytest.mark.asyncio
 async def test_mcp_geolocate_city_mcp() -> None:
     """Geolocate_city MCP tool (always free)."""
     config = load_e2e_config()
@@ -55,7 +54,6 @@ async def test_mcp_geolocate_city_mcp() -> None:
 # =============================================================================
 
 
-@pytest.mark.asyncio
 @pytest.mark.payment_off
 async def test_mcp_weather_analysis_mcp_pricing_off() -> None:
     """Priced MCP tool works without payment when PRICING_MODE=off."""
@@ -77,7 +75,6 @@ async def test_mcp_weather_analysis_mcp_pricing_off() -> None:
     assert "London" in analysis_data.analysis or "weather" in analysis_data.analysis.lower()
 
 
-@pytest.mark.asyncio
 @pytest.mark.payment_on
 async def test_mcp_weather_analysis_mcp_no_payment() -> None:
     """Priced MCP tool returns 402 when PRICING_MODE=on and no payment provided."""
@@ -97,7 +94,6 @@ async def test_mcp_weather_analysis_mcp_no_payment() -> None:
     assert "accepts" in body or "error" in body
 
 
-@pytest.mark.asyncio
 @pytest.mark.payment_on
 async def test_mcp_weather_analysis_mcp_with_payment(paid_client) -> None:
     """Priced MCP tool succeeds when PRICING_MODE=on and payment provided."""
