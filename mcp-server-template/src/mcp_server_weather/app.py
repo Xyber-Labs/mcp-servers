@@ -13,6 +13,7 @@ from fastmcp import FastMCP
 
 from mcp_server_weather.api_routers import routers as api_routers
 from mcp_server_weather.dependencies import DependencyContainer
+from mcp_server_weather.weather import WeatherClient, get_weather_config
 from mcp_server_weather.hybrid_routers import routers as hybrid_routers
 from mcp_server_weather.mcp_routers import routers as mcp_routers
 from mcp_server_weather.middlewares import X402WrapperMiddleware
@@ -27,19 +28,27 @@ async def app_lifespan(app: FastAPI):
     """
     Manages the application's resources.
 
-    Initializes and shuts down the DependencyContainer.
+    Creates and injects dependencies, then cleans them up on shutdown.
 
     Note: The x402 middleware manages its own HTTP client lifecycle using
     context managers, so no external resource management is needed.
     """
     logger.info("Lifespan: Initializing application services...")
-    DependencyContainer.initialize()
+
+    # Create dependencies explicitly
+    config = get_weather_config()
+    weather_client = WeatherClient(config)
+
+    # Create container with dependencies
+    DependencyContainer.create(weather_client=weather_client)
+
     logger.info("Lifespan: Services initialized successfully.")
 
     yield
 
     logger.info("Lifespan: Shutting down application services...")
-    await DependencyContainer.shutdown()
+    await weather_client.close()
+    DependencyContainer.clear()
     logger.info("Lifespan: Services shut down gracefully.")
 
 

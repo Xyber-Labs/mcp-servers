@@ -1,15 +1,11 @@
 """
 This module should be changed to include your server's dependencies like API clients, database session managers, etc.
 
-Main responsibility: Provide a single place to initialize, access, and shut down
-all service clients used by the application.
+Main responsibility: Provide a single place to access all service clients used by the application.
+Lifecycle is managed externally (in lifespan) following dependency injection principles.
 """
-
-import logging
-
-from mcp_server_weather.weather import WeatherClient, WeatherConfig, get_weather_config
-
-logger = logging.getLogger(__name__)
+from __future__ import annotations
+from mcp_server_weather.weather import WeatherClient
 
 
 class DependencyContainer:
@@ -18,65 +14,38 @@ class DependencyContainer:
 
     Usage:
         # In app.py lifespan:
-        DependencyContainer.initialize()
-
-    Yield:
-        await DependencyContainer.shutdown()
+        client = WeatherClient(config)
+        DependencyContainer.create(weather_client=client)
+        yield
+        await client.close()
+        DependencyContainer.clear()
 
         # In route handlers via Depends():
         @router.post("/endpoint")
         async def endpoint(client: WeatherClient = Depends(get_weather_client)):
             ...
-
     """
 
     _weather_client: WeatherClient | None = None
 
     @classmethod
-    def initialize(cls) -> None:
-        """
-        Initialize all dependencies.
-
-        Call this once during application startup (in lifespan).
-        """
-        logger.info("Initializing dependencies...")
-
-        config: WeatherConfig = get_weather_config()
-        cls._weather_client = WeatherClient(config)
-
-        logger.info("Dependencies initialized successfully.")
-
-    @classmethod
-    async def shutdown(cls) -> None:
-        """
-        Shut down all dependencies gracefully.
-
-        Call this once during application shutdown (in lifespan).
-        """
-        logger.info("Shutting down dependencies...")
-
-        if cls._weather_client:
-            await cls._weather_client.close()
-            cls._weather_client = None
-
-        logger.info("Dependencies shut down successfully.")
+    def create(cls, *, weather_client: WeatherClient) -> None:
+        """Store all dependencies (call from lifespan startup)."""
+        cls._weather_client = weather_client
 
     @classmethod
     def get_weather_client(cls) -> WeatherClient:
-        """
-        Get the WeatherClient instance.
-
-        Usage as FastAPI dependency:
-            @router.get("/weather")
-            async def get_weather(client: WeatherClient = Depends(get_weather_client)):
-                ...
-        """
+        """Get the WeatherClient instance for use as FastAPI dependency."""
         if cls._weather_client is None:
             raise RuntimeError(
-                "DependencyContainer not initialized. Call DependencyContainer.initialize() first."
+                "DependencyContainer not created. Call DependencyContainer.create() first."
             )
         return cls._weather_client
 
+    @classmethod
+    def clear(cls) -> None:
+        """Clear all dependencies (call from lifespan shutdown)."""
+        cls._weather_client = None
 
-# Alias the class method for use as FastAPI dependency
+
 get_weather_client = DependencyContainer.get_weather_client
