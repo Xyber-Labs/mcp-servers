@@ -329,6 +329,25 @@ services:
     environment:
       <<: *debug-env
 
+  mcp_server_deepresearcher:
+    build:
+      context: ./mcp-server-deepresearcher
+      dockerfile: Dockerfile
+      target: dev
+    image: mcp_server_deepresearcher_debug
+    container_name: mcp_server_deepresearcher_debug
+    command: ["python", "-m", "mcp_server_deepresearcher", "--port", "8119", "--reload"]
+    ports:
+      - "8119:8119"
+      - "5719:5719"
+    volumes:
+      - ./mcp-server-deepresearcher/src/mcp_server_deepresearcher:/app/mcp_server_deepresearcher:ro
+      - ./mcp-server-deepresearcher/tool_pricing.dev.yaml:/app/tool_pricing.yaml:ro
+    env_file: ./mcp-server-deepresearcher/.env
+    restart: unless-stopped
+    environment:
+      <<: *debug-env
+
   qdrant:
     image: qdrant/qdrant:latest
     container_name: qdrant_storage

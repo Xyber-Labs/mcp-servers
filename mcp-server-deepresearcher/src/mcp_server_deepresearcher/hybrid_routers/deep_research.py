@@ -11,11 +11,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from langchain_core.runnables import RunnableConfig
 
 from mcp_server_deepresearcher.deepresearcher.config import (
-    DeepResearcherConfig,
-    LangfuseConfig,
+    get_langfuse_config,
+    get_researcher_config,
 )
 from mcp_server_deepresearcher.deepresearcher.graph import DeepResearcher
-from mcp_server_deepresearcher.dependencies import get_research_resources
+from mcp_server_deepresearcher.deepresearcher.utils import filter_mcp_tools_for_deepresearcher
+from mcp_server_deepresearcher.dependencies import DependencyContainer, get_database, get_research_resources
 from mcp_server_deepresearcher.schemas import DeepResearchRequest
 
 # Langfuse
@@ -67,34 +68,23 @@ async def deep_research(
 
     llm = resources.get("llm")
     llm_thinking = resources.get("llm_thinking")
-    mcp_tools = resources.get("mcp_tools", [])
     tools_description = resources.get("tools_description", [])
-    mcp_connection_error = resources.get("mcp_connection_error")
 
-    # Check for required resources with detailed error messages
+    # Check for required resources
     if not llm:
         raise HTTPException(
             status_code=503,
-            detail="LLM not available. The server may have failed to initialize properly. Please check server logs.",
+            detail="LLM not available. The server may have failed to initialize properly.",
         )
+
+    # Fetch MCP tools on-demand from client
+    mcp_tools = await DependencyContainer.get_mcp_tools()
+    mcp_tools = filter_mcp_tools_for_deepresearcher(mcp_tools)
 
     if not mcp_tools:
-        error_detail = (
-            "No MCP tools are available. "
-            "Research functionality requires at least one MCP server to be connected. "
-        )
-        if mcp_connection_error:
-            error_detail += f"Connection errors: {mcp_connection_error}"
-        else:
-            error_detail += "Please check that MCP servers are running and accessible."
-
-        raise HTTPException(status_code=503, detail=error_detail)
-
-    # Log warning if some servers failed but we have tools
-    if mcp_connection_error and mcp_tools:
-        logger.warning(
-            f"Some MCP servers failed to connect, but proceeding with {len(mcp_tools)} available tools. "
-            f"Failed servers: {mcp_connection_error}"
+        raise HTTPException(
+            status_code=503,
+            detail="No MCP tools available. Check MCP_SERVERS configuration.",
         )
 
     if not llm_thinking:
@@ -106,6 +96,7 @@ async def deep_research(
         llm_thinking=llm_thinking,
         mcp_tools=mcp_tools,
         tools_description=tools_description,
+        database=get_database(),
     )
 
 
@@ -115,12 +106,13 @@ async def perform_deep_research(
     llm_thinking: Any,
     mcp_tools: list[Any],
     tools_description: list[Any],
+    database: Any | None = None,
 ) -> dict[str, Any]:
     """
     Core research logic.
     """
     # Get configuration for deep researcher
-    deep_researcher_config = DeepResearcherConfig()
+    researcher_config = get_researcher_config()
 
     # Create a new, stateless agent for each request
     agent = DeepResearcher(
@@ -128,8 +120,9 @@ async def perform_deep_research(
         LLM_THINKING=llm_thinking,
         tools=mcp_tools,
         research_topic=request.research_topic,
-        research_loop_max=deep_researcher_config.MAX_WEB_RESEARCH_LOOPS,
+        research_loop_max=researcher_config.max_web_research_loops,
         tools_description=tools_description,
+        database=database,
     )
     logger.info("Created new stateless agent for this request.")
 
@@ -142,24 +135,24 @@ async def perform_deep_research(
     session_id = str(uuid.uuid4())
 
     # Get Langfuse configuration
-    langfuse_config = LangfuseConfig()
+    langfuse_config = get_langfuse_config()
 
     # Check if Langfuse is configured
     logger.debug(
-        f"Langfuse config check - API_KEY: {bool(langfuse_config.LANGFUSE_API_KEY)}, SECRET_KEY: {bool(langfuse_config.LANGFUSE_SECRET_KEY)}, HOST: {langfuse_config.LANGFUSE_HOST}"
+        f"Langfuse config check - API_KEY: {bool(langfuse_config.api_key)}, SECRET_KEY: {bool(langfuse_config.secret_key)}, HOST: {langfuse_config.host}"
     )
 
-    if langfuse_config.LANGFUSE_API_KEY and langfuse_config.LANGFUSE_SECRET_KEY:
+    if langfuse_config.is_configured:
         try:
             logger.info("Initializing Langfuse tracking...")
 
-            os.environ["LANGFUSE_PUBLIC_KEY"] = langfuse_config.LANGFUSE_API_KEY
-            os.environ["LANGFUSE_SECRET_KEY"] = langfuse_config.LANGFUSE_SECRET_KEY
-            if langfuse_config.LANGFUSE_HOST:
-                os.environ["LANGFUSE_HOST"] = langfuse_config.LANGFUSE_HOST
+            os.environ["LANGFUSE_PUBLIC_KEY"] = langfuse_config.api_key
+            os.environ["LANGFUSE_SECRET_KEY"] = langfuse_config.secret_key
+            if langfuse_config.host:
+                os.environ["LANGFUSE_HOST"] = langfuse_config.host
 
             logger.info(
-                f"Langfuse env vars set - PUBLIC_KEY: {langfuse_config.LANGFUSE_API_KEY[:10]}..., HOST: {langfuse_config.LANGFUSE_HOST}"
+                f"Langfuse env vars set - PUBLIC_KEY: {langfuse_config.api_key[:10]}..., HOST: {langfuse_config.host}"
             )
 
             langfuse_handler = CallbackHandler()
@@ -173,7 +166,7 @@ async def perform_deep_research(
                     "session_id": session_id,
                     "run_id": run_id,
                     "research_topic": request.research_topic,
-                    "max_web_research_loops": deep_researcher_config.MAX_WEB_RESEARCH_LOOPS,
+                    "max_web_research_loops": researcher_config.max_web_research_loops,
                 },
             }
 
@@ -190,7 +183,7 @@ async def perform_deep_research(
     try:
         # Build config with configurable parameters
         configurable_params = {
-            "max_web_research_loops": deep_researcher_config.MAX_WEB_RESEARCH_LOOPS
+            "max_web_research_loops": researcher_config.max_web_research_loops
         }
 
         # If runnable_config exists, merge configurable parameters with it

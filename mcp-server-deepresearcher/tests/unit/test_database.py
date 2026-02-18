@@ -1,7 +1,6 @@
 """
 Tests for database operations.
 """
-
 from __future__ import annotations
 
 from datetime import datetime
@@ -10,7 +9,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from sqlalchemy.orm import Session
 
-from mcp_server_deepresearcher.db.database import Database, get_db_instance
+from mcp_server_deepresearcher.db.database import Database
 from mcp_server_deepresearcher.db.models import ResearchReport
 
 
@@ -42,28 +41,6 @@ def mock_database(mock_db_session, mock_db_engine):
     return db
 
 
-@pytest.mark.asyncio
-async def test_get_db_instance_singleton(monkeypatch):
-    """Test that get_db_instance returns a singleton."""
-    # Clear any existing instance
-    import mcp_server_deepresearcher.db.database as db_module
-
-    db_module._db_instance = None
-
-    # Mock Database to avoid real connection attempts
-    mock_db = MagicMock(spec=Database)
-    mock_db.engine = MagicMock()
-    mock_db.Session = MagicMock()
-
-    with patch("mcp_server_deepresearcher.db.database.Database", return_value=mock_db):
-        instance1 = get_db_instance()
-        instance2 = get_db_instance()
-
-        assert instance1 is instance2
-        assert instance1 is mock_db
-
-
-@pytest.mark.asyncio
 async def test_database_connection_test(mock_database):
     """Test database connection testing."""
     mock_database.Session.return_value.__enter__.return_value.execute.return_value.fetchone.return_value = (
@@ -78,7 +55,6 @@ async def test_database_connection_test(mock_database):
     assert mock_database.Session.called
 
 
-@pytest.mark.asyncio
 async def test_save_research_report(mock_database):
     """Test saving a research report."""
     report_id = mock_database.save_research_report(
@@ -95,7 +71,6 @@ async def test_save_research_report(mock_database):
     mock_database.save_research_report.assert_called_once()
 
 
-@pytest.mark.asyncio
 async def test_save_research_report_with_minimal_data(mock_database):
     """Test saving research report with minimal required data."""
     report_id = mock_database.save_research_report(
@@ -111,7 +86,6 @@ async def test_save_research_report_with_minimal_data(mock_database):
     assert report_id == 1
 
 
-@pytest.mark.asyncio
 async def test_database_initialization_with_custom_url(monkeypatch):
     """Test database initialization with custom URL."""
     custom_url = "postgresql+psycopg2://user:pass@host:5432/testdb"
@@ -126,7 +100,6 @@ async def test_database_initialization_with_custom_url(monkeypatch):
         mock_create.assert_called_once()
 
 
-@pytest.mark.asyncio
 async def test_database_initialization_retry_logic(monkeypatch):
     """Test database initialization retry logic."""
 
@@ -152,7 +125,6 @@ async def test_database_initialization_retry_logic(monkeypatch):
         assert call_count == 3
 
 
-@pytest.mark.asyncio
 async def test_database_session_context_manager(mock_database):
     """Test database session context manager."""
     with mock_database.Session() as session:
@@ -161,7 +133,6 @@ async def test_database_session_context_manager(mock_database):
     mock_database.Session.return_value.__exit__.assert_called_once()
 
 
-@pytest.mark.asyncio
 async def test_research_report_model_fields():
     """Test ResearchReport model fields."""
     report = ResearchReport(
@@ -182,7 +153,6 @@ async def test_research_report_model_fields():
     assert report.research_loop_count == 3
 
 
-@pytest.mark.asyncio
 async def test_research_report_timestamps(mock_database):
     """Test that research reports have timestamps."""
 
@@ -203,7 +173,6 @@ async def test_research_report_timestamps(mock_database):
     assert report.updated_at is not None
 
 
-@pytest.mark.asyncio
 async def test_database_error_handling(mock_database):
     """Test database error handling."""
     mock_database.save_research_report.side_effect = Exception("Database error")
@@ -222,12 +191,8 @@ async def test_database_error_handling(mock_database):
     assert "Database error" in str(exc_info.value)
 
 
-@pytest.mark.asyncio
 async def test_database_connection_failure_handling(monkeypatch):
     """Test handling of database connection failures."""
-    import mcp_server_deepresearcher.db.database as db_module
-
-    db_module._db_instance = None
 
     def failing_engine(*args, **kwargs):
         raise Exception("Connection failed")
@@ -237,10 +202,9 @@ async def test_database_connection_failure_handling(monkeypatch):
         side_effect=failing_engine,
     ):
         with pytest.raises(Exception):
-            Database(max_retries=1, retry_delay=0.1)
+            Database(db_url="postgresql://test", max_retries=1, retry_delay=0.1)
 
 
-@pytest.mark.asyncio
 async def test_database_table_creation(monkeypatch):
     """Test database table creation."""
     mock_engine = MagicMock()

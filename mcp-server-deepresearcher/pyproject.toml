@@ -6,7 +6,7 @@ authors = [
     { name = "XyManchick", email = "xymanchick@xyber.inc" },
 ]
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 
 dependencies = [
     # MCP Server Dependencies
@@ -15,27 +15,19 @@ dependencies = [
     "fastapi>=0.115.12",
     "uvicorn[standard]",
     "pydantic-settings>=2.0",
-    
+
     # Deep Researcher Core Dependencies
     "langgraph>=0.2.55",
     "langchain-community>=0.3.9",
     "tavily-python>=0.5.0",
-    "langchain-ollama>=0.2.1",
     "duckduckgo-search>=7.3.0",
-    "langchain-openai>=0.1.1",
-    "openai>=1.12.0",
-    "langchain_openai>=0.3.9",
     "httpx>=0.28.1",
     "markdownify>=0.11.0",
     "python-dotenv>=1.1.0",
-    "langchain-together",
-    "langchain-google-genai",
-    "langchain-mistralai",
-    "langchain-mcp-adapters",
-    "langfuse>=2.0.0",
+    "langfuse>=2.0.0",    
+    "xyber-sdk>=0.1.0",
     # x402 Payment Dependencies
-    "x402[evm]>=2.0.0",
-    "cdp-sdk>=1.33.2",
+    "x402[evm,svm]>=2.0.0",
     "pyyaml",
     "psycopg2-binary>=2.9.9",
 ]
@@ -55,6 +47,9 @@ dev = [
 debug = [
     "debugpy>=1.8.0",
 ]
+
+[tool.uv.sources]
+xyber-sdk = { git = "https://github.com/Xyber-Labs/xyber-sdk", branch = "main" }
 
 [build-system]
 requires = ["hatchling"]
@@ -118,11 +113,11 @@ disallow_any_generics = true
 check_untyped_defs = true
 
 [tool.pytest.ini_options]
+pythonpath = ["src", "."]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-pythonpath = ["src", "."]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 addopts = [
@@ -130,11 +125,8 @@ addopts = [
     "--strict-config",
     "--disable-warnings",
     "-v",
-    "--ignore=tests/e2e",  # Exclude e2e tests by default
-    "-m", "not integration and not e2e",  # Exclude integration and e2e tests by default
 ]
 markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "e2e: marks tests as end-to-end tests (require running server)",
+    "payment_on: marks tests that require payment enforcement enabled",
+    "payment_off: marks tests that require payment enforcement disabled",
 ]

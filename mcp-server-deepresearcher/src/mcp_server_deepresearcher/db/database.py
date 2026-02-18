@@ -18,16 +18,6 @@ from mcp_server_deepresearcher.db.models import Base, ResearchReport
 
 logger = logging.getLogger(__name__)
 
-_db_instance: Database | None = None
-
-
-def get_db_instance() -> Database:
-    """Get or create the singleton database instance."""
-    global _db_instance
-    if _db_instance is None:
-        _db_instance = Database()
-    return _db_instance
-
 
 class Database:
     """
@@ -38,29 +28,19 @@ class Database:
 
     def __init__(
         self,
-        db_url: str | None = None,
-        max_retries: int = 30,
+        db_url: str,
+        max_retries: int = 5,
         retry_delay: int = 2,
     ):
         """
         Initialize database connection with retry logic.
 
         Args:
-            db_url: Optional database URL. If None, reads from config
+            db_url: Database URL (required)
             max_retries: Maximum number of connection retry attempts
             retry_delay: Initial delay between retries in seconds (exponential backoff)
 
         """
-        if db_url is None:
-            from mcp_server_deepresearcher.deepresearcher.config import Settings
-
-            settings = Settings()
-            db_config = settings.database
-            db_url = db_config.DATABASE_URL
-            if not db_url:
-                raise RuntimeError(
-                    "DATABASE_URL not configured. Set it in .env or environment variables."
-                )
 
         self.engine = None
         self.Session: sessionmaker[Session] | None = None

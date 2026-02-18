@@ -4,13 +4,24 @@ REST-only endpoints for retrieving research reports from the database.
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from mcp_server_deepresearcher.db.database import get_db_instance
+from mcp_server_deepresearcher.db.database import Database
+from mcp_server_deepresearcher.dependencies import get_database
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def require_database(db: Database | None = Depends(get_database)) -> Database:
+    """FastAPI dependency that requires database to be configured."""
+    if db is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Database not configured. Reports API is unavailable.",
+        )
+    return db
 
 
 class ReportResponse(BaseModel):
@@ -46,6 +57,7 @@ class ReportsListResponse(BaseModel):
     response_model=ReportsListResponse,
 )
 async def get_reports(
+    db: Database = Depends(require_database),
     limit: int = Query(
         default=10,
         ge=1,
@@ -75,8 +87,6 @@ async def get_reports(
     logger.info(f"Retrieving reports: limit={limit}, topic={topic}")
 
     try:
-        db = get_db_instance()
-
         if topic:
             # Get reports by topic
             reports = db.get_reports_by_topic(research_topic=topic, limit=limit)
@@ -125,6 +135,7 @@ async def get_reports(
 )
 async def get_reports_by_topic(
     topic: str,
+    db: Database = Depends(require_database),
     limit: int = Query(
         default=10,
         ge=1,
@@ -146,7 +157,6 @@ async def get_reports_by_topic(
     logger.info(f"Retrieving reports for topic '{topic}': limit={limit}")
 
     try:
-        db = get_db_instance()
         reports = db.get_reports_by_topic(research_topic=topic, limit=limit)
 
         if not reports:
@@ -193,7 +203,10 @@ async def get_reports_by_topic(
     operation_id="get_report_by_id",
     response_model=ReportResponse,
 )
-async def get_report_by_id(report_id: int) -> ReportResponse:
+async def get_report_by_id(
+    report_id: int,
+    db: Database = Depends(require_database),
+) -> ReportResponse:
     """
     Retrieve a specific research report by ID.
 
@@ -210,7 +223,6 @@ async def get_report_by_id(report_id: int) -> ReportResponse:
     logger.info(f"Retrieving report with ID {report_id}")
 
     try:
-        db = get_db_instance()
         report = db.get_research_report(report_id=report_id)
 
         if not report:

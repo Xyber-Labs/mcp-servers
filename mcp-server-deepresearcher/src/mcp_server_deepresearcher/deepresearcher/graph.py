@@ -1,15 +1,19 @@
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
 import re
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from mcp_server_deepresearcher.db.database import Database
 
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import StructuredTool, Tool
 from langgraph.graph import END, START, StateGraph
 
-from mcp_server_deepresearcher.db.database import get_db_instance
 from mcp_server_deepresearcher.deepresearcher.prompts import (
     final_report_instructions,
     get_current_date,
@@ -46,7 +50,8 @@ class ResearchGraph:
         tools: list[Tool | StructuredTool],
         research_topic: str,
         research_loop_max: int,
-        tools_description: list[ToolDescription] = None,
+        tools_description: list[ToolDescription] | None = None,
+        database: Database | None = None,
     ):
         self.llm = LLM
         self.llm_thinking = LLM_THINKING
@@ -54,6 +59,7 @@ class ResearchGraph:
         self.research_topic = research_topic
         self.research_loop_max = research_loop_max
         self.tools_description = tools_description or []
+        self.database = database
         self.graph = self._build_graph()
 
     def _build_graph(self) -> StateGraph:
@@ -751,22 +757,20 @@ class ResearchGraph:
         state.report = report_data
 
         # Save report to database
-        try:
-            db = get_db_instance()
-            report_id = db.save_research_report(
-                research_topic=self.research_topic,
-                title=title,
-                executive_summary=report_content,
-                key_findings=key_findings,
-                sources=report_data.get("sources"),
-                report_data=report_data,
-                research_loop_count=state.research_loop_count,
-            )
-            logger.info(f"Research report saved to database with ID: {report_id}")
-        except Exception as db_error:
-            logger.error(f"Failed to save research report to database: {db_error}")
-            # Don't fail the entire process if DB save fails
-            logger.warning("Continuing despite database save failure")
+        if self.database is not None:
+            try:
+                report_id = self.database.save_research_report(
+                    research_topic=self.research_topic,
+                    title=title,
+                    executive_summary=report_content,
+                    key_findings=key_findings,
+                    sources=report_data.get("sources"),
+                    report_data=report_data,
+                    research_loop_count=state.research_loop_count,
+                )
+                logger.info(f"Research report saved to database with ID: {report_id}")
+            except Exception as db_error:
+                logger.warning(f"Failed to save report to database: {db_error}")
 
         return state
 
