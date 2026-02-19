@@ -61,18 +61,6 @@ wheels = [
 ]
 
 [[package]]
-name = "aiohttp-retry"
-version = "2.9.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "aiohttp" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/9d/61/ebda4d8e3d8cfa1fd3db0fb428db2dd7461d5742cea35178277ad180b033/aiohttp_retry-2.9.1.tar.gz", hash = "sha256:8eb75e904ed4ee5c2ec242fefe85bf04240f685391c4879d8f541d6028ff01f1", size = 13608, upload-time = "2024-11-06T10:44:54.574Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/1a/99/84ba7273339d0f3dfa57901b846489d2e5c2cd731470167757f1935fffbd/aiohttp_retry-2.9.1-py3-none-any.whl", hash = "sha256:66d2759d1921838256a05a3f80ad7e724936f083e35be5abb5e16eed6be6dc54", size = 9981, upload-time = "2024-11-06T10:44:52.917Z" },
-]
-
-[[package]]
 name = "aioresponses"
 version = "0.7.8"
 source = { registry = "https://pypi.org/simple" }
@@ -165,15 +153,6 @@ wheels = [
 ]
 
 [[package]]
-name = "base58"
-version = "2.1.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/7f/45/8ae61209bb9015f516102fa559a2914178da1d5868428bd86a1b4421141d/base58-2.1.1.tar.gz", hash = "sha256:c5d0cb3f5b6e81e8e35da5754388ddcc6d0d14b6c6a132cb93d69ed580a7278c", size = 6528, upload-time = "2021-10-30T22:12:17.858Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4a/45/ec96b29162a402fc4c1c5512d114d7b3787b9d1c2ec241d9568b4816ee23/base58-2.1.1-py3-none-any.whl", hash = "sha256:11a36f4d3ce51dfc1043f3218591ac4eb1ceb172919cebe05b52a5bcc8d245c2", size = 5621, upload-time = "2021-10-30T22:12:16.658Z" },
-]
-
-[[package]]
 name = "beartype"
 version = "0.22.5"
 source = { registry = "https://pypi.org/simple" }
@@ -248,29 +227,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/fb/44/ca1675be2a83aeee1886ab745b28cda92093066590233cc501890eb8417a/cachetools-6.2.2.tar.gz", hash = "sha256:8e6d266b25e539df852251cfd6f990b4bc3a141db73b939058d809ebd2590fc6", size = 31571, upload-time = "2025-11-13T17:42:51.465Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e6/46/eb6eca305c77a4489affe1c5d8f4cae82f285d9addd8de4ec084a7184221/cachetools-6.2.2-py3-none-any.whl", hash = "sha256:6c09c98183bf58560c97b2abfcedcbaf6a896a490f534b031b661d3723b45ace", size = 11503, upload-time = "2025-11-13T17:42:50.232Z" },
-]
-
-[[package]]
-name = "cdp-sdk"
-version = "1.33.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "aiohttp" },
-    { name = "aiohttp-retry" },
-    { name = "base58" },
-    { name = "cryptography" },
-    { name = "nest-asyncio" },
-    { name = "pydantic" },
-    { name = "pyjwt" },
-    { name = "python-dateutil" },
-    { name = "solana" },
-    { name = "solders" },
-    { name = "urllib3" },
-    { name = "web3" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/19/af/98d814854920599cca8b6677740c7031da3d8c9cedeff2167ae1a546d0fe/cdp_sdk-1.33.2.tar.gz", hash = "sha256:ff0db3d9ec6bf5c9320b9c1dd10e84f30e4e6f9dfdcc3e8ca99cd7e6ebc3549d", size = 307250, upload-time = "2025-11-03T20:41:18.468Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/2d/3e/6a848297bbb6d4fb4973734b3861668039c1864ce11136d2de2dce141f9e/cdp_sdk-1.33.2-py3-none-any.whl", hash = "sha256:1d6964d58dbb07e2ec5c1cba2c9a6e6c1806531b8b6e87658da656cf691032b1", size = 771949, upload-time = "2025-11-03T20:41:16.556Z" },
 ]
 
 [[package]]
@@ -1268,7 +1224,6 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "arxiv" },
-    { name = "cdp-sdk" },
     { name = "fastapi" },
     { name = "fastmcp" },
     { name = "httpx" },
@@ -1277,11 +1232,9 @@ dependencies = [
     { name = "pymupdf" },
     { name = "pypdf2" },
     { name = "pyyaml" },
-    { name = "solana" },
-    { name = "solders" },
     { name = "tenacity" },
     { name = "uvicorn", extra = ["standard"] },
-    { name = "x402" },
+    { name = "x402", extra = ["evm", "svm"] },
 ]
 
 [package.dev-dependencies]
@@ -1302,7 +1255,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "arxiv", specifier = ">=2.0.0" },
-    { name = "cdp-sdk", specifier = ">=1.33.2" },
     { name = "fastapi", specifier = ">=0.115.12" },
     { name = "fastmcp", specifier = ">=2.3.4" },
     { name = "httpx", specifier = ">=0.25.0" },
@@ -1311,11 +1263,9 @@ requires-dist = [
     { name = "pymupdf", specifier = ">=1.23.0" },
     { name = "pypdf2", specifier = ">=3.0.0" },
     { name = "pyyaml" },
-    { name = "solana", specifier = ">=0.36.10" },
-    { name = "solders", specifier = ">=0.27.1" },
     { name = "tenacity", specifier = ">=8.2.3" },
     { name = "uvicorn", extras = ["standard"] },
-    { name = "x402", specifier = ">=2.0.0" },
+    { name = "x402", extras = ["evm", "svm"], specifier = ">=2.0.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -2543,6 +2493,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/82/09/30f9807b8a7abe9a82eb287a13116aad2a0db682fce681f5a061b0d2af67/x402-2.1.0.tar.gz", hash = "sha256:3829d91fe65c8fab988cb9ab011120c47fd5977b62d9603f3e20471a7ffe3188", size = 886966, upload-time = "2026-02-11T21:52:27.493Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5f/70/e1bcce7f2f62a9411fc172f92d2eac8da464fb49ea8549c97454354176d5/x402-2.1.0-py3-none-any.whl", hash = "sha256:a8037d14c63c3bb660f42d464684a3f7df3f03fd8544f17384a448a09389decc", size = 943266, upload-time = "2026-02-11T21:52:25.913Z" },
+]
+
+[package.optional-dependencies]
+evm = [
+    { name = "eth-abi" },
+    { name = "eth-account" },
+    { name = "eth-keys" },
+    { name = "eth-utils" },
+    { name = "web3" },
+]
+svm = [
+    { name = "solana" },
+    { name = "solders" },
 ]
 
 [[package]]

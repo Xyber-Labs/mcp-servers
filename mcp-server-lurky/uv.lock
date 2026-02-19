@@ -97,18 +97,6 @@ wheels = [
 ]
 
 [[package]]
-name = "aiohttp-retry"
-version = "2.9.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "aiohttp" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/9d/61/ebda4d8e3d8cfa1fd3db0fb428db2dd7461d5742cea35178277ad180b033/aiohttp_retry-2.9.1.tar.gz", hash = "sha256:8eb75e904ed4ee5c2ec242fefe85bf04240f685391c4879d8f541d6028ff01f1", size = 13608, upload-time = "2024-11-06T10:44:54.574Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/1a/99/84ba7273339d0f3dfa57901b846489d2e5c2cd731470167757f1935fffbd/aiohttp_retry-2.9.1-py3-none-any.whl", hash = "sha256:66d2759d1921838256a05a3f80ad7e724936f083e35be5abb5e16eed6be6dc54", size = 9981, upload-time = "2024-11-06T10:44:52.917Z" },
-]
-
-[[package]]
 name = "aioresponses"
 version = "0.7.8"
 source = { registry = "https://pypi.org/simple" }
@@ -184,15 +172,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/bb/9b/b1661026ff24bc641b76b78c5222d614776b0c085bcfdac9bd15a1cb4b35/authlib-1.6.6.tar.gz", hash = "sha256:45770e8e056d0f283451d9996fbb59b70d45722b45d854d58f32878d0a40c38e", size = 164894, upload-time = "2025-12-12T08:01:41.464Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/54/51/321e821856452f7386c4e9df866f196720b1ad0c5ea1623ea7399969ae3b/authlib-1.6.6-py2.py3-none-any.whl", hash = "sha256:7d9e9bc535c13974313a87f53e8430eb6ea3d1cf6ae4f6efcd793f2e949143fd", size = 244005, upload-time = "2025-12-12T08:01:40.209Z" },
-]
-
-[[package]]
-name = "base58"
-version = "2.1.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/7f/45/8ae61209bb9015f516102fa559a2914178da1d5868428bd86a1b4421141d/base58-2.1.1.tar.gz", hash = "sha256:c5d0cb3f5b6e81e8e35da5754388ddcc6d0d14b6c6a132cb93d69ed580a7278c", size = 6528, upload-time = "2021-10-30T22:12:17.858Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4a/45/ec96b29162a402fc4c1c5512d114d7b3787b9d1c2ec241d9568b4816ee23/base58-2.1.1-py3-none-any.whl", hash = "sha256:11a36f4d3ce51dfc1043f3218591ac4eb1ceb172919cebe05b52a5bcc8d245c2", size = 5621, upload-time = "2021-10-30T22:12:16.658Z" },
 ]
 
 [[package]]
@@ -303,29 +282,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/39/91/d9ae9a66b01102a18cd16db0cf4cd54187ffe10f0865cc80071a4104fbb3/cachetools-6.2.6.tar.gz", hash = "sha256:16c33e1f276b9a9c0b49ab5782d901e3ad3de0dd6da9bf9bcd29ac5672f2f9e6", size = 32363, upload-time = "2026-01-27T20:32:59.956Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/90/45/f458fa2c388e79dd9d8b9b0c99f1d31b568f27388f2fdba7bb66bbc0c6ed/cachetools-6.2.6-py3-none-any.whl", hash = "sha256:8c9717235b3c651603fff0076db52d6acbfd1b338b8ed50256092f7ce9c85bda", size = 11668, upload-time = "2026-01-27T20:32:58.527Z" },
-]
-
-[[package]]
-name = "cdp-sdk"
-version = "1.38.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "aiohttp" },
-    { name = "aiohttp-retry" },
-    { name = "base58" },
-    { name = "cryptography" },
-    { name = "nest-asyncio" },
-    { name = "pydantic" },
-    { name = "pyjwt" },
-    { name = "python-dateutil" },
-    { name = "solana" },
-    { name = "solders" },
-    { name = "urllib3" },
-    { name = "web3" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/a1/7a/f19d325963b13003274e44f9ac1fc7b491fe7a63f665be20f76eded31b66/cdp_sdk-1.38.0.tar.gz", hash = "sha256:46d314b7d370b643ede1352eac70720e49e2fa7ee3ce34b46787a3551a121a79", size = 339201, upload-time = "2026-01-22T20:05:43.203Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ce/94/a73c0152423d030ce45c8cbe0fb0294e5aa09801cbc5d90658db18a2002b/cdp_sdk-1.38.0-py3-none-any.whl", hash = "sha256:ec5d8683d20781ab69c91243aaf09e66496ab5b49789cc685c604cebf9c1d5a4", size = 865807, upload-time = "2026-01-22T20:05:41.166Z" },
 ]
 
 [[package]]
@@ -1555,7 +1511,6 @@ name = "mcp-server-lurky"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "cdp-sdk" },
     { name = "fastapi" },
     { name = "fastmcp" },
     { name = "httpx" },
@@ -1564,12 +1519,10 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
-    { name = "solana" },
-    { name = "solders" },
     { name = "sqlalchemy" },
     { name = "tenacity" },
     { name = "uvicorn", extra = ["standard"] },
-    { name = "x402" },
+    { name = "x402", extra = ["evm", "svm"] },
 ]
 
 [package.dev-dependencies]
@@ -1589,7 +1542,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cdp-sdk", specifier = ">=1.33.2" },
     { name = "fastapi", specifier = ">=0.115.12" },
     { name = "fastmcp", specifier = ">=2.3.4" },
     { name = "httpx", specifier = ">=0.25.0" },
@@ -1598,12 +1550,10 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "pyyaml" },
-    { name = "solana", specifier = ">=0.36.11" },
-    { name = "solders", specifier = ">=0.27.1" },
     { name = "sqlalchemy", specifier = ">=2.0.0" },
     { name = "tenacity", specifier = ">=8.2.3" },
     { name = "uvicorn", extras = ["standard"] },
-    { name = "x402", specifier = ">=2.0.0" },
+    { name = "x402", extras = ["evm", "svm"], specifier = ">=2.0.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -3140,6 +3090,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/82/09/30f9807b8a7abe9a82eb287a13116aad2a0db682fce681f5a061b0d2af67/x402-2.1.0.tar.gz", hash = "sha256:3829d91fe65c8fab988cb9ab011120c47fd5977b62d9603f3e20471a7ffe3188", size = 886966, upload-time = "2026-02-11T21:52:27.493Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5f/70/e1bcce7f2f62a9411fc172f92d2eac8da464fb49ea8549c97454354176d5/x402-2.1.0-py3-none-any.whl", hash = "sha256:a8037d14c63c3bb660f42d464684a3f7df3f03fd8544f17384a448a09389decc", size = 943266, upload-time = "2026-02-11T21:52:25.913Z" },
+]
+
+[package.optional-dependencies]
+evm = [
+    { name = "eth-abi" },
+    { name = "eth-account" },
+    { name = "eth-keys" },
+    { name = "eth-utils" },
+    { name = "web3" },
+]
+svm = [
+    { name = "solana" },
+    { name = "solders" },
 ]
 
 [[package]]

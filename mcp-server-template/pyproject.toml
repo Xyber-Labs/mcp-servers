@@ -21,10 +21,9 @@ dependencies = [
     "fastmcp>=2.3.4",
     "fastapi>=0.115.12",
     "tenacity>=8.2.3",
-    "cdp-sdk>=1.33.2",
     "httpx>=0.25.0",
     "pyyaml",
-    "x402>=2.0.0"
+    "x402[evm,svm]>=2.0.0"
 ]
 
 [dependency-groups]

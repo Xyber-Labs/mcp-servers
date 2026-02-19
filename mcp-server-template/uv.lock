@@ -61,18 +61,6 @@ wheels = [
 ]
 
 [[package]]
-name = "aiohttp-retry"
-version = "2.9.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "aiohttp" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/9d/61/ebda4d8e3d8cfa1fd3db0fb428db2dd7461d5742cea35178277ad180b033/aiohttp_retry-2.9.1.tar.gz", hash = "sha256:8eb75e904ed4ee5c2ec242fefe85bf04240f685391c4879d8f541d6028ff01f1", size = 13608, upload-time = "2024-11-06T10:44:54.574Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/1a/99/84ba7273339d0f3dfa57901b846489d2e5c2cd731470167757f1935fffbd/aiohttp_retry-2.9.1-py3-none-any.whl", hash = "sha256:66d2759d1921838256a05a3f80ad7e724936f083e35be5abb5e16eed6be6dc54", size = 9981, upload-time = "2024-11-06T10:44:52.917Z" },
-]
-
-[[package]]
 name = "aioresponses"
 version = "0.7.8"
 source = { registry = "https://pypi.org/simple" }
@@ -149,15 +137,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/cd/3f/1d3bbd0bf23bdd99276d4def22f29c27a914067b4cf66f753ff9b8bbd0f3/authlib-1.6.5.tar.gz", hash = "sha256:6aaf9c79b7cc96c900f0b284061691c5d4e61221640a948fe690b556a6d6d10b", size = 164553, upload-time = "2025-10-02T13:36:09.489Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f8/aa/5082412d1ee302e9e7d80b6949bc4d2a8fa1149aaab610c5fc24709605d6/authlib-1.6.5-py2.py3-none-any.whl", hash = "sha256:3e0e0507807f842b02175507bdee8957a1d5707fd4afb17c32fb43fee90b6e3a", size = 243608, upload-time = "2025-10-02T13:36:07.637Z" },
-]
-
-[[package]]
-name = "base58"
-version = "2.1.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/7f/45/8ae61209bb9015f516102fa559a2914178da1d5868428bd86a1b4421141d/base58-2.1.1.tar.gz", hash = "sha256:c5d0cb3f5b6e81e8e35da5754388ddcc6d0d14b6c6a132cb93d69ed580a7278c", size = 6528, upload-time = "2021-10-30T22:12:17.858Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4a/45/ec96b29162a402fc4c1c5512d114d7b3787b9d1c2ec241d9568b4816ee23/base58-2.1.1-py3-none-any.whl", hash = "sha256:11a36f4d3ce51dfc1043f3218591ac4eb1ceb172919cebe05b52a5bcc8d245c2", size = 5621, upload-time = "2021-10-30T22:12:16.658Z" },
 ]
 
 [[package]]
@@ -265,29 +244,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/fb/44/ca1675be2a83aeee1886ab745b28cda92093066590233cc501890eb8417a/cachetools-6.2.2.tar.gz", hash = "sha256:8e6d266b25e539df852251cfd6f990b4bc3a141db73b939058d809ebd2590fc6", size = 31571, upload-time = "2025-11-13T17:42:51.465Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e6/46/eb6eca305c77a4489affe1c5d8f4cae82f285d9addd8de4ec084a7184221/cachetools-6.2.2-py3-none-any.whl", hash = "sha256:6c09c98183bf58560c97b2abfcedcbaf6a896a490f534b031b661d3723b45ace", size = 11503, upload-time = "2025-11-13T17:42:50.232Z" },
-]
-
-[[package]]
-name = "cdp-sdk"
-version = "1.33.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "aiohttp" },
-    { name = "aiohttp-retry" },
-    { name = "base58" },
-    { name = "cryptography" },
-    { name = "nest-asyncio" },
-    { name = "pydantic" },
-    { name = "pyjwt" },
-    { name = "python-dateutil" },
-    { name = "solana" },
-    { name = "solders" },
-    { name = "urllib3" },
-    { name = "web3" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/19/af/98d814854920599cca8b6677740c7031da3d8c9cedeff2167ae1a546d0fe/cdp_sdk-1.33.2.tar.gz", hash = "sha256:ff0db3d9ec6bf5c9320b9c1dd10e84f30e4e6f9dfdcc3e8ca99cd7e6ebc3549d", size = 307250, upload-time = "2025-11-03T20:41:18.468Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/2d/3e/6a848297bbb6d4fb4973734b3861668039c1864ce11136d2de2dce141f9e/cdp_sdk-1.33.2-py3-none-any.whl", hash = "sha256:1d6964d58dbb07e2ec5c1cba2c9a6e6c1806531b8b6e87658da656cf691032b1", size = 771949, upload-time = "2025-11-03T20:41:16.556Z" },
 ]
 
 [[package]]
@@ -1474,7 +1430,6 @@ name = "mcp-server-weather"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "cdp-sdk" },
     { name = "fastapi" },
     { name = "fastmcp" },
     { name = "httpx" },
@@ -1483,7 +1438,7 @@ dependencies = [
     { name = "pyyaml" },
     { name = "tenacity" },
     { name = "uvicorn", extra = ["standard"] },
-    { name = "x402" },
+    { name = "x402", extra = ["evm", "svm"] },
 ]
 
 [package.dev-dependencies]
@@ -1503,7 +1458,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cdp-sdk", specifier = ">=1.33.2" },
     { name = "fastapi", specifier = ">=0.115.12" },
     { name = "fastmcp", specifier = ">=2.3.4" },
     { name = "httpx", specifier = ">=0.25.0" },
@@ -1512,7 +1466,7 @@ requires-dist = [
     { name = "pyyaml" },
     { name = "tenacity", specifier = ">=8.2.3" },
     { name = "uvicorn", extras = ["standard"] },
-    { name = "x402", specifier = ">=2.0.0" },
+    { name = "x402", extras = ["evm", "svm"], specifier = ">=2.0.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -1652,15 +1606,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a2/6e/371856a3fb9d31ca8dac321cda606860fa4548858c0cc45d9d1d4ca2628b/mypy_extensions-1.1.0.tar.gz", hash = "sha256:52e68efc3284861e772bbcd66823fde5ae21fd2fdb51c62a211403730b916558", size = 6343, upload-time = "2025-04-22T14:54:24.164Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/79/7b/2c79738432f5c924bef5071f933bcc9efd0473bac3b4aa584a6f7c1c8df8/mypy_extensions-1.1.0-py3-none-any.whl", hash = "sha256:1be4cccdb0f2482337c4743e60421de3a356cd97508abadd57d47403e94f5505", size = 4963, upload-time = "2025-04-22T14:54:22.983Z" },
-]
-
-[[package]]
-name = "nest-asyncio"
-version = "1.6.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/83/f8/51569ac65d696c8ecbee95938f89d4abf00f47d58d48f6fbabfe8f0baefe/nest_asyncio-1.6.0.tar.gz", hash = "sha256:6f172d5449aca15afd6c646851f4e31e02c598d553a667e38cafa997cfec55fe", size = 7418, upload-time = "2024-01-21T14:25:19.227Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a0/c4/c2971a3ba4c6103a3d10c4b0f24f461ddc027f0f09763220cf35ca1401b3/nest_asyncio-1.6.0-py3-none-any.whl", hash = "sha256:87af6efd6b5e897c81050477ef65c62e2b2f35d51703cae01aff2905b1852e1c", size = 5195, upload-time = "2024-01-21T14:25:17.223Z" },
 ]
 
 [[package]]
@@ -2581,7 +2526,7 @@ wheels = [
 
 [[package]]
 name = "solana"
-version = "0.36.9"
+version = "0.36.11"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "construct-typing" },
@@ -2590,29 +2535,29 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8c/e0/ce762b6763e3a0f8a5ccecbf695d65ef54b6f874ad5f58ce5cdcaba224f1/solana-0.36.9.tar.gz", hash = "sha256:f702f6177337c67a982909ef54ef3abce5e795b8cd93edb045bedfa4d13c20c5", size = 52722, upload-time = "2025-08-09T16:23:25.307Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5e/66/b8cd6e4d95bfe46798942ace31935e7799005a4e2180869dc7bac6b75be9/solana-0.36.11.tar.gz", hash = "sha256:2fdcf483674f4b88fe6510524bf3234a5837d19fe1815aa5a285f2739d28b3a3", size = 54516, upload-time = "2026-01-03T02:11:52.243Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ac/11/d5e5d02200ca85b615da39078806b377156b67b2093c8bc08a1b9c293070/solana-0.36.9-py3-none-any.whl", hash = "sha256:e05824f91f95abe5a687914976e8bc78986386156f2106108c696db998c3c542", size = 62882, upload-time = "2025-08-09T16:23:24.149Z" },
+    { url = "https://files.pythonhosted.org/packages/8b/8d/807eebf0560759ad90464060e0d1d87ff5409beb6ed56104c553a83a976a/solana-0.36.11-py3-none-any.whl", hash = "sha256:1d659decc67a40ee1e9b5ded373a076b87cf3b4bd0645e120d16d9348c2025ba", size = 64786, upload-time = "2026-01-03T02:11:50.811Z" },
 ]
 
 [[package]]
 name = "solders"
-version = "0.26.0"
+version = "0.27.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jsonalias" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/87/96/23ad2e43e2676b78834064fe051e3db3ce1899336ecd4797f92fcd06113a/solders-0.26.0.tar.gz", hash = "sha256:057533892d6fa432c1ce1e2f5e3428802964666c10b57d3d1bcaab86295f046c", size = 181123, upload-time = "2025-02-18T19:23:57.734Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/66/25/80a81bb3dc4c70329dd0016edbdfbf2e8d8300a98ab9cd1a6ea0266bda7c/solders-0.27.1.tar.gz", hash = "sha256:7d8a24ad2f193afcdc02d6f3975917a7358b0f0ab7f4b3695b135ff2008222c8", size = 180923, upload-time = "2025-11-15T07:50:52.32Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a5/ce/58bbb4d2c696e770cdd37e5f6dc2891ef7610c0c085bf400f9c42dcff1ad/solders-0.26.0-cp37-abi3-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:9c1a0ef5daa1a05934af5fb6e7e32eab7c42cede406c80067fee006f461ffc4a", size = 24344472, upload-time = "2025-02-18T19:23:30.273Z" },
-    { url = "https://files.pythonhosted.org/packages/5a/35/221cec0e5900c2202833e7e9110c3405a2d96ed25e110b247f88b8782e29/solders-0.26.0-cp37-abi3-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:1b964efbd7c0b38aef3bf4293ea5938517ae649b9a23e7cd147d889931775aab", size = 6674734, upload-time = "2025-02-18T19:23:35.15Z" },
-    { url = "https://files.pythonhosted.org/packages/41/33/d17b7dbc92672351d59fc65cdb93b8924fc682deba09f6d96f25440187ae/solders-0.26.0-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:36e6a769c5298b887b7588edb171d93709a89302aef75913fe893d11c653739d", size = 13472961, upload-time = "2025-02-18T19:23:38.582Z" },
-    { url = "https://files.pythonhosted.org/packages/bb/e7/533367d815ab000587ccc37d89e154132f63347f02dcaaac5df72bd851de/solders-0.26.0-cp37-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:b3cc55b971ec6ed1b4466fa7e7e09eee9baba492b8cd9e3204e3e1a0c5a0c4aa", size = 6886198, upload-time = "2025-02-18T19:23:41.453Z" },
-    { url = "https://files.pythonhosted.org/packages/52/e0/ab41ab3df5fdf3b0e55613be93a43c2fe58b15a6ea8ceca26d3fba02e3c6/solders-0.26.0-cp37-abi3-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:3e3973074c17265921c70246a17bcf80972c5b96a3e1ed7f5049101f11865092", size = 7319170, upload-time = "2025-02-18T19:23:43.758Z" },
-    { url = "https://files.pythonhosted.org/packages/7d/34/5174ce592607e0ac020aff203217f2f113a55eec49af3db12945fea42d89/solders-0.26.0-cp37-abi3-musllinux_1_2_i686.whl", hash = "sha256:59b52419452602f697e659199a25acacda8365971c376ef3c0687aecdd929e07", size = 7134977, upload-time = "2025-02-18T19:23:46.157Z" },
-    { url = "https://files.pythonhosted.org/packages/ba/5e/822faabda0d473c29bdf59fe8869a411fd436af8ca6f5d6e89f7513f682f/solders-0.26.0-cp37-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:5946ec3f2a340afa9ce5c2b8ab628ae1dea2ad2235551b1297cafdd7e3e5c51a", size = 6984222, upload-time = "2025-02-18T19:23:49.429Z" },
-    { url = "https://files.pythonhosted.org/packages/23/e8/dc992f677762ea2de44b7768120d95887ef39fab10d6f29fb53e6a9882c1/solders-0.26.0-cp37-abi3-win_amd64.whl", hash = "sha256:5466616610170aab08c627ae01724e425bcf90085bc574da682e9f3bd954900b", size = 5480492, upload-time = "2025-02-18T19:23:53.285Z" },
+    { url = "https://files.pythonhosted.org/packages/4b/6b/0c0ee4766705824261779d00229fb95308d6b28422613e0e2af577f60ee3/solders-0.27.1-cp38-abi3-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl", hash = "sha256:4dcd8e766bab24afbe9e0ae363d86f9810457e04b00c8a9149f69ca939ed587c", size = 24883435, upload-time = "2025-11-15T07:50:34.42Z" },
+    { url = "https://files.pythonhosted.org/packages/33/1c/be04a1b26e18c409dd006d214198dc03f0b657c1cb34f4c83b763f8348f0/solders-0.27.1-cp38-abi3-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:5d87b145cc0129095f9cff8c7f28d2e910bc5b5a4cf257c263b08a4b95f111dd", size = 6480729, upload-time = "2025-11-15T07:50:37.323Z" },
+    { url = "https://files.pythonhosted.org/packages/48/03/98dc73c266b11ed5c13b3933510a1aa115becf97f45bec1a22da9d03ffa9/solders-0.27.1-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6082bbe46b7b1b2b005d046011f89fcae75fc5ea4f1a0ef5c2e9dfb5fe7930ce", size = 12744782, upload-time = "2025-11-15T07:50:39.283Z" },
+    { url = "https://files.pythonhosted.org/packages/a0/39/35384d8fb80d05937bd9e8af7237cfe3f0d017c8aba357209d90d428f3a0/solders-0.27.1-cp38-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:ccb821c2e4af43d976f312086f248a67352b3986e5f4c87af41cfeac6d8b5683", size = 6601257, upload-time = "2025-11-15T07:50:41.738Z" },
+    { url = "https://files.pythonhosted.org/packages/8c/65/8989e521142473bf1130613476a4449e106bb97ed6cc86097f6f519b1234/solders-0.27.1-cp38-abi3-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:663a10566ae81f67c4515d4db5fbf51b735204741728c1a5cde11c4e019a51df", size = 7277802, upload-time = "2025-11-15T07:50:43.789Z" },
+    { url = "https://files.pythonhosted.org/packages/f2/41/87ecf12cec0e7aa9c67b0cf1b8079fb28aa0af91e97328a3bd0c5e3001ba/solders-0.27.1-cp38-abi3-musllinux_1_2_i686.whl", hash = "sha256:d14f05a77dbbf7966fb26f255c81302e6127550bdb66c2fdc99f522043fdf376", size = 7082541, upload-time = "2025-11-15T07:50:45.847Z" },
+    { url = "https://files.pythonhosted.org/packages/33/b9/35e6f59b41bb205b26c7318fcdca43f3d59464fd3ddc13d36f36427f64d4/solders-0.27.1-cp38-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:f778eeab411acec0a765a01c7b772f8eca8a8543d98276bd83cb826960da211b", size = 6845568, upload-time = "2025-11-15T07:50:47.698Z" },
+    { url = "https://files.pythonhosted.org/packages/9b/f3/14ed12d8d5047ababaca3271f82ebbf500ff74b6358f283962232103a12d/solders-0.27.1-cp38-abi3-win_amd64.whl", hash = "sha256:f3b787c29570a46d219c7a67543d8b0fadc73abda346653aa20e8eccd839e78b", size = 5295092, upload-time = "2025-11-15T07:50:50.517Z" },
 ]
 
 [[package]]
@@ -2917,6 +2862,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/01/e1/b3d1c79afa25513d51ae1d9379c178eb2b4f1eb8b1b73a4207cfba7a91ea/x402-2.0.0.tar.gz", hash = "sha256:ba458b81f3889c0de5f140549998e32b1dfac36eee15f52ebc8035bb7c6c4958", size = 866901, upload-time = "2026-01-22T00:51:08.382Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/63/82/fb15d27f1cf45d2e3fee17340672d38631df482f1be11029d5b4c2f72097/x402-2.0.0-py3-none-any.whl", hash = "sha256:9db08530b9daa0a00d8505f7cd0bddf45a27ff8948d11bb9961d324d10b91a50", size = 917873, upload-time = "2026-01-22T00:51:06.943Z" },
+]
+
+[package.optional-dependencies]
+evm = [
+    { name = "eth-abi" },
+    { name = "eth-account" },
+    { name = "eth-keys" },
+    { name = "eth-utils" },
+    { name = "web3" },
+]
+svm = [
+    { name = "solana" },
+    { name = "solders" },
 ]
 
 [[package]]

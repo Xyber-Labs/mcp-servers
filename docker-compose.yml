@@ -247,6 +247,12 @@ services:
       - "8119:8119"
     env_file:
       - ./mcp-server-deepresearcher/.env
+    depends_on:
+      - mcp_server_tavily
+      - mcp_server_arxiv
+      - mcp_server_twitter
+      - mcp_server_youtube
+      - mcp_server_telegram_parser
     restart: unless-stopped
 
   qdrant:

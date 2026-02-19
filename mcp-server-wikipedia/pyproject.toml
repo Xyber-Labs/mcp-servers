@@ -15,15 +15,12 @@ dependencies = [
     "fastmcp>=2.3.4",
     "fastapi>=0.115.12",
     "tenacity>=8.2.3",
-    "cdp-sdk>=1.33.2",
     "httpx>=0.25.0",
     "pyyaml",
+    "x402[evm,svm]>=2.0.0",
     # Wikipedia-specific dependencies
     "wikipedia-api>=0.6.0",
     "wikipedia>=1.4.0",
-    "x402>=2.0.0",
-    "solana>=0.36.11",
-    "solders>=0.27.1",
 ]
 
 

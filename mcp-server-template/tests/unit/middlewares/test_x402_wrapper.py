@@ -102,7 +102,6 @@ async def payment_app(
         yield client, dummy_server
 
 
-@pytest.mark.asyncio
 async def test_missing_payment_header_returns_402(payment_app) -> None:
     client, _ = payment_app
     response = await client.post("/hybrid/forecast")
@@ -113,7 +112,6 @@ async def test_missing_payment_header_returns_402(payment_app) -> None:
     assert payload["x402Version"] == 2
 
 
-@pytest.mark.asyncio
 async def test_invalid_payment_header_returns_402(payment_app) -> None:
     client, _ = payment_app
     headers = {"PAYMENT-SIGNATURE": safe_base64_encode("not-json")}
@@ -123,7 +121,6 @@ async def test_invalid_payment_header_returns_402(payment_app) -> None:
     assert payload["error"] == "Invalid payment header format"
 
 
-@pytest.mark.asyncio
 async def test_valid_payment_header_allows_request_and_sets_response_header(
     payment_app,
 ) -> None:
@@ -173,7 +170,6 @@ async def test_valid_payment_header_allows_request_and_sets_response_header(
     assert server.settle_calls
 
 
-@pytest.mark.asyncio
 async def test_legacy_x_payment_header_also_works(payment_app) -> None:
     """Test backward compatibility with X-PAYMENT header."""
     client, server = payment_app
@@ -210,7 +206,6 @@ async def test_legacy_x_payment_header_also_works(payment_app) -> None:
     assert resp_paid.status_code == 200
 
 
-@pytest.mark.asyncio
 async def test_payment_header_with_wrong_network_returns_no_matching(
     payment_app,
 ) -> None:

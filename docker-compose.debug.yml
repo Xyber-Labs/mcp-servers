@@ -337,13 +337,21 @@ services:
     image: mcp_server_deepresearcher_debug
     container_name: mcp_server_deepresearcher_debug
     command: ["python", "-m", "mcp_server_deepresearcher", "--port", "8119", "--reload"]
+    # command: ["python", "-Xfrozen_modules=off", "-m", "debugpy", "--listen", "0.0.0.0:5719", "--wait-for-client", "-m", "mcp_server_deepresearcher", "--port", "8119", "--reload"]
+
     ports:
       - "8119:8119"
       - "5719:5719"
     volumes:
-      - ./mcp-server-deepresearcher/src/mcp_server_deepresearcher:/app/mcp_server_deepresearcher:ro
+      - ./mcp-server-deepresearcher/src/mcp_server_deepresearcher:/app/.venv/lib/python3.12/site-packages/mcp_server_deepresearcher:ro
       - ./mcp-server-deepresearcher/tool_pricing.dev.yaml:/app/tool_pricing.yaml:ro
     env_file: ./mcp-server-deepresearcher/.env
+    depends_on:
+      - mcp_server_tavily
+      - mcp_server_arxiv
+      - mcp_server_twitter
+      - mcp_server_youtube
+      - mcp_server_telegram_parser
     restart: unless-stopped
     environment:
       <<: *debug-env
