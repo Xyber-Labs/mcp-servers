@@ -57,10 +57,6 @@ This repository was built from the ground up to eliminate these frustrations:
 | Server | Live URL | Source | Description |
 |--------|----------|--------|-------------|
 | **Quill** | https://mcp-quill.xyber.inc | `mcp-server-quill` | Token security analysis for EVM & Solana chains |
-| **Tavily** | https://mcp-tavily.xyber.inc | `entangle-ai-mcp-servers:tavily-main` | Web-search capabilities |
-| **ArXiv** | https://mcp-arxiv.xyber.inc | `entangle-ai-mcp-servers:arxiv-main` | Searching & accessing arXiv papers |
-| **Wikipedia** | https://mcp-wikipedia.xyber.inc | `entangle-ai-mcp-servers:wikipedia-main` | Wikipedia content |
-| **GitParser** | https://mcp-gitparser.xyber.inc | `entangle-ai-mcp-servers:gitparser-main` | Git repositories parsing and analysis |
 
 > 💡 All live servers support x402 payments on multiple networks, check the server's `/pricing` endpoint for the details
 
@@ -88,7 +84,7 @@ docker build -t mcp-server-youtube-v2 .
 docker run -p 8000:8000 --env-file .env mcp-server-youtube-v2
 ```
 
-## 📚 Documentation & Resources
+## 📚 Documation & Resources
 
 - **[Contributing Guidelines](CONTRIBUTING.md)** - Development setup and workflow
 - **[Individual Service READMEs](mcp-server-template/README.md)** - Service-specific documentation
