@@ -52,18 +52,21 @@ This repository was built from the ground up to eliminate these frustrations:
 
 **For Custom Development**: Use our `mcp-server-template` to create your own servers in minutes, not hours
 
-
-## 🛠️ Live Servers
-
-The following MCP servers are deployed and available for public use:
+## 🛠️ Live Servers 
 
 | Server | Live URL | Source | Description |
 |--------|----------|--------|-------------|
-| **Quill** | [mcp-quill.xyber.inc](https://mcp-quill.xyber.inc/docs) | [mcp-server-quill](./mcp-server-quill) | Token security analysis for EVM & Solana chains |
+| **Quill** | https://mcp-quill.xyber.inc | `mcp-server-quill` | Token security analysis for EVM & Solana chains |
+| **Tavily** | https://mcp-tavily.xyber.inc | `entangle-ai-mcp-servers:tavily-main` | Web-search capabilities |
+| **ArXiv** | https://mcp-arxiv.xyber.inc | `entangle-ai-mcp-servers:arxiv-main` | Searching & accessing arXiv papers |
+| **Wikipedia** | https://mcp-wikipedia.xyber.inc | `entangle-ai-mcp-servers:wikipedia-main` | Wikipedia content |
+| **GitParser** | https://mcp-gitparser.xyber.inc | `entangle-ai-mcp-servers:gitparser-main` | Git repositories parsing and analysis |
 
-> 💡 All live servers support x402 payments on **Base**, **Avalanche**, and **SKALE** networks. More networks are coming soon!
+> 💡 All live servers support x402 payments on multiple networks, check the server's `/pricing` endpoint for the details
 
 For the full list of available MCP servers (including self-hosted options), check the latest [Release Doc](https://github.com/Xyber-Labs/mcp-servers/releases)
+```
+
 
 ## 🚀 Quick Start
 
