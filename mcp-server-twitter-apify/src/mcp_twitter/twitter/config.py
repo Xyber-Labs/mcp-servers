@@ -1,11 +1,4 @@
-"""
-This module should be changed to match the exact configuration options and environment variable prefixes for your service.
-
-Main responsibility: Define and load configuration settings for the twitter service using Pydantic settings and a cached accessor.
-"""
-
 from functools import lru_cache
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # --- Configuration Model ---

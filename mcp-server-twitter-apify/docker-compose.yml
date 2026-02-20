@@ -1,0 +1,19 @@
+services:
+  mcp-twitter:
+    build:
+      context: .
+      target: prod
+    ports:
+      - "8120:8120"
+    command: ["python", "-m", "mcp_twitter", "--port", "8120"]
+    environment:
+      - APIFY_TOKEN=${APIFY_TOKEN}
+      - MCP_TWITTER_X402_PRICING_MODE=${MCP_TWITTER_X402_PRICING_MODE:-off}
+      - MCP_TWITTER_X402_PAYEE_EVM_ADDRESS=${MCP_TWITTER_X402_PAYEE_EVM_ADDRESS:-}
+      - MCP_TWITTER_X402_FACILITATOR_URLS=${MCP_TWITTER_X402_FACILITATOR_URLS:-}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8120/api/health"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+      start_period: 10s

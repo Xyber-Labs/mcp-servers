@@ -6,7 +6,7 @@ authors = [
     { name = "XyManchick", email = "xymanchick@xyber.inc" },
 ]
 readme = "README.md"
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.12"
 
 dependencies = [
     "mcp>=1.8.0,<2.0.0",
@@ -15,10 +15,9 @@ dependencies = [
     "fastmcp>=2.3.4",
     "fastapi>=0.115.12",
     "tenacity>=8.2.3",
-    "cdp-sdk>=1.33.2",
     "httpx>=0.25.0",
     "pyyaml",
-    "x402[evm]>=2.0.0",
+    "x402[evm,svm]>=2.0.0",
     "apify-client>=1.0.0",
     "python-dotenv>=1.0.0",
     "pydantic>=2.0.0",
@@ -53,7 +52,7 @@ packages = ["src/mcp_twitter", "src/db"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py313"
+target-version = "py312"
 select = [
     "E",   # pycodestyle errors
     "F",   # pyflakes
@@ -91,7 +90,7 @@ line-ending = "auto"
 "tests/**/*" = ["S101", "D"]  # Allow assert in tests, skip docstrings
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.12"
 files = ["src/**/*.py"]
 exclude = ["tests/", "__pycache__/"]
 strict = true
@@ -108,6 +107,8 @@ check_untyped_defs = true
 # ignore_errors = true
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 pythonpath = ["src", "."]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
@@ -120,9 +121,6 @@ addopts = [
     "-v",
 ]
 markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "e2e: marks tests as end-to-end tests",
+    "payment_on: marks tests that require payment enforcement enabled",
+    "payment_off: marks tests that require payment enforcement disabled",
 ]
-asyncio_mode = "strict"
-asyncio_default_fixture_loop_scope = "function"

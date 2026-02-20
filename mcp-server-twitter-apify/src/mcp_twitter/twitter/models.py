@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime
+import hashlib
+import json
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 QueryType = Literal["topic", "profile", "replies"]
 SortOrder = Literal["Latest", "Top"]
@@ -31,17 +32,18 @@ class QueryDefinition(BaseModel):
     type: QueryType
     name: str
     input: TwitterScraperInput
-    output: str | None = None
 
-    def output_filename(self) -> str:
-        if not self.output:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            first_term = (
-                self.input.searchTerms[0] if self.input.searchTerms else "unknown"
-            )
-            safe = first_term.replace(":", "_").replace(" ", "_")
-            return f"twitter_results_{safe}_{timestamp}.json"
-        return self.output if self.output.endswith(".json") else f"{self.output}.json"
+    @computed_field
+    @property
+    def cache_key(self) -> str:
+        """Deterministic hash key for caching this query."""
+        params = self.input.model_dump(exclude_none=True)
+        normalized = {
+            "type": self.type,
+            **{k: v for k, v in sorted(params.items())},
+        }
+        key_str = json.dumps(normalized, sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(key_str.encode("utf-8")).hexdigest()
 
 
 MinimalTweet = dict[str, Any]

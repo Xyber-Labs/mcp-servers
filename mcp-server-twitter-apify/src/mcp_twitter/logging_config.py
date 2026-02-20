@@ -1,9 +1,3 @@
-"""
-This module could stay as is for most MCP servers, though you may tweak handler destinations, formats, or logging levels to match your deployment.
-
-Main responsibility: Build and apply a reusable logging configuration for Uvicorn and application processes based on app settings.
-"""
-
 from logging.config import dictConfig
 
 from mcp_twitter.config import get_app_settings

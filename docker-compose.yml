@@ -255,6 +255,19 @@ services:
       - mcp_server_telegram_parser
     restart: unless-stopped
 
+  mcp_server_twitter_apify:
+    build:
+      context: ./mcp-server-twitter-apify
+      dockerfile: Dockerfile
+    image: mcp_server_twitter_apify
+    container_name: mcp_server_twitter_apify
+    command: ["python", "-m", "mcp_twitter", "--port", "8120"]
+    ports:
+      - "8120:8120"
+    env_file:
+      - ./mcp-server-twitter-apify/.env
+    restart: unless-stopped
+
   qdrant:
     image: qdrant/qdrant:latest
     container_name: qdrant_storage

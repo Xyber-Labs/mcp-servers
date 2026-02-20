@@ -7,53 +7,57 @@ from fastmcp import FastMCP
 from mcp_twitter.api_routers import routers as api_routers
 from mcp_twitter.dependencies import DependencyContainer
 from mcp_twitter.hybrid_routers import routers as hybrid_routers
-from mcp_twitter.mcp_routers import routers as mcp_routers
 from mcp_twitter.middlewares import X402WrapperMiddleware
-from mcp_twitter.x402_config import get_x402_settings
+from mcp_twitter.x402_integration import get_x402_settings
 
 logger = logging.getLogger(__name__)
 
 
-# --- Lifespan Management ---
 @asynccontextmanager
 async def app_lifespan(app: FastAPI):
-    """
-    Manages the application's resources.
-
-    Initializes and shuts down the DependencyContainer.
-
-    Note: The x402 middleware manages its own HTTP client lifecycle using
-    context managers, so no external resource management is needed.
-    """
-    logger.info("Lifespan: Initializing application services...")
-
-    # Initialize dependencies
+    """Manages application resources: database engine, dependencies."""
     from mcp_twitter.config import AppSettings
 
     settings = AppSettings()
-    token = settings.apify.apify_token
-    if not token:
-        raise RuntimeError("APIFY_TOKEN not configured. Set it in .env or environment.")
+    engine = None
+    database = None
 
-    actor_name = settings.apify.actor_name
-    DependencyContainer.initialize(apify_token=token, actor_name=actor_name)
+    # Initialize database if configured
+    if settings.database.is_configured:
+        try:
+            from sqlalchemy import create_engine
+            from sqlalchemy.orm import sessionmaker
 
-    logger.info(f"Lifespan: Initialized with actor: {actor_name}")
-    try:
-        from db import get_db_instance
+            from mcp_twitter.db import CacheRepository
 
-        db = get_db_instance()
-        logger.info("Lifespan: Database cache enabled")
-    except Exception as e:
-        logger.warning(f"Lifespan: Database cache not available: {e}")
+            engine = create_engine(
+                settings.database.database_url,
+                pool_pre_ping=True,
+                pool_size=5,
+                max_overflow=10,
+                pool_recycle=3600,
+            )
+            database = CacheRepository(sessionmaker(bind=engine))
+            logger.info("Database cache enabled")
+        except Exception as e:
+            logger.warning(f"Database cache not available: {e}")
+    else:
+        logger.info("Database not configured - running without cache.")
 
-    logger.info("Lifespan: Services initialized successfully.")
+    DependencyContainer.create(
+        apify_token=settings.apify.apify_token,
+        actor_name=settings.apify.actor_name,
+        database=database,
+    )
+    logger.info(f"Lifespan: Initialized with actor: {settings.apify.actor_name}")
+
     yield
-    logger.info("Lifespan: Shutting down application services...")
 
-    await DependencyContainer.shutdown()
-
-    logger.info("Lifespan: Services shut down gracefully.")
+    DependencyContainer.clear()
+    if engine is not None:
+        engine.dispose()
+        logger.info("Database engine disposed.")
+    logger.info("Lifespan: Shutdown complete.")
 
 
 # --- Application Factory ---
@@ -73,15 +77,14 @@ def create_app() -> FastAPI:
 
     """
     # --- MCP Server Generation ---
-    # Create a FastAPI app containing only MCP-exposed endpoints
+    # Create a FastAPI app containing hybrid endpoints (exposed as both REST and MCP tools)
     mcp_source_app = FastAPI(title="MCP Source")
-    # Only include MCP-only routers (not hybrid routers which are REST + MCP)
-    for router in mcp_routers:
+    for router in hybrid_routers:
         mcp_source_app.include_router(router)
 
     # Convert to MCP server
     mcp_server = FastMCP.from_fastapi(app=mcp_source_app, name="MCP")
-    mcp_app = mcp_server.http_app(path="/")
+    mcp_app = mcp_server.http_app(path="/", stateless_http=True)
 
     # --- Combined Lifespan ---
     # This correctly manages both our app's resources and FastMCP's internal state.
@@ -107,9 +110,6 @@ def create_app() -> FastAPI:
     # Hybrid routes: accessible via /hybrid/* (REST only, not exposed as MCP tools)
     for router in hybrid_routers:
         app.include_router(router, prefix="/hybrid")
-
-    # MCP-only routes: NOT mounted as REST endpoints
-    # They're only accessible through the /mcp endpoint below
 
     # Mount the MCP server at /mcp
     app.mount("/mcp", mcp_app)

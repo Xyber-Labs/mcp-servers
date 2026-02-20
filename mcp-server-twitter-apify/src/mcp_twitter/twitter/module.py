@@ -1,9 +1,3 @@
-"""
-This module should be changed to match the external twitter (or other) API you call, including any retry, caching, and client behavior specific to your use case.
-
-Main responsibility: Implement the async TwitterClient and its factory, handling HTTP calls, retries, caching, and response parsing for twitter data.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -77,10 +71,9 @@ class TwitterClient:
                 )
             self._scraper = TwitterScraper(
                 apify_token=apify_token,
-                results_dir=None,
                 actor_name=self.config.actor_name,
                 output_format="min",
-                use_cache=self.config.enable_caching,
+                database=None,  # TwitterClient doesn't use database caching
             )
         return self._scraper
 

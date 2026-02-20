@@ -356,6 +356,26 @@ services:
     environment:
       <<: *debug-env
 
+  mcp_server_twitter_apify:
+    build:
+      context: ./mcp-server-twitter-apify
+      dockerfile: Dockerfile
+      target: dev
+    image: mcp_server_twitter_apify_debug
+    container_name: mcp_server_twitter_apify_debug
+    #command: ["python", "-Xfrozen_modules=off", "-m", "debugpy", "--listen", "0.0.0.0:5720", "--wait-for-client", "-m", "mcp_twitter", "--port", "8120", "--reload"]
+    command: ["python", "-m", "mcp_twitter", "--port", "8120", "--reload"]
+    ports:
+      - "8120:8120"
+      - "5720:5720"
+    volumes:
+      - ./mcp-server-twitter-apify/src/mcp_twitter:/app/mcp_twitter:ro
+      - ./mcp-server-twitter-apify/tool_pricing.dev.yaml:/app/tool_pricing.yaml:ro
+    env_file: ./mcp-server-twitter-apify/.env
+    restart: unless-stopped
+    environment:
+      <<: *debug-env
+
   qdrant:
     image: qdrant/qdrant:latest
     container_name: qdrant_storage

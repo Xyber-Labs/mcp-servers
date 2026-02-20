@@ -3,7 +3,7 @@ import logging
 import yaml
 from fastapi import APIRouter, status
 
-from mcp_twitter.x402_config import get_x402_settings
+from mcp_twitter.x402_integration import get_x402_settings
 
 logger = logging.getLogger(__name__)
 

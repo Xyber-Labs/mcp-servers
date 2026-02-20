@@ -1,9 +1,3 @@
-"""
-This module may change slightly as you point to your own app factory and tweak CLI defaults, but the Uvicorn runner pattern usually stays the same.
-
-Main responsibility: Provide a CLI entry point that configures logging, parses arguments, and starts the server with Uvicorn.
-"""
-
 import argparse
 import logging
 
@@ -37,7 +31,6 @@ if __name__ == "__main__":
         host=args.host,
         port=args.port,
         reload=args.reload,
-        # Use our logging config so every worker / reload process is consistent
         log_config=get_logging_config(),
         factory=True,
     )

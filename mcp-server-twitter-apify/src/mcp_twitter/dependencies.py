@@ -1,88 +1,66 @@
-import logging
+from __future__ import annotations
 
-from mcp_twitter.twitter import QueryRegistry, TwitterScraper, build_default_registry
+import logging
+from typing import TYPE_CHECKING
+
+from mcp_twitter.twitter import TwitterScraper
+
+if TYPE_CHECKING:
+    from mcp_twitter.db import CacheRepository
 
 logger = logging.getLogger(__name__)
 
 
 class DependencyContainer:
     """
-    Centralized container for all application dependencies.
+    Centralized container for application dependencies.
 
     Usage:
         # In app.py lifespan:
-        DependencyContainer.initialize()
-
-    Yield:
-        await DependencyContainer.shutdown()
+        db = try_init_database()  # May return None
+        DependencyContainer.create(apify_token=token, actor_name=name, database=db)
+        yield
+        DependencyContainer.clear()
 
         # In route handlers via Depends():
         @router.post("/endpoint")
         async def endpoint(
-            registry: QueryRegistry = Depends(get_registry),
             scraper: TwitterScraper = Depends(get_scraper),
         ):
             ...
 
     """
 
-    _registry: QueryRegistry | None = None
     _scraper: TwitterScraper | None = None
+    _database: CacheRepository | None = None
 
     @classmethod
-    def initialize(cls, apify_token: str, actor_name: str) -> None:
-        """
-        Initialize all dependencies.
-
-        Call this once during application startup (in lifespan).
-
-        Args:
-            apify_token: Apify API token
-            actor_name: Name of the Apify actor to use
-
-        """
+    def create(
+        cls, *, apify_token: str, actor_name: str, database: CacheRepository | None = None
+    ) -> None:
+        """Store all dependencies (call from lifespan startup)."""
         logger.info("Initializing dependencies...")
 
-        cls._registry = build_default_registry()
+        cls._database = database
+
         cls._scraper = TwitterScraper(
             apify_token=apify_token,
-            results_dir=None,  # Disable file-based storage, use DB cache only
             actor_name=actor_name,
             output_format="min",
-            use_cache=True,  # Enable database cache
+            database=database,
         )
 
         logger.info("Dependencies initialized successfully.")
 
     @classmethod
-    async def shutdown(cls) -> None:
-        """
-        Shut down all dependencies gracefully.
-
-        Call this once during application shutdown (in lifespan).
-        """
+    def clear(cls) -> None:
+        """Clear all dependencies (call from lifespan shutdown)."""
         logger.info("Shutting down dependencies...")
 
         cls._scraper = None
-        cls._registry = None
+        cls._database = None
 
         logger.info("Dependencies shut down successfully.")
-
-    @classmethod
-    def get_registry(cls) -> QueryRegistry:
-        """
-        Get the QueryRegistry instance.
-
-        Usage as FastAPI dependency:
-            @router.get("/queries")
-            async def get_queries(registry: QueryRegistry = Depends(get_registry)):
-                ...
-        """
-        if cls._registry is None:
-            raise RuntimeError(
-                "DependencyContainer not initialized. Call DependencyContainer.initialize() first."
-            )
-        return cls._registry
 
     @classmethod
     def get_scraper(cls) -> TwitterScraper:
@@ -96,11 +74,10 @@ class DependencyContainer:
         """
         if cls._scraper is None:
             raise RuntimeError(
-                "DependencyContainer not initialized. Call DependencyContainer.initialize() first."
+                "DependencyContainer not created. Call DependencyContainer.create() first."
             )
         return cls._scraper
 
 
-# Alias the class methods for use as FastAPI dependencies
-get_registry = DependencyContainer.get_registry
+# Alias the class method for use as FastAPI dependency
 get_scraper = DependencyContainer.get_scraper

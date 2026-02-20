@@ -2,24 +2,28 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, ConfigDict, Field
 
-from mcp_twitter.dependencies import get_registry, get_scraper
+from mcp_twitter.dependencies import get_scraper
+from mcp_twitter.schemas import (
+    ProfileBatchResult,
+    ProfileBatchSearchRequest,
+    ProfileLatestBatchRequest,
+    ProfileLatestRequest,
+    ProfileSearchRequest,
+    RepliesSearchRequest,
+    TopicSearchRequest,
+)
 from mcp_twitter.twitter import (
-    OutputFormat,
     QueryDefinition,
-    SortOrder,
     TwitterScraper,
     create_profile_query,
     create_replies_query,
     create_topic_query,
 )
 from mcp_twitter.twitter import scraper as scraper_mod
-from mcp_twitter.twitter.registry import QueryRegistry
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -36,138 +40,6 @@ def _run_query_and_read(
     if items is None:
         return []
     return [i for i in items if isinstance(i, dict)]
-
-
-# Request Models
-class TopicSearchRequest(BaseModel):
-    """Request model for topic/keyword search."""
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "topic": "quantum computing",
-                "max_items": 10,
-                "sort": "Latest",
-                "only_verified": False,
-                "only_image": False,
-                "lang": "en",
-                "output_format": "min",
-            }
-        }
-    )
-
-    topic: str = Field(
-        ..., description="Search keyword/topic", examples=["quantum computing"]
-    )
-    max_items: int = Field(100, ge=1, le=1000, description="Maximum items to fetch")
-    sort: SortOrder = Field("Latest", description="Sort order: Latest or Top")
-    only_verified: bool = Field(False, description="Only verified users")
-    only_image: bool = Field(False, description="Only tweets with images")
-    lang: str = Field("en", description="Tweet language code")
-    output_format: OutputFormat = Field("min", description="Output format: min or max")
-
-
-class ProfileSearchRequest(BaseModel):
-    """Request model for profile search."""
-
-    username: str = Field(..., description="Twitter username (without @)")
-    max_items: int = Field(100, ge=1, le=1000, description="Maximum items to fetch")
-    since: date | None = Field(None, description="Start date (YYYY-MM-DD)")
-    until: date | None = Field(None, description="End date (YYYY-MM-DD)")
-    lang: str = Field("en", description="Tweet language code")
-    output_format: OutputFormat = Field("min", description="Output format: min or max")
-
-
-class ProfileLatestRequest(BaseModel):
-    """Request model for latest tweets from a profile (no date range required)."""
-
-    username: str = Field(..., description="Twitter username (without @)")
-    max_items: int = Field(10, ge=1, le=1000, description="Maximum items to fetch")
-    lang: str = Field("en", description="Tweet language code")
-    output_format: OutputFormat = Field("min", description="Output format: min or max")
-
-
-class RepliesSearchRequest(BaseModel):
-    """Request model for replies/conversation search."""
-
-    conversation_id: str = Field(..., description="Twitter conversation ID")
-    max_items: int = Field(50, ge=1, le=500, description="Maximum items to fetch")
-    lang: str = Field("en", description="Tweet language code")
-    output_format: OutputFormat = Field("min", description="Output format: min or max")
-
-
-class ProfileLatestBatchRequest(BaseModel):
-    """Request model for latest tweets from multiple profiles (no date range required)."""
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "examples": [
-                {
-                    "usernames": ["elonmusk", "jack"],
-                    "max_items": 10,
-                    "lang": "en",
-                    "output_format": "min",
-                    "continue_on_error": True,
-                }
-            ]
-        }
-    )
-
-    usernames: list[str] = Field(
-        ..., min_length=1, description="List of Twitter usernames (without @)"
-    )
-    max_items: int = Field(
-        10, ge=1, le=1000, description="Maximum items to fetch per username"
-    )
-    lang: str = Field("en", description="Tweet language code")
-    output_format: OutputFormat = Field("min", description="Output format: min or max")
-    continue_on_error: bool = Field(
-        True,
-        description="If true, return per-username errors and continue. If false, fail the whole request on first error.",
-    )
-
-
-class ProfileBatchSearchRequest(BaseModel):
-    """Request model for batch profile search (multiple usernames)."""
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "examples": [
-                {
-                    "usernames": ["elonmusk", "jack"],
-                    "max_items": 100,
-                    "since": "2025-12-01",
-                    "until": "2025-12-31",
-                    "lang": "en",
-                    "output_format": "min",
-                    "continue_on_error": True,
-                }
-            ]
-        }
-    )
-
-    usernames: list[str] = Field(
-        ..., min_length=1, description="List of Twitter usernames (without @)"
-    )
-    max_items: int = Field(
-        100, ge=1, le=1000, description="Maximum items to fetch per username"
-    )
-    since: date | None = Field(None, description="Start date (YYYY-MM-DD)")
-    until: date | None = Field(None, description="End date (YYYY-MM-DD)")
-    lang: str = Field("en", description="Tweet language code")
-    output_format: OutputFormat = Field("min", description="Output format: min or max")
-    continue_on_error: bool = Field(
-        True,
-        description="If true, return per-username errors and continue. If false, fail the whole request on first error.",
-    )
-
-
-class ProfileBatchResult(BaseModel):
-    """Response model for batch profile search."""
-
-    username: str
-    items: list[dict[str, Any]] = Field(default_factory=list)
-    error: str | None = None
 
 
 # Routes
@@ -211,10 +83,9 @@ async def search_topic(
 
         temp_scraper = scraper_mod.TwitterScraper(
             apify_token=scraper.apify_token,
-            results_dir=None,
             actor_name=scraper.actor_id,
             output_format=request.output_format,
-            use_cache=True,
+            database=scraper._db,
         )
 
         items = await asyncio.wait_for(
@@ -273,10 +144,9 @@ async def search_profile(
 
         temp_scraper = scraper_mod.TwitterScraper(
             apify_token=scraper.apify_token,
-            results_dir=None,
             actor_name=scraper.actor_id,
             output_format=request.output_format,
-            use_cache=True,
+            database=scraper._db,
         )
 
         items = await asyncio.wait_for(
@@ -337,10 +207,9 @@ async def search_profile_latest(
 
         temp_scraper = scraper_mod.TwitterScraper(
             apify_token=scraper.apify_token,
-            results_dir=None,
             actor_name=scraper.actor_id,
             output_format=request.output_format,
-            use_cache=True,
+            database=scraper._db,
         )
 
         items = await asyncio.wait_for(
@@ -399,10 +268,9 @@ async def search_replies(
 
         temp_scraper = scraper_mod.TwitterScraper(
             apify_token=scraper.apify_token,
-            results_dir=None,
             actor_name=scraper.actor_id,
             output_format=request.output_format,
-            use_cache=True,
+            database=scraper._db,
         )
 
         items = await asyncio.wait_for(
@@ -467,10 +335,9 @@ async def search_profile_batch(
 
     temp_scraper = scraper_mod.TwitterScraper(
         apify_token=scraper.apify_token,
-        results_dir=None,
         actor_name=scraper.actor_id,
         output_format=request.output_format,
-        use_cache=True,
+        database=scraper._db,
     )
 
     results: list[ProfileBatchResult] = []
@@ -571,10 +438,9 @@ async def search_profile_latest_batch(
 
     temp_scraper = scraper_mod.TwitterScraper(
         apify_token=scraper.apify_token,
-        results_dir=None,
         actor_name=scraper.actor_id,
         output_format=request.output_format,
-        use_cache=True,
+        database=scraper._db,
     )
 
     results: list[ProfileBatchResult] = []
@@ -641,53 +507,3 @@ async def search_profile_latest_batch(
     return results
 
 
-@router.post(
-    "/v1/run/{query_id}",
-    tags=["Search"],
-    operation_id="run_query",
-    response_model=list[dict[str, Any]],
-)
-async def run_query(
-    query_id: str,
-    registry: QueryRegistry = Depends(get_registry),
-    scraper: TwitterScraper = Depends(get_scraper),
-    timeout_seconds: int = Query(
-        DEFAULT_TIMEOUT_SECONDS,
-        ge=1,
-        le=3600,
-        description="Max time to wait for Apify run to finish (seconds).",
-    ),
-) -> list[dict[str, Any]]:
-    """Run a predefined query by ID."""
-    if not registry:
-        raise HTTPException(status_code=500, detail="Registry not initialized")
-
-    query = registry.get(query_id)
-    if not query:
-        raise HTTPException(status_code=404, detail=f"Query '{query_id}' not found")
-
-    try:
-        logger.info(
-            "preset run start id=%s type=%s name=%r timeout=%ss",
-            query.id,
-            query.type,
-            query.name,
-            timeout_seconds,
-        )
-        items = await asyncio.wait_for(
-            asyncio.to_thread(_run_query_and_read, scraper, query),
-            timeout=timeout_seconds,
-        )
-        logger.info("preset run done id=%s items=%d", query.id, len(items))
-        return items
-    except TimeoutError:
-        logger.error("preset run timeout id=%s timeout=%ss", query_id, timeout_seconds)
-        raise HTTPException(
-            status_code=504,
-            detail=f"Query execution timed out after {timeout_seconds} seconds",
-        )
-    except Exception as e:
-        logger.exception("preset run failed id=%s error=%s", query_id, e)
-        raise HTTPException(
-            status_code=500, detail=f"Query execution failed: {str(e)}"
-        ) from e

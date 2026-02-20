@@ -1,9 +1,3 @@
-"""
-Tests for database cache integration.
-
-Uses SQLite in-memory database for fast, isolated tests.
-"""
-
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -13,24 +7,24 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from db import Database, generate_query_key
-from db.models import Base, QueryCacheEntry, QueryCacheItem, Tweet, TweetAuthor
-from mcp_twitter.twitter import QueryType
+from mcp_twitter.db import CacheRepository
+from mcp_twitter.db.models import (
+    Base,
+    QueryCacheEntry,
+    QueryCacheItem,
+    Tweet,
+    TweetAuthor,
+)
+from mcp_twitter.twitter import QueryDefinition, QueryType, TwitterScraperInput
 
 
 @pytest.fixture
-def in_memory_db() -> Database:
+def in_memory_db() -> CacheRepository:
     """Create an in-memory SQLite database for testing."""
-    # Use SQLite for testing (faster, no external dependencies)
     engine = create_engine("sqlite:///:memory:", echo=False)
     Base.metadata.create_all(engine)
-    SessionLocal = sessionmaker(bind=engine)
-
-    # Create a Database instance with the in-memory engine
-    db = Database.__new__(Database)  # Create without calling __init__
-    db.engine = engine
-    db.Session = SessionLocal
-    return db
+    session_factory = sessionmaker(bind=engine)
+    return CacheRepository(session_factory)
 
 
 @pytest.fixture
@@ -76,36 +70,41 @@ def sample_tweet_data() -> list[dict[str, Any]]:
     ]
 
 
-def test_generate_query_key() -> None:
-    """Test query key generation is deterministic."""
-    params1 = {"searchTerms": ["test"], "maxItems": 100, "sort": "Latest"}
-    params2 = {"searchTerms": ["test"], "maxItems": 100, "sort": "Latest"}
-    params3 = {"searchTerms": ["test"], "maxItems": 50, "sort": "Latest"}
+def test_query_cache_key_deterministic() -> None:
+    """Test query cache key generation is deterministic."""
+    q1 = QueryDefinition(
+        id="1", type="topic", name="test",
+        input=TwitterScraperInput(searchTerms=["test"], maxItems=100, sort="Latest"),
+    )
+    q2 = QueryDefinition(
+        id="2", type="topic", name="different",
+        input=TwitterScraperInput(searchTerms=["test"], maxItems=100, sort="Latest"),
+    )
+    q3 = QueryDefinition(
+        id="3", type="topic", name="test",
+        input=TwitterScraperInput(searchTerms=["test"], maxItems=50, sort="Latest"),
+    )
 
-    key1 = generate_query_key("topic", params1)
-    key2 = generate_query_key("topic", params2)
-    key3 = generate_query_key("topic", params3)
-
-    assert key1 == key2  # Same params = same key
-    assert key1 != key3  # Different params = different key
-    assert len(key1) == 64  # SHA256 hex = 64 chars
+    assert q1.cache_key == q2.cache_key  # Same type+input = same key (id/name ignored)
+    assert q1.cache_key != q3.cache_key  # Different input = different key
+    assert len(q1.cache_key) == 64  # SHA256 hex = 64 chars
 
 
-def test_generate_query_key_different_types() -> None:
+def test_query_cache_key_differs_by_type() -> None:
     """Test query keys differ by query type."""
-    params = {"searchTerms": ["test"], "maxItems": 100}
+    input_params = TwitterScraperInput(searchTerms=["test"], maxItems=100)
 
-    key_topic = generate_query_key("topic", params)
-    key_profile = generate_query_key("profile", params)
-    key_replies = generate_query_key("replies", params)
+    q_topic = QueryDefinition(id="1", type="topic", name="t", input=input_params)
+    q_profile = QueryDefinition(id="2", type="profile", name="p", input=input_params)
+    q_replies = QueryDefinition(id="3", type="replies", name="r", input=input_params)
 
-    assert key_topic != key_profile
-    assert key_profile != key_replies
-    assert key_topic != key_replies
+    assert q_topic.cache_key != q_profile.cache_key
+    assert q_profile.cache_key != q_replies.cache_key
+    assert q_topic.cache_key != q_replies.cache_key
 
 
 def test_save_query_cache(
-    in_memory_db: Database, sample_tweet_data: list[dict[str, Any]]
+    in_memory_db: CacheRepository, sample_tweet_data: list[dict[str, Any]]
 ) -> None:
     """Test saving query results to cache."""
     query_key = "test_key_123"
@@ -158,7 +157,7 @@ def test_save_query_cache(
 
 
 def test_get_cached_query_hit(
-    in_memory_db: Database, sample_tweet_data: list[dict[str, Any]]
+    in_memory_db: CacheRepository, sample_tweet_data: list[dict[str, Any]]
 ) -> None:
     """Test retrieving cached query results."""
     query_key = "test_key_456"
@@ -186,14 +185,14 @@ def test_get_cached_query_hit(
     assert cached[0]["retweetCount"] == 10
 
 
-def test_get_cached_query_miss(in_memory_db: Database) -> None:
+def test_get_cached_query_miss(in_memory_db: CacheRepository) -> None:
     """Test cache miss returns None."""
     result = in_memory_db.get_cached_query("nonexistent_key", "min")
     assert result is None
 
 
 def test_get_cached_query_expired(
-    in_memory_db: Database, sample_tweet_data: list[dict[str, Any]]
+    in_memory_db: CacheRepository, sample_tweet_data: list[dict[str, Any]]
 ) -> None:
     """Test expired cache returns None."""
     query_key = "test_key_expired"
@@ -238,7 +237,7 @@ def test_get_cached_query_expired(
 
 
 def test_get_cached_query_max_format(
-    in_memory_db: Database, sample_tweet_data: list[dict[str, Any]]
+    in_memory_db: CacheRepository, sample_tweet_data: list[dict[str, Any]]
 ) -> None:
     """Test retrieving cached query in max format."""
     query_key = "test_key_max"
@@ -264,7 +263,7 @@ def test_get_cached_query_max_format(
 
 
 def test_author_deduplication(
-    in_memory_db: Database, sample_tweet_data: list[dict[str, Any]]
+    in_memory_db: CacheRepository, sample_tweet_data: list[dict[str, Any]]
 ) -> None:
     """Test that authors are deduplicated when multiple tweets share author."""
     # Create tweets with same author
@@ -301,7 +300,7 @@ def test_author_deduplication(
 
 
 def test_tweet_deduplication(
-    in_memory_db: Database, sample_tweet_data: list[dict[str, Any]]
+    in_memory_db: CacheRepository, sample_tweet_data: list[dict[str, Any]]
 ) -> None:
     """Test that same tweet in multiple queries is deduplicated."""
     query_key1 = "query1"
@@ -339,7 +338,7 @@ def test_parse_twitter_date() -> None:
     """Test Twitter date parsing."""
     # Test Twitter format
     date_str = "Thu Dec 25 13:49:02 +0000 2025"
-    parsed = Database._parse_twitter_date(date_str)
+    parsed = CacheRepository._parse_twitter_date(date_str)
     assert parsed is not None
     assert parsed.year == 2025
     assert parsed.month == 12
@@ -351,19 +350,19 @@ def test_parse_twitter_date() -> None:
 
     # Test ISO format
     iso_date = "2025-12-25T13:49:02+00:00"
-    parsed_iso = Database._parse_twitter_date(iso_date)
+    parsed_iso = CacheRepository._parse_twitter_date(iso_date)
     assert parsed_iso is not None
     assert parsed_iso.year == 2025
 
     # Test None
-    assert Database._parse_twitter_date(None) is None
+    assert CacheRepository._parse_twitter_date(None) is None
 
     # Test invalid format
-    invalid = Database._parse_twitter_date("invalid date")
+    invalid = CacheRepository._parse_twitter_date("invalid date")
     assert invalid is None
 
 
-def test_get_cache_ttl(in_memory_db: Database) -> None:
+def test_get_cache_ttl(in_memory_db: CacheRepository) -> None:
     """Test cache TTL retrieval."""
     # Topic Latest
     ttl = in_memory_db.get_cache_ttl("topic", "Latest")
@@ -383,7 +382,7 @@ def test_get_cache_ttl(in_memory_db: Database) -> None:
 
 
 def test_cache_update_existing_entry(
-    in_memory_db: Database, sample_tweet_data: list[dict[str, Any]]
+    in_memory_db: CacheRepository, sample_tweet_data: list[dict[str, Any]]
 ) -> None:
     """Test updating an existing cache entry."""
     query_key = "test_update"
@@ -428,7 +427,7 @@ def test_cache_update_existing_entry(
         assert cache_items[0].tweet_id == "0987654321"
 
 
-def test_cache_without_author(in_memory_db: Database) -> None:
+def test_cache_without_author(in_memory_db: CacheRepository) -> None:
     """Test caching tweets without author information."""
     tweet_no_author = {
         "id": "tweet_no_author",
