@@ -10,7 +10,7 @@ import logging
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import computed_field
+from pydantic import AliasChoices, Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -48,8 +48,11 @@ class AppSettings(BaseSettings):
     logging_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     hot_reload: bool = False
 
-    # --- Apify Configuration ---
-    apify_token: str | None = None
+    # --- Apify Configuration ---    
+    apify_token: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("MCP_YOUTUBE_APIFY_TOKEN", "APIFY_TOKEN"),
+    )
 
     # --- YouTube Service Configuration ---
     delay_between_requests: float = 1.0
