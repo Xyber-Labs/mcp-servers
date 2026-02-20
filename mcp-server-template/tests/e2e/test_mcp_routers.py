@@ -15,11 +15,12 @@ from tests.e2e.config import load_e2e_config, require_base_url
 from tests.e2e.utils import (
     call_mcp_tool,
     call_mcp_tool_with_client,
+    extract_mcp_result,
+    get_mcp_content,
     initialize_mcp_session,
     initialize_mcp_session_with_client,
     negotiate_mcp_session_id,
     negotiate_mcp_session_id_with_client,
-    parse_mcp_response,
 )
 
 
@@ -41,9 +42,10 @@ async def test_mcp_geolocate_city_mcp() -> None:
         arguments={"city": "Tokyo"},
         session_id=session_id,
     )
-    # Parse MCP response and validate against schema
-    result_data = parse_mcp_response(response)
-    geo_data = GeolocationResponse(**result_data)
+
+    result = extract_mcp_result(response)
+    assert not result.get("isError", False)
+    geo_data = GeolocationResponse(**get_mcp_content(result))
     assert geo_data.city == "Tokyo"
     assert geo_data.latitude == 35.6762
     assert geo_data.longitude == 139.6503
@@ -68,9 +70,10 @@ async def test_mcp_weather_analysis_mcp_pricing_off() -> None:
         arguments={"city": "London"},
         session_id=session_id,
     )
-    # Parse MCP response and validate against schema
-    result_data = parse_mcp_response(response)
-    analysis_data = WeatherAnalysisResponse(**result_data)
+
+    result = extract_mcp_result(response)
+    assert not result.get("isError", False)
+    analysis_data = WeatherAnalysisResponse(**get_mcp_content(result))
     assert analysis_data.analysis
     assert "London" in analysis_data.analysis or "weather" in analysis_data.analysis.lower()
 
@@ -108,8 +111,9 @@ async def test_mcp_weather_analysis_mcp_with_payment(paid_client) -> None:
         arguments={"city": "London"},
         session_id=session_id,
     )
-    # Parse MCP response and validate against schema
-    result_data = parse_mcp_response(response)
-    analysis_data = WeatherAnalysisResponse(**result_data)
+
+    result = extract_mcp_result(response)
+    assert not result.get("isError", False)
+    analysis_data = WeatherAnalysisResponse(**get_mcp_content(result))
     assert analysis_data.analysis
     assert "London" in analysis_data.analysis or "weather" in analysis_data.analysis.lower()

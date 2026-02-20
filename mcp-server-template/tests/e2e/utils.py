@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from typing import Any
 
@@ -185,49 +186,45 @@ async def call_mcp_tool_with_client(
 
 
 # =============================================================================
-# MCP Response Parsing & Validation
+# MCP Response Parsing
 # =============================================================================
 
 
-def parse_mcp_response(response: httpx.Response) -> dict[str, Any]:
-    """Parse and validate MCP JSON-RPC response structure.
+def extract_mcp_result(response: httpx.Response) -> dict[str, Any]:
+    """Extract the result object from an MCP response.
 
-    Ensures the MCP call succeeded and returns the result content.
-    Raises AssertionError if the MCP response indicates an error.
+    Handles both JSON and SSE response formats.
+    Returns the full result dict (with content, isError, structuredContent).
     """
-    import json
-
     assert response.status_code == 200, f"MCP request failed with status {response.status_code}"
 
-    # Handle SSE format responses (event: message\r\ndata: {...})
     response_text = response.text
     if response_text.startswith("event:"):
-        # Extract JSON from SSE format
-        lines = response_text.split("\n")
-        for line in lines:
+        # SSE format: extract JSON from data line
+        for line in response_text.split("\n"):
             if line.startswith("data:"):
-                json_str = line[5:].strip()  # Remove "data:" prefix
-                body = json.loads(json_str)
+                body = json.loads(line[5:].strip())
                 break
         else:
             raise AssertionError(f"No data line found in SSE response: {response_text[:200]}")
     else:
-        # Regular JSON response
         body = response.json()
 
-    assert "error" not in body or body.get("error") is None, f"MCP returned error: {body.get('error')}"
+    assert "error" not in body or body.get("error") is None, f"MCP protocol error: {body.get('error')}"
     assert "result" in body, "MCP response missing 'result' field"
 
-    result = body["result"]
+    return body["result"]
 
-    # Check if structuredContent is available (preferred)
+
+def get_mcp_content(result: dict[str, Any]) -> dict[str, Any]:
+    """Extract content data from MCP result.
+
+    Uses structuredContent if available, otherwise parses text content.
+    """
     if "structuredContent" in result:
         return result["structuredContent"]
 
-    # Fallback to parsing text content
     assert "content" in result, "MCP result missing 'content' field"
     assert len(result["content"]) > 0, "MCP result content is empty"
 
-    # Parse the tool output from the first content item
-    content_text = result["content"][0].get("text", "")
-    return json.loads(content_text)
+    return json.loads(result["content"][0].get("text", "{}"))

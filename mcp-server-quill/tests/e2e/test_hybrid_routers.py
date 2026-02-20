@@ -17,11 +17,12 @@ from config import load_e2e_config, require_base_url, require_quill_api_key
 from utils import (
     call_mcp_tool,
     call_mcp_tool_with_client,
+    extract_mcp_result,
+    get_mcp_content,
     initialize_mcp_session,
     initialize_mcp_session_with_client,
     negotiate_mcp_session_id,
     negotiate_mcp_session_id_with_client,
-    parse_mcp_response,
 )
 
 API_KEY_HEADER = "Quill-Api-Key"
@@ -62,7 +63,9 @@ async def test_hybrid_pricing_mcp() -> None:
         arguments={},
     )
     # Parse MCP response and validate against schema
-    result_data = parse_mcp_response(response)
+    result = extract_mcp_result(response)
+    assert not result.get("isError", False)
+    result_data = get_mcp_content(result)
     pricing_data = PricingResponse(**result_data)
     assert isinstance(pricing_data.pricing, dict)
 
@@ -141,7 +144,9 @@ async def test_hybrid_search_token_mcp_pricing_off() -> None:
         arguments={"query": "WETH", "chain": "ethereum"},
     )
     # Parse MCP response and validate against schema
-    result_data = parse_mcp_response(response)
+    result = extract_mcp_result(response)
+    assert not result.get("isError", False)
+    result_data = get_mcp_content(result)
     search_data = TokenSearchResponse(**result_data)
     assert search_data.symbol == "WETH"
     assert search_data.chainId == "ethereum"
@@ -187,7 +192,9 @@ async def test_hybrid_search_token_mcp_with_payment(paid_client) -> None:
         arguments={"query": "WETH", "chain": "ethereum"},
     )
     # Parse MCP response and validate against schema
-    result_data = parse_mcp_response(response)
+    result = extract_mcp_result(response)
+    assert not result.get("isError", False)
+    result_data = get_mcp_content(result)
     search_data = TokenSearchResponse(**result_data)
     assert search_data.symbol == "WETH"
     assert search_data.chainId == "ethereum"
@@ -282,7 +289,9 @@ async def test_hybrid_evm_token_info_mcp_pricing_off() -> None:
         arguments={"query": "WETH", "quill_chain_id": "1"},
     )
     # Parse MCP response and validate against schema
-    result_data = parse_mcp_response(response)
+    result = extract_mcp_result(response)
+    assert not result.get("isError", False)
+    result_data = get_mcp_content(result)
     token_data = TokenSecurityResponse(**result_data)
     assert token_data.search_result.symbol == "WETH"
     assert isinstance(token_data.quill_data, dict)
@@ -328,7 +337,9 @@ async def test_hybrid_evm_token_info_mcp_with_payment(paid_client) -> None:
         arguments={"query": "WETH", "quill_chain_id": "1"},
     )
     # Parse MCP response and validate against schema
-    result_data = parse_mcp_response(response)
+    result = extract_mcp_result(response)
+    assert not result.get("isError", False)
+    result_data = get_mcp_content(result)
     token_data = TokenSecurityResponse(**result_data)
     assert token_data.search_result.symbol == "WETH"
     assert isinstance(token_data.quill_data, dict)
@@ -422,7 +433,9 @@ async def test_hybrid_solana_token_info_mcp_pricing_off() -> None:
         arguments={"query": "RAY"},
     )
     # Parse MCP response and validate against schema
-    result_data = parse_mcp_response(response)
+    result = extract_mcp_result(response)
+    assert not result.get("isError", False)
+    result_data = get_mcp_content(result)
     token_data = TokenSecurityResponse(**result_data)
     assert token_data.search_result.symbol == "RAY"
     assert token_data.search_result.chainId == "solana"
@@ -469,7 +482,9 @@ async def test_hybrid_solana_token_info_mcp_with_payment(paid_client) -> None:
         arguments={"query": "RAY"},
     )
     # Parse MCP response and validate against schema
-    result_data = parse_mcp_response(response)
+    result = extract_mcp_result(response)
+    assert not result.get("isError", False)
+    result_data = get_mcp_content(result)
     token_data = TokenSecurityResponse(**result_data)
     assert token_data.search_result.symbol == "RAY"
     assert token_data.search_result.chainId == "solana"
