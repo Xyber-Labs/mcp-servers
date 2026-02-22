@@ -21,9 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class LurkyClient:
-    """
-    Client for interacting with the Lurky API.
-    """
+    """Client for interacting with the Lurky API."""
 
     def __init__(self, config: LurkyServiceConfig):
         self.config = config
@@ -64,6 +62,8 @@ class LurkyClient:
                 response.raise_for_status()
                 return response.json()
 
+            except (LurkyAuthError, LurkyNotFoundError):
+                raise
             except httpx.HTTPStatusError as e:
                 logger.error(
                     f"HTTP error occurred: {e.response.status_code} - {e.response.text}"
@@ -72,10 +72,10 @@ class LurkyClient:
                     f"API request failed: {e}",
                     status_code=e.response.status_code,
                     response_text=e.response.text,
-                )
+                ) from e
             except Exception as e:
                 logger.exception(f"Unexpected error during API request: {e}")
-                raise LurkyAPIError(f"Unexpected error: {e}")
+                raise LurkyAPIError(f"Unexpected error: {e}") from e
 
     async def search_discussions(
         self, search_term: str, limit: int = 10, page: int = 0
