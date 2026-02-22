@@ -1,8 +1,5 @@
 from mcp_twitter.schemas.search import (
     ProfileBatchResult,
-    ProfileBatchSearchRequest,
-    ProfileLatestBatchRequest,
-    ProfileLatestRequest,
     ProfileSearchRequest,
     RepliesSearchRequest,
     TopicSearchRequest,
@@ -10,9 +7,6 @@ from mcp_twitter.schemas.search import (
 
 __all__ = [
     "ProfileBatchResult",
-    "ProfileBatchSearchRequest",
-    "ProfileLatestBatchRequest",
-    "ProfileLatestRequest",
     "ProfileSearchRequest",
     "RepliesSearchRequest",
     "TopicSearchRequest",

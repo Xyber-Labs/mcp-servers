@@ -9,9 +9,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from mcp_twitter.dependencies import get_scraper
 from mcp_twitter.schemas import (
     ProfileBatchResult,
-    ProfileBatchSearchRequest,
-    ProfileLatestBatchRequest,
-    ProfileLatestRequest,
     ProfileSearchRequest,
     RepliesSearchRequest,
     TopicSearchRequest,
@@ -42,7 +39,6 @@ def _run_query_and_read(
     return [i for i in items if isinstance(i, dict)]
 
 
-# Routes
 @router.post(
     "/v1/search/topic",
     tags=["Search"],
@@ -110,7 +106,7 @@ async def search_topic(
     "/v1/search/profile",
     tags=["Search"],
     operation_id="search_profile",
-    response_model=list[dict[str, Any]],
+    response_model=list[ProfileBatchResult],
 )
 async def search_profile(
     request: ProfileSearchRequest,
@@ -119,119 +115,102 @@ async def search_profile(
         DEFAULT_TIMEOUT_SECONDS,
         ge=1,
         le=3600,
-        description="Max time to wait for Apify run to finish (seconds).",
+        description="Max time to wait for the search to finish (seconds).",
     ),
-) -> list[dict[str, Any]]:
-    """Search tweets from a specific user profile."""
-    try:
-        logger.info(
-            "profile search start user=%r max_items=%s since=%r until=%r lang=%s format=%s timeout=%ss",
-            request.username,
-            request.max_items,
-            request.since,
-            request.until,
-            request.lang,
-            request.output_format,
-            timeout_seconds,
-        )
-        query = create_profile_query(
-            request.username,
-            max_items=request.max_items,
-            since=request.since.isoformat() if request.since else None,
-            until=request.until.isoformat() if request.until else None,
-            lang=request.lang,
-        )
+) -> list[ProfileBatchResult]:
+    """Search tweets from one or more user profiles.
 
-        temp_scraper = scraper_mod.TwitterScraper(
-            apify_token=scraper.apify_token,
-            actor_name=scraper.actor_id,
-            output_format=request.output_format,
-            database=scraper._db,
-        )
+    - Single user: `{"usernames": ["elonmusk"], "max_items": 10}`
+    - Multiple users: `{"usernames": ["elonmusk", "jack"], "max_items": 10}`
+    - With date filter: `{"usernames": ["elonmusk"], "from_date": "2025-01-01", "to_date": "2025-01-31"}`
+    - Latest tweets (no date filter): omit `from_date` and `to_date`
+    """
+    # Normalize usernames (handle comma-separated and @ prefix)
+    usernames: list[str] = []
+    for raw in request.usernames:
+        if not raw:
+            continue
+        parts = [p.strip() for p in raw.split(",")]
+        for p in parts:
+            if not p:
+                continue
+            usernames.append(p.lstrip("@").strip())
 
-        items = await asyncio.wait_for(
-            asyncio.to_thread(_run_query_and_read, temp_scraper, query),
-            timeout=timeout_seconds,
-        )
-        logger.info(
-            "profile search done user=%r items=%d", request.username, len(items)
-        )
-        return items
-    except TimeoutError:
-        logger.error(
-            "profile search timeout user=%r timeout=%ss",
-            request.username,
-            timeout_seconds,
-        )
+    if not usernames:
         raise HTTPException(
-            status_code=504, detail=f"Search timed out after {timeout_seconds} seconds"
-        )
-    except Exception as e:
-        logger.exception("profile search failed user=%r error=%s", request.username, e)
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}") from e
-
-
-@router.post(
-    "/v1/search/profile/latest",
-    tags=["Search"],
-    operation_id="search_profile_latest",
-    response_model=list[dict[str, Any]],
-)
-async def search_profile_latest(
-    request: ProfileLatestRequest,
-    scraper: TwitterScraper = Depends(get_scraper),
-    timeout_seconds: int = Query(
-        DEFAULT_TIMEOUT_SECONDS,
-        ge=1,
-        le=3600,
-        description="Max time to wait for Apify run to finish (seconds).",
-    ),
-) -> list[dict[str, Any]]:
-    """Get the latest tweets from a specific user profile."""
-    try:
-        logger.info(
-            "profile latest start user=%r max_items=%s lang=%s format=%s timeout=%ss",
-            request.username,
-            request.max_items,
-            request.lang,
-            request.output_format,
-            timeout_seconds,
-        )
-        query = create_profile_query(
-            request.username,
-            max_items=request.max_items,
-            since=None,
-            until=None,
-            lang=request.lang,
+            status_code=422,
+            detail="usernames must contain at least one non-empty username",
         )
 
-        temp_scraper = scraper_mod.TwitterScraper(
-            apify_token=scraper.apify_token,
-            actor_name=scraper.actor_id,
-            output_format=request.output_format,
-            database=scraper._db,
-        )
+    temp_scraper = scraper_mod.TwitterScraper(
+        apify_token=scraper.apify_token,
+        actor_name=scraper.actor_id,
+        output_format=request.output_format,
+        database=scraper._db,
+    )
 
-        items = await asyncio.wait_for(
-            asyncio.to_thread(_run_query_and_read, temp_scraper, query),
-            timeout=timeout_seconds,
-        )
-        logger.info(
-            "profile latest done user=%r items=%d", request.username, len(items)
-        )
-        return items
-    except TimeoutError:
-        logger.error(
-            "profile latest timeout user=%r timeout=%ss",
-            request.username,
-            timeout_seconds,
-        )
-        raise HTTPException(
-            status_code=504, detail=f"Search timed out after {timeout_seconds} seconds"
-        )
-    except Exception as e:
-        logger.exception("profile latest failed user=%r error=%s", request.username, e)
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}") from e
+    results: list[ProfileBatchResult] = []
+    timeout_per_username = (
+        max(1, timeout_seconds // len(usernames)) if usernames else timeout_seconds
+    )
+
+    for username in usernames:
+        try:
+            logger.info(
+                "profile search start user=%r max_items=%s from_date=%r to_date=%r lang=%s format=%s timeout=%ss",
+                username,
+                request.max_items,
+                request.from_date,
+                request.to_date,
+                request.lang,
+                request.output_format,
+                timeout_per_username,
+            )
+            query = create_profile_query(
+                username,
+                max_items=request.max_items,
+                since=request.from_date.isoformat() if request.from_date else None,
+                until=request.to_date.isoformat() if request.to_date else None,
+                lang=request.lang,
+            )
+            items = await asyncio.wait_for(
+                asyncio.to_thread(_run_query_and_read, temp_scraper, query),
+                timeout=timeout_per_username,
+            )
+            results.append(
+                ProfileBatchResult(username=username, items=items, error=None)
+            )
+            logger.info("profile search done user=%r items=%d", username, len(items))
+        except TimeoutError:
+            logger.error(
+                "profile search timeout user=%r timeout=%ss",
+                username,
+                timeout_per_username,
+            )
+            if not request.continue_on_error:
+                raise HTTPException(
+                    status_code=504,
+                    detail=f"Search timed out for username={username!r} after {timeout_per_username} seconds",
+                )
+            results.append(
+                ProfileBatchResult(
+                    username=username,
+                    items=[],
+                    error=f"Timeout after {timeout_per_username} seconds",
+                )
+            )
+        except Exception as e:
+            logger.exception("profile search failed user=%r error=%s", username, e)
+            if not request.continue_on_error:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Search failed for username={username!r}: {str(e)}",
+                ) from e
+            results.append(
+                ProfileBatchResult(username=username, items=[], error=str(e))
+            )
+
+    return results
 
 
 @router.post(
@@ -299,211 +278,3 @@ async def search_replies(
             e,
         )
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}") from e
-
-
-@router.post(
-    "/v1/search/profile/batch",
-    tags=["Search"],
-    operation_id="search_profile_batch",
-    response_model=list[ProfileBatchResult],
-)
-async def search_profile_batch(
-    request: ProfileBatchSearchRequest,
-    scraper: TwitterScraper = Depends(get_scraper),
-    timeout_seconds: int = Query(
-        DEFAULT_TIMEOUT_SECONDS,
-        ge=1,
-        le=3600,
-        description="Max time to wait for the batch to finish (seconds).",
-    ),
-) -> list[ProfileBatchResult]:
-    """Search tweets from multiple user profiles in one request (looping per username)."""
-    usernames: list[str] = []
-    for raw in request.usernames:
-        if not raw:
-            continue
-        parts = [p.strip() for p in raw.split(",")]
-        for p in parts:
-            if not p:
-                continue
-            usernames.append(p.lstrip("@").strip())
-    if not usernames:
-        raise HTTPException(
-            status_code=422,
-            detail="usernames must contain at least one non-empty username",
-        )
-
-    temp_scraper = scraper_mod.TwitterScraper(
-        apify_token=scraper.apify_token,
-        actor_name=scraper.actor_id,
-        output_format=request.output_format,
-        database=scraper._db,
-    )
-
-    results: list[ProfileBatchResult] = []
-    # Calculate timeout per username (distribute total timeout across all usernames)
-    timeout_per_username = (
-        max(1, timeout_seconds // len(usernames)) if usernames else timeout_seconds
-    )
-
-    for username in usernames:
-        try:
-            logger.info(
-                "profile batch item start user=%r max_items=%s since=%r until=%r lang=%s format=%s timeout=%ss",
-                username,
-                request.max_items,
-                request.since,
-                request.until,
-                request.lang,
-                request.output_format,
-                timeout_per_username,
-            )
-            query = create_profile_query(
-                username,
-                max_items=request.max_items,
-                since=request.since.isoformat() if request.since else None,
-                until=request.until.isoformat() if request.until else None,
-                lang=request.lang,
-            )
-            items = await asyncio.wait_for(
-                asyncio.to_thread(_run_query_and_read, temp_scraper, query),
-                timeout=timeout_per_username,
-            )
-            results.append(
-                ProfileBatchResult(username=username, items=items, error=None)
-            )
-        except TimeoutError:
-            logger.error(
-                "profile batch item timeout user=%r timeout=%ss",
-                username,
-                timeout_per_username,
-            )
-            if not request.continue_on_error:
-                raise HTTPException(
-                    status_code=504,
-                    detail=f"Batch search timed out for username={username!r} after {timeout_per_username} seconds",
-                )
-            results.append(
-                ProfileBatchResult(
-                    username=username,
-                    items=[],
-                    error=f"Timeout after {timeout_per_username} seconds",
-                )
-            )
-        except Exception as e:
-            logger.exception("profile batch item failed user=%r error=%s", username, e)
-            if not request.continue_on_error:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Batch search failed for username={username!r}: {str(e)}",
-                ) from e
-            results.append(
-                ProfileBatchResult(username=username, items=[], error=str(e))
-            )
-
-    return results
-
-
-@router.post(
-    "/v1/search/profile/latest/batch",
-    tags=["Search"],
-    operation_id="search_profile_latest_batch",
-    response_model=list[ProfileBatchResult],
-)
-async def search_profile_latest_batch(
-    request: ProfileLatestBatchRequest,
-    scraper: TwitterScraper = Depends(get_scraper),
-    timeout_seconds: int = Query(
-        DEFAULT_TIMEOUT_SECONDS,
-        ge=1,
-        le=3600,
-        description="Max time to wait for the batch to finish (seconds).",
-    ),
-) -> list[ProfileBatchResult]:
-    """Get the latest tweets from multiple user profiles in one request (looping per username)."""
-    usernames: list[str] = []
-    for raw in request.usernames:
-        if not raw:
-            continue
-        parts = [p.strip() for p in raw.split(",")]
-        for p in parts:
-            if not p:
-                continue
-            usernames.append(p.lstrip("@").strip())
-    if not usernames:
-        raise HTTPException(
-            status_code=422,
-            detail="usernames must contain at least one non-empty username",
-        )
-
-    temp_scraper = scraper_mod.TwitterScraper(
-        apify_token=scraper.apify_token,
-        actor_name=scraper.actor_id,
-        output_format=request.output_format,
-        database=scraper._db,
-    )
-
-    results: list[ProfileBatchResult] = []
-    # Calculate timeout per username (distribute total timeout across all usernames)
-    timeout_per_username = (
-        max(1, timeout_seconds // len(usernames)) if usernames else timeout_seconds
-    )
-
-    for username in usernames:
-        try:
-            logger.info(
-                "profile latest batch item start user=%r max_items=%s lang=%s format=%s timeout=%ss",
-                username,
-                request.max_items,
-                request.lang,
-                request.output_format,
-                timeout_per_username,
-            )
-            query = create_profile_query(
-                username,
-                max_items=request.max_items,
-                since=None,
-                until=None,
-                lang=request.lang,
-            )
-            items = await asyncio.wait_for(
-                asyncio.to_thread(_run_query_and_read, temp_scraper, query),
-                timeout=timeout_per_username,
-            )
-            results.append(
-                ProfileBatchResult(username=username, items=items, error=None)
-            )
-        except TimeoutError:
-            logger.error(
-                "profile latest batch item timeout user=%r timeout=%ss",
-                username,
-                timeout_per_username,
-            )
-            if not request.continue_on_error:
-                raise HTTPException(
-                    status_code=504,
-                    detail=f"Batch latest search timed out for username={username!r} after {timeout_per_username} seconds",
-                )
-            results.append(
-                ProfileBatchResult(
-                    username=username,
-                    items=[],
-                    error=f"Timeout after {timeout_per_username} seconds",
-                )
-            )
-        except Exception as e:
-            logger.exception(
-                "profile latest batch item failed user=%r error=%s", username, e
-            )
-            if not request.continue_on_error:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Batch latest search failed for username={username!r}: {str(e)}",
-                ) from e
-            results.append(
-                ProfileBatchResult(username=username, items=[], error=str(e))
-            )
-
-    return results
-
-

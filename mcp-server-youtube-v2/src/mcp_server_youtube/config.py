@@ -48,7 +48,7 @@ class AppSettings(BaseSettings):
     logging_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     hot_reload: bool = False
 
-    # --- Apify Configuration ---    
+    # --- Apify Configuration ---
     apify_token: str | None = Field(
         default=None,
         validation_alias=AliasChoices("MCP_YOUTUBE_APIFY_TOKEN", "APIFY_TOKEN"),

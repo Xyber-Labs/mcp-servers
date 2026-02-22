@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from typing import Any
 
@@ -14,28 +15,31 @@ MCP_STATELESS_MODE = os.getenv("MCP_TEST_STATELESS", "true").lower() == "true"
 
 
 # =============================================================================
-# Session Management (for stateful mode)
+# Session Management
 # =============================================================================
 
 
-async def negotiate_mcp_session_id(config: E2ETestConfig) -> str | None:
+async def negotiate_mcp_session_id(
+    config: E2ETestConfig,
+    client: httpx.AsyncClient | None = None,
+) -> str | None:
     """Perform StreamableHTTP handshake and return MCP session ID.
 
     Returns None in stateless mode (no session needed).
+    If client is None, creates a temporary one.
     """
     if MCP_STATELESS_MODE:
         return None
 
-    headers = {"Accept": "text/event-stream"}
-    async with httpx.AsyncClient(
-        base_url=config.base_url, timeout=config.timeout_seconds
-    ) as client:
-        async with client.stream("GET", "/mcp/", headers=headers) as response:
+    async def _negotiate(c: httpx.AsyncClient) -> str:
+        headers = {"Accept": "text/event-stream"}
+        async with c.stream("GET", "/mcp/", headers=headers) as response:
             session_id = response.headers.get("mcp-session-id")
             if not session_id:
                 body = await response.aread()
                 raise RuntimeError(
-                    f"Streamable handshake failed: status={response.status_code}, body={body.decode('utf-8', 'ignore')}"
+                    f"Streamable handshake failed: status={response.status_code}, "
+                    f"body={body.decode('utf-8', 'ignore')}"
                 )
             try:
                 await asyncio.wait_for(response.aread(), timeout=0.1)
@@ -45,11 +49,24 @@ async def negotiate_mcp_session_id(config: E2ETestConfig) -> str | None:
                 await response.aclose()
             return session_id
 
+    if client is not None:
+        return await _negotiate(client)
 
-async def initialize_mcp_session(config: E2ETestConfig, session_id: str | None) -> None:
+    async with httpx.AsyncClient(
+        base_url=config.base_url, timeout=config.timeout_seconds
+    ) as temp_client:
+        return await _negotiate(temp_client)
+
+
+async def initialize_mcp_session(
+    config: E2ETestConfig,
+    session_id: str | None,
+    client: httpx.AsyncClient | None = None,
+) -> None:
     """Send MCP initialize call for a given session ID.
 
     No-op in stateless mode.
+    If client is None, creates a temporary one.
     """
     if MCP_STATELESS_MODE or session_id is None:
         return
@@ -69,11 +86,18 @@ async def initialize_mcp_session(config: E2ETestConfig, session_id: str | None) 
         "Content-Type": "application/json",
         "mcp-session-id": session_id,
     }
-    async with httpx.AsyncClient(
-        base_url=config.base_url, timeout=config.timeout_seconds
-    ) as client:
-        response = await client.post("/mcp/", json=payload, headers=headers)
+
+    async def _initialize(c: httpx.AsyncClient) -> None:
+        response = await c.post("/mcp/", json=payload, headers=headers)
         response.raise_for_status()
+
+    if client is not None:
+        await _initialize(client)
+    else:
+        async with httpx.AsyncClient(
+            base_url=config.base_url, timeout=config.timeout_seconds
+        ) as temp_client:
+            await _initialize(temp_client)
 
 
 async def call_mcp_tool(
@@ -81,10 +105,12 @@ async def call_mcp_tool(
     name: str,
     arguments: dict[str, Any],
     session_id: str | None = None,
+    client: httpx.AsyncClient | None = None,
 ) -> httpx.Response:
     """Call an MCP tool via tools/call and return the raw HTTPX response.
 
     Works in both stateless and stateful modes.
+    If client is None, creates a temporary one.
     """
     payload: dict[str, Any] = {
         "jsonrpc": "2.0",
@@ -98,90 +124,14 @@ async def call_mcp_tool(
     }
     if session_id and not MCP_STATELESS_MODE:
         headers["mcp-session-id"] = session_id
+
+    if client is not None:
+        return await client.post("/mcp/", json=payload, headers=headers)
 
     async with httpx.AsyncClient(
         base_url=config.base_url, timeout=config.timeout_seconds
-    ) as client:
-        return await client.post("/mcp/", json=payload, headers=headers)
-
-
-# =============================================================================
-# Variants that use a pre-configured x402 client (for paid tests)
-# =============================================================================
-
-
-async def negotiate_mcp_session_id_with_client(config: E2ETestConfig, client) -> str | None:
-    """Perform StreamableHTTP handshake using provided client.
-
-    Returns None in stateless mode.
-    """
-    if MCP_STATELESS_MODE:
-        return None
-
-    headers = {"Accept": "text/event-stream"}
-    response = await client.get("/mcp/", headers=headers)
-    session_id = response.headers.get("mcp-session-id")
-    if not session_id:
-        raise RuntimeError(
-            f"Streamable handshake failed: status={response.status_code}, body={response.text}"
-        )
-    return session_id
-
-
-async def initialize_mcp_session_with_client(
-    config: E2ETestConfig, client, session_id: str | None
-) -> None:
-    """Send MCP initialize call using provided client.
-
-    No-op in stateless mode.
-    """
-    if MCP_STATELESS_MODE or session_id is None:
-        return
-
-    payload: dict[str, Any] = {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "initialize",
-        "params": {
-            "protocolVersion": "2025-03-26",
-            "capabilities": {"sampling": {}, "roots": {}},
-            "clientInfo": {"name": "e2e_pytest_client", "version": "1.0.0"},
-        },
-    }
-    headers = {
-        "Accept": "application/json, text/event-stream",
-        "Content-Type": "application/json",
-        "mcp-session-id": session_id,
-    }
-    response = await client.post("/mcp/", json=payload, headers=headers)
-    response.raise_for_status()
-
-
-async def call_mcp_tool_with_client(
-    config: E2ETestConfig,
-    client,
-    name: str,
-    arguments: dict[str, Any],
-    session_id: str | None = None,
-) -> httpx.Response:
-    """Call an MCP tool using provided x402 client.
-
-    Works in both stateless and stateful modes.
-    """
-    payload: dict[str, Any] = {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "tools/call",
-        "params": {"name": name, "arguments": arguments},
-    }
-    headers = {
-        "Accept": "application/json, text/event-stream",
-        "Content-Type": "application/json",
-    }
-    if session_id and not MCP_STATELESS_MODE:
-        headers["mcp-session-id"] = session_id
-
-    return await client.post("/mcp/", json=payload, headers=headers)
+    ) as temp_client:
+        return await temp_client.post("/mcp/", json=payload, headers=headers)
 
 
 # =============================================================================
@@ -189,45 +139,74 @@ async def call_mcp_tool_with_client(
 # =============================================================================
 
 
-def extract_mcp_result(response: httpx.Response) -> dict[str, Any]:
-    """Extract the result object from an MCP response.
-
-    Handles both JSON and SSE response formats.
-    Returns the full result dict (with content, isError, structuredContent).
+def parse_mcp_response(response: httpx.Response) -> tuple[bool, Any]:
     """
-    import json
+    Parse MCP response and return (is_error, data).
 
-    assert response.status_code == 200, f"MCP request failed with status {response.status_code}"
+    Supports:
+    - JSON responses
+    - SSE responses (event stream)
 
-    response_text = response.text
-    if response_text.startswith("event:"):
-        # SSE format: extract JSON from data line
-        for line in response_text.split("\n"):
-            if line.startswith("data:"):
-                body = json.loads(line[5:].strip())
-                break
+    Returns:
+        is_error: True if tool call failed
+        data: structuredContent OR parsed content OR error payload
+    """
+
+    # --- HTTP-level error ---
+    if response.status_code != 200:
+        return True, {
+            "http_status": response.status_code,
+            "body": response.text,
+        }
+
+    raw_text = response.text.strip()
+
+    # --- Parse body (JSON or SSE) ---
+    try:
+        if raw_text.startswith("event:") or raw_text.startswith("data:"):
+            # SSE format
+            data_lines = [
+                line[5:].strip()
+                for line in raw_text.splitlines()
+                if line.startswith("data:")
+            ]
+
+            if not data_lines:
+                return True, {"error": "SSE response missing data lines"}
+
+            body = json.loads("".join(data_lines))
         else:
-            raise AssertionError(f"No data line found in SSE response: {response_text[:200]}")
-    else:
-        body = response.json()
+            body = response.json()
+    except Exception as e:
+        return True, {"error": f"Failed to parse response body: {e}"}
 
-    assert "error" not in body or body.get("error") is None, f"MCP protocol error: {body.get('error')}"
-    assert "result" in body, "MCP response missing 'result' field"
+    # --- JSON-RPC protocol validation ---
+    if not isinstance(body, dict):
+        return True, {"error": "Response body is not a JSON object"}
 
-    return body["result"]
+    if body.get("error") is not None:
+        return True, body["error"]
 
+    result = body.get("result")
+    if result is None:
+        return True, {"error": "Missing 'result' field in response"}
 
-def get_mcp_content(result: dict[str, Any]) -> dict[str, Any]:
-    """Extract content data from MCP result.
+    is_error = bool(result.get("isError", False))
 
-    Uses structuredContent if available, otherwise parses text content.
-    """
-    import json
-
+    # --- Extract content ---
     if "structuredContent" in result:
-        return result["structuredContent"]
+        return is_error, result["structuredContent"]
 
-    assert "content" in result, "MCP result missing 'content' field"
-    assert len(result["content"]) > 0, "MCP result content is empty"
+    content = result.get("content")
+    if content:
+        text = content[0].get("text")
+        if text is None:
+            return True, {"error": "Missing text field in content"}
 
-    return json.loads(result["content"][0].get("text", "{}"))
+        try:
+            return is_error, json.loads(text)
+        except json.JSONDecodeError:
+            # Not JSON — return raw text
+            return is_error, text
+
+    return is_error, None

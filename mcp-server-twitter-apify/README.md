@@ -24,11 +24,8 @@ These endpoints are available via both REST API and can be called by external se
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/hybrid/v1/search/topic` | POST | Search tweets by keyword/topic with sorting, verification, and image filters |
-| `/hybrid/v1/search/profile` | POST | Search tweets from specific user with optional date range filtering |
-| `/hybrid/v1/search/profile/latest` | POST | Get most recent tweets from a user without date constraints |
+| `/hybrid/v1/search/profile` | POST | Search tweets from one or more users with optional date range filtering |
 | `/hybrid/v1/search/replies` | POST | Fetch conversation threads via conversation IDs |
-| `/hybrid/v1/search/profile/batch` | POST | Search tweets from multiple users in parallel with error handling |
-| `/hybrid/v1/search/profile/latest/batch` | POST | Get latest tweets from multiple users in parallel |
 | `/hybrid/v1/run/{query_id}` | POST | Execute a predefined query by ID from the registry |
 
 ### MCP-Only Endpoints
@@ -51,9 +48,7 @@ Interactive API documentation is available when the server is running:
 ### Key Features
 
 - **Topic Search**: Search by keyword/topic with sorting (Latest/Top), verified user filtering, and image-only filtering
-- **Profile Search**: Retrieve tweets from specific users with optional date range filtering
-- **Profile Latest**: Get the most recent tweets from users without date constraints
-- **Batch Operations**: Process multiple profile searches in parallel with error handling
+- **Profile Search**: Retrieve tweets from one or more users with optional date range filtering (`from_date`/`to_date`)
 - **Reply Threads**: Fetch conversation threads via conversation IDs
 - **Query Registry**: Predefined queries for common use cases with execution by ID
 - **Output Formats**:
