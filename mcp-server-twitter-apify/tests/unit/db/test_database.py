@@ -73,15 +73,21 @@ def sample_tweet_data() -> list[dict[str, Any]]:
 def test_query_cache_key_deterministic() -> None:
     """Test query cache key generation is deterministic."""
     q1 = QueryDefinition(
-        id="1", type="topic", name="test",
+        id="1",
+        type="topic",
+        name="test",
         input=TwitterScraperInput(searchTerms=["test"], maxItems=100, sort="Latest"),
     )
     q2 = QueryDefinition(
-        id="2", type="topic", name="different",
+        id="2",
+        type="topic",
+        name="different",
         input=TwitterScraperInput(searchTerms=["test"], maxItems=100, sort="Latest"),
     )
     q3 = QueryDefinition(
-        id="3", type="topic", name="test",
+        id="3",
+        type="topic",
+        name="test",
         input=TwitterScraperInput(searchTerms=["test"], maxItems=50, sort="Latest"),
     )
 
@@ -205,8 +211,7 @@ def test_get_cached_query_expired(
             query_type="topic",
             params=params,
             item_count=len(sample_tweet_data),
-            expires_at=datetime.now(UTC)
-            - timedelta(hours=1),  # Expired 1 hour ago
+            expires_at=datetime.now(UTC) - timedelta(hours=1),  # Expired 1 hour ago
         )
         session.add(entry)
 

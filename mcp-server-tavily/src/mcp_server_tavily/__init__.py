@@ -1,11 +1,11 @@
 from mcp_server_tavily.tavily import (
-                                      TavilyApiError,
-                                      TavilyConfig,
-                                      TavilyConfigError,
-                                      TavilySearchResult,
-                                      TavilyServiceError,
-                                      _TavilyService,
-                                      get_tavily_service,
+    TavilyApiError,
+    TavilyConfig,
+    TavilyConfigError,
+    TavilySearchResult,
+    TavilyServiceError,
+    _TavilyService,
+    get_tavily_service,
 )
 
 __all__ = [

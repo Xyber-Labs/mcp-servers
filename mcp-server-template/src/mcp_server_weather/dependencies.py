@@ -4,7 +4,9 @@ This module should be changed to include your server's dependencies like API cli
 Main responsibility: Provide a single place to access all service clients used by the application.
 Lifecycle is managed externally (in lifespan) following dependency injection principles.
 """
+
 from __future__ import annotations
+
 from mcp_server_weather.weather import WeatherClient
 
 
@@ -16,7 +18,8 @@ class DependencyContainer:
         # In app.py lifespan:
         client = WeatherClient(config)
         DependencyContainer.create(weather_client=client)
-        yield
+
+    Yield:
         await client.close()
         DependencyContainer.clear()
 
@@ -24,6 +27,7 @@ class DependencyContainer:
         @router.post("/endpoint")
         async def endpoint(client: WeatherClient = Depends(get_weather_client)):
             ...
+
     """
 
     _weather_client: WeatherClient | None = None

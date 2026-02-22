@@ -73,16 +73,21 @@ async def payment_app(
 
         async def settle_payment(self, payment, requirements):
             payload = {"status": "ok"}
+
             class Result:
                 success = True
+
                 def model_dump_json(self, **kwargs):
                     return json.dumps(payload)
+
             return Result()
 
     server = DummyServer()
 
     settings = SimpleNamespace(
-        facilitator_config=SimpleNamespace(url="https://facilitator", auth_provider=None),
+        facilitator_config=SimpleNamespace(
+            url="https://facilitator", auth_provider=None
+        ),
         payee_evm_address="0xD23ef9BAf3A2A9a9feb8035e4b3Be41878faF515",
         payee_solana_address=None,
     )

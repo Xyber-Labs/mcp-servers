@@ -132,9 +132,7 @@ class DatabaseManager:
             for field in ts_fields:
                 val = space_data.get(field)
                 if isinstance(val, (int, float)):
-                    space_data[field] = datetime.fromtimestamp(
-                        val / 1000, tz=UTC
-                    )
+                    space_data[field] = datetime.fromtimestamp(val / 1000, tz=UTC)
 
             discussions_data = space_data.pop("discussions", [])
 

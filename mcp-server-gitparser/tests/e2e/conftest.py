@@ -5,14 +5,13 @@ import json
 
 import httpx
 import pytest_asyncio
+from e2e.config import load_e2e_config, require_base_url, require_wallet
 from eth_account import Account
 from x402.client import x402Client
 from x402.http.clients import x402HttpxClient
 from x402.mechanisms.evm.exact import register_exact_evm_client
 from x402.mechanisms.evm.signers import EthAccountSigner
 from x402.mechanisms.evm.utils import NETWORK_CONFIGS
-
-from e2e.config import load_e2e_config, require_base_url, require_wallet
 
 # Register custom networks (should match x402_integration/accepted_assets.py)
 if "eip155:1187947933" not in NETWORK_CONFIGS:
@@ -100,7 +99,8 @@ async def rest_client():
 
 @pytest_asyncio.fixture
 async def paid_client():
-    """Fixture providing an x402-enabled HTTP client for paid e2e tests.
+    """
+    Fixture providing an x402-enabled HTTP client for paid e2e tests.
 
     Uses x402HttpxClient which automatically handles 402 responses and
     payment signing for EVM networks.

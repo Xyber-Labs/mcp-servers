@@ -31,7 +31,10 @@ from mcp_server_deepresearcher.x402_integration.accepted_assets import (
     register_custom_evm_networks,
     usd_to_token_amount,
 )
-from mcp_server_deepresearcher.x402_integration.config import X402Config, get_x402_settings
+from mcp_server_deepresearcher.x402_integration.config import (
+    X402Config,
+    get_x402_settings,
+)
 
 __all__ = [
     # Configuration

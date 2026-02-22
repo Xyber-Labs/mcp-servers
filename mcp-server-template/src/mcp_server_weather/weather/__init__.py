@@ -6,9 +6,9 @@ Main responsibility: Provide a public facade for the weather service by re-expor
 
 from mcp_server_weather.weather.config import WeatherConfig, get_weather_config
 from mcp_server_weather.weather.errors import (
-                                               WeatherApiError,
-                                               WeatherClientError,
-                                               WeatherConfigError,
+    WeatherApiError,
+    WeatherClientError,
+    WeatherConfigError,
 )
 from mcp_server_weather.weather.models import WeatherData
 from mcp_server_weather.weather.module import WeatherClient

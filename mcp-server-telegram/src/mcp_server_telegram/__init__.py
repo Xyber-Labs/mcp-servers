@@ -2,12 +2,12 @@
 """MCP Server for Telegram integration."""
 
 from mcp_server_telegram.telegram import (
-                                          TelegramApiError,
-                                          TelegramConfig,
-                                          TelegramConfigError,
-                                          TelegramServiceError,
-                                          _TelegramService,
-                                          get_telegram_service,
+    TelegramApiError,
+    TelegramConfig,
+    TelegramConfigError,
+    TelegramServiceError,
+    _TelegramService,
+    get_telegram_service,
 )
 
 __all__ = [

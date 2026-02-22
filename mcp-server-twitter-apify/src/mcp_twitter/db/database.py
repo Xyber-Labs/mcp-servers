@@ -21,8 +21,11 @@ class CacheRepository:
     Provides methods to store and retrieve cached query results.
     """
 
-    def __init__(self, session_factory: sessionmaker[Session],
-                cache_ttl_config: dict[str, int] | None = None):
+    def __init__(
+        self,
+        session_factory: sessionmaker[Session],
+        cache_ttl_config: dict[str, int] | None = None,
+    ):
         """
         Initialize repository with session factory.
 
@@ -244,43 +247,56 @@ class CacheRepository:
                 if item.get(api_key) is not None:
                     setattr(tweet, db_col, item[api_key])
         else:
-            session.add(Tweet(
-                id=tweet_id,
-                url=item.get("url"),
-                text=item.get("text"),
-                full_text=item.get("fullText"),
-                author_id=author_id,
-                created_at=self._parse_twitter_date(item.get("createdAt")),
-                format=output_format,
-                raw_data=item if output_format == "max" else None,
-                **{db_col: item.get(api_key) for api_key, db_col in count_fields.items()},
-            ))
+            session.add(
+                Tweet(
+                    id=tweet_id,
+                    url=item.get("url"),
+                    text=item.get("text"),
+                    full_text=item.get("fullText"),
+                    author_id=author_id,
+                    created_at=self._parse_twitter_date(item.get("createdAt")),
+                    format=output_format,
+                    raw_data=item if output_format == "max" else None,
+                    **{
+                        db_col: item.get(api_key)
+                        for api_key, db_col in count_fields.items()
+                    },
+                )
+            )
 
     @staticmethod
     def _author_to_dict(author: TweetAuthor) -> dict[str, Any]:
         """Convert TweetAuthor model to dict, filtering None values."""
-        return {k: v for k, v in {
-            "id": author.id,
-            "userName": author.username,
-            "name": author.name,
-            "url": author.url,
-        }.items() if v is not None}
+        return {
+            k: v
+            for k, v in {
+                "id": author.id,
+                "userName": author.username,
+                "name": author.name,
+                "url": author.url,
+            }.items()
+            if v is not None
+        }
 
     @staticmethod
     def _tweet_to_dict(tweet: Tweet) -> dict[str, Any]:
         """Convert Tweet model to dict, filtering None values."""
-        return {k: v for k, v in {
-            "id": tweet.id,
-            "url": tweet.url,
-            "text": tweet.text,
-            "fullText": tweet.full_text,
-            "retweetCount": tweet.retweet_count,
-            "replyCount": tweet.reply_count,
-            "likeCount": tweet.like_count,
-            "quoteCount": tweet.quote_count,
-            "viewCount": tweet.view_count,
-            "createdAt": tweet.created_at.isoformat() if tweet.created_at else None,
-        }.items() if v is not None}
+        return {
+            k: v
+            for k, v in {
+                "id": tweet.id,
+                "url": tweet.url,
+                "text": tweet.text,
+                "fullText": tweet.full_text,
+                "retweetCount": tweet.retweet_count,
+                "replyCount": tweet.reply_count,
+                "likeCount": tweet.like_count,
+                "quoteCount": tweet.quote_count,
+                "viewCount": tweet.view_count,
+                "createdAt": tweet.created_at.isoformat() if tweet.created_at else None,
+            }.items()
+            if v is not None
+        }
 
     def _tweet_to_min_dict(self, tweet: Tweet) -> dict[str, Any]:
         """Convert Tweet model to minimized dict."""

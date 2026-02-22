@@ -4,7 +4,6 @@ import pytest
 
 
 @pytest.mark.asyncio
-
 async def test_hybrid_search_via_rest(rest_client) -> None:
     config, client = rest_client
     payload = {"query": "machine learning", "max_results": 3}
@@ -22,7 +21,6 @@ async def test_hybrid_search_via_rest(rest_client) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-
 async def test_hybrid_search_requires_payment(rest_client) -> None:
     config, client = rest_client
     payload = {"query": "machine learning", "max_results": 3}
@@ -42,7 +40,6 @@ async def test_hybrid_search_requires_payment(rest_client) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-
 async def test_hybrid_search_succeeds_with_x402(paid_client) -> None:
     config, client = paid_client
     payload = {"query": "machine learning", "max_results": 3}
@@ -65,7 +62,6 @@ async def test_hybrid_search_succeeds_with_x402(paid_client) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-
 async def test_hybrid_search_by_id_via_rest(rest_client) -> None:
     config, client = rest_client
     payload = {"arxiv_id": "1706.03762"}
@@ -92,7 +88,6 @@ async def test_hybrid_search_by_id_via_rest(rest_client) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-
 async def test_hybrid_search_by_id_succeeds_with_x402(paid_client) -> None:
     config, client = paid_client
     payload = {"arxiv_id": "1706.03762"}

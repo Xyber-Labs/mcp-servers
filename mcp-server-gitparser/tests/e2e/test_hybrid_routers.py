@@ -12,8 +12,6 @@ Note: For simplicity, we test parse-gitbook since both parse endpoints have simi
 from __future__ import annotations
 
 import pytest
-
-from mcp_server_gitparser.schemas import ConvertResponse, PricingResponse
 from e2e.config import load_e2e_config, require_base_url
 from e2e.utils import (
     call_mcp_tool,
@@ -26,6 +24,7 @@ from e2e.utils import (
     negotiate_mcp_session_id_with_client,
 )
 
+from mcp_server_gitparser.schemas import ConvertResponse, PricingResponse
 
 # =============================================================================
 # /hybrid/parse-gitbook - Priced endpoint
@@ -33,8 +32,6 @@ from e2e.utils import (
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_off
 async def test_hybrid_parse_gitbook_rest_pricing_off(rest_client) -> None:
     """Priced endpoint works via REST without payment when PRICING_MODE=off."""
@@ -50,8 +47,6 @@ async def test_hybrid_parse_gitbook_rest_pricing_off(rest_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_on
 async def test_hybrid_parse_gitbook_rest_no_payment(rest_client) -> None:
     """Priced endpoint returns 402 via REST when PRICING_MODE=on and no payment."""
@@ -65,8 +60,6 @@ async def test_hybrid_parse_gitbook_rest_no_payment(rest_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_on
 async def test_hybrid_parse_gitbook_rest_with_payment(paid_client) -> None:
     """Priced endpoint succeeds via REST when PRICING_MODE=on and payment provided."""
@@ -89,8 +82,6 @@ async def test_hybrid_parse_gitbook_rest_with_payment(paid_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_off
 async def test_hybrid_parse_gitbook_mcp_pricing_off() -> None:
     """Priced endpoint works via MCP without payment when PRICING_MODE=off."""
@@ -116,8 +107,6 @@ async def test_hybrid_parse_gitbook_mcp_pricing_off() -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_on
 async def test_hybrid_parse_gitbook_mcp_no_payment() -> None:
     """Priced endpoint returns 402 via MCP when PRICING_MODE=on and no payment."""
@@ -138,8 +127,6 @@ async def test_hybrid_parse_gitbook_mcp_no_payment() -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_on
 async def test_hybrid_parse_gitbook_mcp_with_payment(paid_client) -> None:
     """Priced endpoint succeeds via MCP when PRICING_MODE=on and payment provided."""
@@ -170,8 +157,6 @@ async def test_hybrid_parse_gitbook_mcp_with_payment(paid_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_off
 async def test_hybrid_parse_github_rest_pricing_off(rest_client) -> None:
     """Priced endpoint works via REST without payment when PRICING_MODE=off."""
@@ -192,8 +177,6 @@ async def test_hybrid_parse_github_rest_pricing_off(rest_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_on
 async def test_hybrid_parse_github_rest_no_payment(rest_client) -> None:
     """Priced endpoint returns 402 via REST when PRICING_MODE=on and no payment."""
@@ -212,8 +195,6 @@ async def test_hybrid_parse_github_rest_no_payment(rest_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_on
 async def test_hybrid_parse_github_rest_with_payment(paid_client) -> None:
     """Priced endpoint succeeds via REST when PRICING_MODE=on and payment provided."""
@@ -246,8 +227,6 @@ async def test_hybrid_parse_github_rest_with_payment(paid_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 async def test_hybrid_pricing_rest(rest_client) -> None:
     """Smoke test: /hybrid/pricing via REST (always free)."""
     config, client = rest_client
@@ -259,8 +238,6 @@ async def test_hybrid_pricing_rest(rest_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 async def test_hybrid_pricing_mcp() -> None:
     """Smoke test: pricing info via MCP (always free)."""
     config = load_e2e_config()

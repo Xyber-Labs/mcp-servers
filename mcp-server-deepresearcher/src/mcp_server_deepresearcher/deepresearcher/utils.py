@@ -12,7 +12,9 @@ def clean_response(response_text: str) -> str:
     """Clean the response text by removing markdown code block markers if present."""
     try:
         if isinstance(response_text, list):
-            logger.warning("clean_response received a list instead of string, extracting first element")
+            logger.warning(
+                "clean_response received a list instead of string, extracting first element"
+            )
             if len(response_text) > 0:
                 response_text = str(response_text[0])
             else:
@@ -142,7 +144,10 @@ def create_mcp_tasks(
             tasks.append(tool.coroutine(**request_data))
             task_names.append(tool.name)
             logger.info(f"  - Added task: {tool.name}")
-        elif tool.name in ["apidojo-slash-tweet-scraper", "apidojo-slash-twitter-scraper-lite"]:
+        elif tool.name in [
+            "apidojo-slash-tweet-scraper",
+            "apidojo-slash-twitter-scraper-lite",
+        ]:
             logger.info(f"  - Adding task: {tool.name}")
             twitter_query = simplified_search_query or search_query
 
@@ -202,7 +207,9 @@ def filter_mcp_tools_for_deepresearcher(mcp_tools: list[Any]) -> list[Any]:
             "extract_transcripts",
             "youtube_search_and_transcript",
         }
-        filtered = [t for t in mcp_tools if getattr(t, "name", None) not in youtube_extras]
+        filtered = [
+            t for t in mcp_tools if getattr(t, "name", None) not in youtube_extras
+        ]
         return filtered
 
     return mcp_tools
@@ -237,7 +244,9 @@ def _extract_title_near_url(content_str: str, url: str, max_distance: int = 500)
     return ""
 
 
-def extract_sources_from_raw_content(content: Any, source_name: str) -> list[dict[str, str]]:
+def extract_sources_from_raw_content(
+    content: Any, source_name: str
+) -> list[dict[str, str]]:
     """Generic source extractor that looks for URLs in raw content."""
     sources = []
 
@@ -269,11 +278,13 @@ def extract_sources_from_raw_content(content: Any, source_name: str) -> list[dic
                     t = item.get("title") or item.get("name") or item.get("text", "")
                     if not t or t == "N/A":
                         t = ""
-                    sources.append({
-                        "name": source_name,
-                        "title": str(t).strip()[:200] if t else "",
-                        "url": u.strip(),
-                    })
+                    sources.append(
+                        {
+                            "name": source_name,
+                            "title": str(t).strip()[:200] if t else "",
+                            "url": u.strip(),
+                        }
+                    )
     elif isinstance(content, dict):
         found_structured = False
         for key in ["results", "videos", "papers", "data", "items", "tweets", "result"]:
@@ -289,14 +300,20 @@ def extract_sources_from_raw_content(content: Any, source_name: str) -> list[dic
                             or item.get("tweet_url")
                         )
                         if u and isinstance(u, str):
-                            t = item.get("title") or item.get("name") or item.get("text", "")
+                            t = (
+                                item.get("title")
+                                or item.get("name")
+                                or item.get("text", "")
+                            )
                             if not t or t == "N/A":
                                 t = ""
-                            sources.append({
-                                "name": source_name,
-                                "title": str(t).strip()[:200] if t else "",
-                                "url": u.strip(),
-                            })
+                            sources.append(
+                                {
+                                    "name": source_name,
+                                    "title": str(t).strip()[:200] if t else "",
+                                    "url": u.strip(),
+                                }
+                            )
                 found_structured = True
                 break
 
@@ -309,14 +326,20 @@ def extract_sources_from_raw_content(content: Any, source_name: str) -> list[dic
                 or content.get("tweet_url")
             )
             if u and isinstance(u, str):
-                t = content.get("title") or content.get("name") or content.get("text", "")
+                t = (
+                    content.get("title")
+                    or content.get("name")
+                    or content.get("text", "")
+                )
                 if not t or t == "N/A":
                     t = ""
-                sources.append({
-                    "name": source_name,
-                    "title": str(t).strip()[:200] if t else "",
-                    "url": u.strip(),
-                })
+                sources.append(
+                    {
+                        "name": source_name,
+                        "title": str(t).strip()[:200] if t else "",
+                        "url": u.strip(),
+                    }
+                )
 
     patterns = [
         r'"video_url"\s*:\s*"([^"]+)"',
@@ -363,11 +386,15 @@ def deduplicate_sources(sources: list[dict[str, str]]) -> list[dict[str, str]]:
                 seen_titles.add(title_normalized)
                 unique_sources.append(source)
 
-    logger.info(f"Deduplicated {len(sources)} sources to {len(unique_sources)} unique sources")
+    logger.info(
+        f"Deduplicated {len(sources)} sources to {len(unique_sources)} unique sources"
+    )
     return unique_sources
 
 
-def format_sources(sources: list[dict[str, str]], include_source_name: bool = False) -> str:
+def format_sources(
+    sources: list[dict[str, str]], include_source_name: bool = False
+) -> str:
     """Formats a list of source dictionaries into a numbered string."""
     if not sources:
         return "No valid sources found."

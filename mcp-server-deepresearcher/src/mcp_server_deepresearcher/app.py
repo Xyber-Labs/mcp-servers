@@ -64,7 +64,9 @@ async def app_lifespan(app: FastAPI):
         mcp_client = McpClient.from_config(mcp_config)
 
         if mcp_config.servers:
-            logger.info(f"MCP client initialized with {len(mcp_config.servers)} server(s): {list(mcp_config.servers.keys())}")
+            logger.info(
+                f"MCP client initialized with {len(mcp_config.servers)} server(s): {list(mcp_config.servers.keys())}"
+            )
         else:
             logger.warning("No MCP servers configured. Set MCP_SERVERS env var.")
 
@@ -73,7 +75,9 @@ async def app_lifespan(app: FastAPI):
         mcp_tools = filter_mcp_tools_for_deepresearcher(mcp_tools)
 
         tools_description_yaml = construct_tools_description_yaml(mcp_tools, {})
-        tools_description_dicts = parse_tools_description_from_yaml(tools_description_yaml)
+        tools_description_dicts = parse_tools_description_from_yaml(
+            tools_description_yaml
+        )
         tools_description = [ToolDescription(**d) for d in tools_description_dicts]
 
         logger.info(f"Tools description built: {len(tools_description)} tools")
@@ -86,7 +90,9 @@ async def app_lifespan(app: FastAPI):
                 database = Database(db_url=db_config.url)
                 logger.info("Database initialized successfully.")
             except Exception as e:
-                logger.warning(f"Failed to connect to database: {e}. Reports will not be persisted")
+                logger.warning(
+                    f"Failed to connect to database: {e}. Reports will not be persisted"
+                )
         else:
             logger.info("Database not configured. Reports API will be unavailable.")
 

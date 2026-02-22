@@ -84,5 +84,3 @@ def test_run_returns_raw_items_when_output_format_max(monkeypatch) -> None:
 
     items = s.run(TwitterScraperInput(searchTerms=["hi"]))
     assert items == fake_items
-
-

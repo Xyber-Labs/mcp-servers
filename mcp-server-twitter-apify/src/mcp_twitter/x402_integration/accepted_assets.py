@@ -226,12 +226,15 @@ def register_custom_evm_networks() -> None:
         registered.append(network)
 
     if registered:
-        logger.info(f"Registered {len(registered)} custom network(s) with x402: {', '.join(registered)}")
+        logger.info(
+            f"Registered {len(registered)} custom network(s) with x402: {', '.join(registered)}"
+        )
 
 
 # =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================
+
 
 def usd_to_token_amount(usd_price: float, decimals: int) -> int:
     """
@@ -249,6 +252,7 @@ def usd_to_token_amount(usd_price: float, decimals: int) -> int:
         100
         >>> usd_to_token_amount(1.0, 6)  # 1 USD with 6 decimals
         1000000
+
     """
     # Assuming 1:1 USD stablecoin peg
-    return int(usd_price * (10 ** decimals))
+    return int(usd_price * (10**decimals))

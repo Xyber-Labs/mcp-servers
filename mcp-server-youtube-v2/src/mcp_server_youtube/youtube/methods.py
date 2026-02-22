@@ -150,6 +150,7 @@ class DatabaseManager:
 
         Returns:
             True if successful, False otherwise
+
         """
         session = self.get_session()
         try:
@@ -227,6 +228,7 @@ class DatabaseManager:
 
         Returns:
             Dictionary mapping video_id to boolean (True if transcript exists and is successful)
+
         """
         videos = self.batch_get_videos(video_ids)
         return {

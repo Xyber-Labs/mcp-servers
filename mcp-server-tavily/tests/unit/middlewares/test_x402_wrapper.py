@@ -12,7 +12,7 @@ from httpx import ASGITransport, AsyncClient
 from x402.client import PaymentRequired as x402PaymentRequiredResponse
 from x402.client import x402Client
 from x402.http import FacilitatorConfig
-from x402.schemas import PaymentPayload, PaymentRequired, PaymentRequirements
+from x402.schemas import PaymentPayload, PaymentRequirements
 
 from mcp_server_tavily.middlewares import X402WrapperMiddleware
 from mcp_server_tavily.x402_integration.config import PaymentOptionConfig

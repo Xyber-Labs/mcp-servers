@@ -7,9 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from mcp_server_weather.config import AppSettings
 from mcp_server_weather.x402_integration.config import PaymentOptionConfig, X402Config
-
 
 # =============================================================================
 # Feature 1: USD to Token Amount Conversion
@@ -228,7 +226,9 @@ class TestToolPricingYamlValidation:
 
     def test_payment_option_missing_required_fields_skipped(self, tmp_path: Path):
         """Payment option missing required fields is skipped with warning."""
-        yaml_content = {"endpoint": [{"chain_id": 8453}]}  # missing token_address and price_usd
+        yaml_content = {
+            "endpoint": [{"chain_id": 8453}]
+        }  # missing token_address and price_usd
         yaml_file = tmp_path / "tool_pricing.yaml"
         yaml_file.write_text(yaml.dump(yaml_content))
 
@@ -304,7 +304,9 @@ class TestFacilitatorUrlParsing:
 
     def test_no_facilitator_returns_empty_list(self):
         """No facilitator configured returns empty list."""
-        config = X402Config(facilitator_urls=None, pricing_config_path=Path("/nonexistent"))
+        config = X402Config(
+            facilitator_urls=None, pricing_config_path=Path("/nonexistent")
+        )
 
         assert config.facilitator_config == []
 
@@ -355,7 +357,9 @@ class TestPricingModeValidation:
         with caplog.at_level("WARNING"):
             config.validate_pricing_mode()
 
-        assert "pricing_mode" in caplog.text.lower() or "disabled" in caplog.text.lower()
+        assert (
+            "pricing_mode" in caplog.text.lower() or "disabled" in caplog.text.lower()
+        )
 
     def test_pricing_mode_on_with_config_passes(self, tmp_path: Path, caplog):
         """pricing_mode='on' with pricing config passes validation."""
@@ -481,9 +485,15 @@ class TestPayeeAddressSelection:
         )
 
         # Base (EVM)
-        assert config.get_payee_address("eip155:8453") == "0x1234567890123456789012345678901234567890"
+        assert (
+            config.get_payee_address("eip155:8453")
+            == "0x1234567890123456789012345678901234567890"
+        )
         # Polygon (EVM)
-        assert config.get_payee_address("eip155:137") == "0x1234567890123456789012345678901234567890"
+        assert (
+            config.get_payee_address("eip155:137")
+            == "0x1234567890123456789012345678901234567890"
+        )
 
     def test_returns_solana_address_for_solana_networks(self):
         """Solana networks return payee_solana_address."""
@@ -507,4 +517,6 @@ class TestPayeeAddressSelection:
         )
 
         assert config.get_payee_address("eip155:8453") is None
-        assert config.get_payee_address("solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp") is None
+        assert (
+            config.get_payee_address("solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp") is None
+        )

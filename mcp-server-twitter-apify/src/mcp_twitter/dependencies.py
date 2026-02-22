@@ -19,7 +19,8 @@ class DependencyContainer:
         # In app.py lifespan:
         db = try_init_database()  # May return None
         DependencyContainer.create(apify_token=token, actor_name=name, database=db)
-        yield
+
+    Yield:
         DependencyContainer.clear()
 
         # In route handlers via Depends():
@@ -36,7 +37,11 @@ class DependencyContainer:
 
     @classmethod
     def create(
-        cls, *, apify_token: str, actor_name: str, database: CacheRepository | None = None
+        cls,
+        *,
+        apify_token: str,
+        actor_name: str,
+        database: CacheRepository | None = None,
     ) -> None:
         """Store all dependencies (call from lifespan startup)."""
         logger.info("Initializing dependencies...")

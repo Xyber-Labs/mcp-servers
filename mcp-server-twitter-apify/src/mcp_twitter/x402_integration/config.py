@@ -44,7 +44,9 @@ class PaymentOptionConfig(BaseModel):
 
     chain_id: int | str
     token_address: str
-    price_usd: float = Field(gt=0, description="Price in USD (e.g., 0.0001 for $0.0001)")
+    price_usd: float = Field(
+        gt=0, description="Price in USD (e.g., 0.0001 for $0.0001)"
+    )
 
     def validate_config(self) -> None:
         """Validate the payment option configuration after model construction."""
@@ -79,6 +81,7 @@ class PaymentOptionConfig(BaseModel):
 
         Raises:
             ValueError: If network or token is not found (validation happens in validate_config)
+
         """
         # Get CAIP-2 network identifier
         network = CHAIN_ID_TO_NETWORK.get(self.chain_id)
@@ -140,7 +143,7 @@ class X402Config(BaseSettings):
     # Multi-facilitator support - JSON array of URLs
     facilitator_urls: list[str] | None = Field(
         default=None,
-        description="JSON array of facilitator URLs for multi-chain support"
+        description="JSON array of facilitator URLs for multi-chain support",
     )
 
     # EVM wallet address (0x...) - used for Base, Avalanche, SKALE Base, BNB Chain
@@ -162,12 +165,14 @@ class X402Config(BaseSettings):
     @field_validator("facilitator_urls", mode="before")
     @classmethod
     def parse_facilitator_urls(cls, v: str | list[str] | None) -> list[str] | None:
-        """Parse JSON array string from environment variable to list of URLs.
+        """
+        Parse JSON array string from environment variable to list of URLs.
 
         Examples:
             '["https://facilitator.payai.network","https://api.x402.unibase.com/v2"]'
             ["url1", "url2"]  # Already a list
             None
+
         """
         if v is None:
             return None
@@ -196,10 +201,12 @@ class X402Config(BaseSettings):
     @computed_field
     @property
     def facilitator_config(self) -> list[FacilitatorConfig]:
-        """Creates list of facilitator configurations from facilitator_urls.
+        """
+        Creates list of facilitator configurations from facilitator_urls.
 
         Returns:
             List of FacilitatorConfig objects, or empty list if none configured
+
         """
         configs: list[FacilitatorConfig] = []
 

@@ -264,7 +264,7 @@ class YouTubeVideoSearchAndTranscript:
                 results.append(result)
 
             # Sort by likes (descending)
-            results.sort(key=lambda x: (x.likes or 0), reverse=True)
+            results.sort(key=lambda x: x.likes or 0, reverse=True)
             logger.info(
                 f"✅ Search completed: {len(results)} videos found (sorted by likes)"
             )

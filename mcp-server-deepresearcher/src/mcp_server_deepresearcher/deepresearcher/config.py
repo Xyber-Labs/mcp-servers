@@ -27,7 +27,9 @@ class DatabaseConfig(BaseSettings):
     @property
     def is_configured(self) -> bool:
         """Check if all required database fields are set."""
-        return all([self.db_name, self.db_user, self.db_password, self.db_host, self.db_port])
+        return all(
+            [self.db_name, self.db_user, self.db_password, self.db_host, self.db_port]
+        )
 
     @property
     def url(self) -> str | None:

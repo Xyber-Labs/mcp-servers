@@ -81,7 +81,9 @@ class AppSettings(BaseSettings):
         Returns None if any required field is missing, allowing the service
         to run without database caching.
         """
-        if not all([self.db_name, self.db_user, self.db_password, self.db_host, self.db_port]):
+        if not all(
+            [self.db_name, self.db_user, self.db_password, self.db_host, self.db_port]
+        ):
             return None
 
         url = f"postgresql+psycopg://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"

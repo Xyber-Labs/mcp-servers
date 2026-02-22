@@ -156,7 +156,9 @@ def extract_mcp_result(response: httpx.Response) -> dict[str, Any]:
     """
     import json
 
-    assert response.status_code == 200, f"MCP request failed with status {response.status_code}"
+    assert response.status_code == 200, (
+        f"MCP request failed with status {response.status_code}"
+    )
 
     response_text = response.text
     if response_text.startswith("event:"):
@@ -165,11 +167,15 @@ def extract_mcp_result(response: httpx.Response) -> dict[str, Any]:
                 body = json.loads(line[5:].strip())
                 break
         else:
-            raise AssertionError(f"No data line found in SSE response: {response_text[:200]}")
+            raise AssertionError(
+                f"No data line found in SSE response: {response_text[:200]}"
+            )
     else:
         body = response.json()
 
-    assert "error" not in body or body.get("error") is None, f"MCP protocol error: {body.get('error')}"
+    assert "error" not in body or body.get("error") is None, (
+        f"MCP protocol error: {body.get('error')}"
+    )
     assert "result" in body, "MCP response missing 'result' field"
 
     return body["result"]

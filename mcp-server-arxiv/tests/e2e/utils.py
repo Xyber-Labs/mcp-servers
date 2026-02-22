@@ -141,4 +141,3 @@ async def call_mcp_tool_with_client(
         "mcp-session-id": session_id,
     }
     return await client.post("/mcp/", json=payload, headers=headers)
-

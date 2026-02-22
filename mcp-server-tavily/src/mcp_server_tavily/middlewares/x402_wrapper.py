@@ -76,8 +76,7 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
         if facilitator_configs:
             # Create client for each facilitator
             self.facilitators = [
-                HTTPFacilitatorClient(config)
-                for config in facilitator_configs
+                HTTPFacilitatorClient(config) for config in facilitator_configs
             ]
 
             # Pass all clients to server (SDK handles routing by chain)
@@ -86,7 +85,9 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
             # Initialize server (queries all facilitators for supported chains)
             self.server.initialize()
 
-            logger.info(f"Initialized x402 with {len(self.facilitators)} facilitator(s):")
+            logger.info(
+                f"Initialized x402 with {len(self.facilitators)} facilitator(s):"
+            )
             for client in self.facilitators:
                 logger.info(f"  - {client._url}")
             # Register schemes for all configured networks AFTER initialize
@@ -185,7 +186,9 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
                 selected_req.pay_to,
             )
             logger.debug("Payment payload: %s", payment.model_dump_json(by_alias=True))
-            logger.debug("Requirements: %s", selected_req.model_dump_json(by_alias=True))
+            logger.debug(
+                "Requirements: %s", selected_req.model_dump_json(by_alias=True)
+            )
 
             verify_response = await self._verify_with_retry(
                 payment,
@@ -251,7 +254,9 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
             network = getattr(settle_response, "network", None) or ""
             if tx_hash:
                 # selected_req.network is already CAIP-2 format like "eip155:8453"
-                explorer_base = CUSTOM_NETWORKS.get(selected_req.network, {}).get("explorer_url", "")
+                explorer_base = CUSTOM_NETWORKS.get(selected_req.network, {}).get(
+                    "explorer_url", ""
+                )
                 explorer_url = f"{explorer_base}{tx_hash}" if explorer_base else ""
 
                 logger.info(

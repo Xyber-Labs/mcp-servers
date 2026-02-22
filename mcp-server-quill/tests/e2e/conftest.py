@@ -5,14 +5,13 @@ import json
 
 import httpx
 import pytest_asyncio
+from config import load_e2e_config, require_base_url, require_wallet
 from eth_account import Account
 from x402.client import x402Client
 from x402.http.clients import x402HttpxClient
 from x402.mechanisms.evm.exact import register_exact_evm_client
 from x402.mechanisms.evm.signers import EthAccountSigner
 from x402.mechanisms.evm.utils import NETWORK_CONFIGS
-
-from config import load_e2e_config, require_base_url, require_wallet
 
 # Register SKALE Base network (not yet in x402 library)
 if "eip155:1187947933" not in NETWORK_CONFIGS:

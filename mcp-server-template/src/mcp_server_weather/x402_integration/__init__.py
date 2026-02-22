@@ -1,4 +1,5 @@
-"""x402 payment integration for MCP servers.
+"""
+x402 payment integration for MCP servers.
 
 This package encapsulates all x402 payment protocol functionality including:
 - Blockchain network configuration and constants

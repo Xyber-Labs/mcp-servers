@@ -1,6 +1,5 @@
 """Test cases for hangman MCP server tools."""
 
-
 import pytest
 from fastapi import FastAPI, HTTPException
 from httpx import ASGITransport, AsyncClient

@@ -4,6 +4,7 @@ FastAPI dependencies for accessing shared resources from app state.
 Main responsibility: Provide a single place to access all service clients used by the application.
 Lifecycle is managed externally (in lifespan) following dependency injection principles.
 """
+
 from __future__ import annotations
 
 import logging
@@ -14,8 +15,9 @@ from langchain_core.language_models import BaseChatModel
 from mcp_server_deepresearcher.deepresearcher.state import ToolDescription
 
 if TYPE_CHECKING:
-    from mcp_server_deepresearcher.db.database import Database
     from xyber_sdk.mcp_client import McpClient
+
+    from mcp_server_deepresearcher.db.database import Database
 
 logger = logging.getLogger(__name__)
 
@@ -33,13 +35,15 @@ class DependencyContainer:
             tools_description=tools_description,
             database=db,  # Can be None if not configured
         )
-        yield
+
+    Yield:
         DependencyContainer.clear()
 
         # In route handlers via Depends():
         @router.get("/reports")
         async def get_reports(db: Database | None = Depends(get_database)):
             ...
+
     """
 
     _llm: BaseChatModel | None = None

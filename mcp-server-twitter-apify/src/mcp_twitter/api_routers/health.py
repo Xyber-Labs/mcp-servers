@@ -5,6 +5,7 @@ from fastapi import APIRouter
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+
 @router.get(
     "/health",
     operation_id="get_server_health",

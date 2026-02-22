@@ -2,7 +2,6 @@
 BaseModels for capturing external YouTube API responses.
 """
 
-
 from pydantic import BaseModel
 
 

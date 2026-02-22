@@ -26,8 +26,13 @@ class TestBlockExplorers:
     def test_all_explorer_urls_are_valid(self):
         """Test that all explorer URLs are properly formatted."""
         for network, url in BLOCK_EXPLORERS.items():
-            assert url.startswith("https://"), f"Explorer URL for {network} should use HTTPS"
-            assert url.endswith("/tx/"), f"Explorer URL for {network} should end with /tx/"
+            assert url.startswith("https://"), (
+                f"Explorer URL for {network} should use HTTPS"
+            )
+            assert url.endswith("/tx/"), (
+                f"Explorer URL for {network} should end with /tx/"
+            )
+
 
 class TestUsdToTokenAmount:
     """Tests for usd_to_token_amount conversion function."""

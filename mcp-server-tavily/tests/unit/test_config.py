@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 import yaml
@@ -95,8 +94,16 @@ class TestX402ConfigPricing:
         """Endpoint can have multiple payment options (different chains)."""
         yaml_content = {
             "multi_chain_endpoint": [
-                {"chain_id": 8453, "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "price_usd": 0.0001},
-                {"chain_id": 43114, "token_address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E", "price_usd": 0.0002},
+                {
+                    "chain_id": 8453,
+                    "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                    "price_usd": 0.0001,
+                },
+                {
+                    "chain_id": 43114,
+                    "token_address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+                    "price_usd": 0.0002,
+                },
             ]
         }
         yaml_file = tmp_path / "tool_pricing.yaml"
@@ -314,7 +321,13 @@ class TestValidateAgainstRoutes:
     def test_validate_correctly_configured(self, tmp_path: Path, caplog):
         """Logs correctly configured endpoints."""
         yaml_content = {
-            "endpoint_a": [{"chain_id": 8453, "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "price_usd": 0.0001}]
+            "endpoint_a": [
+                {
+                    "chain_id": 8453,
+                    "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                    "price_usd": 0.0001,
+                }
+            ]
         }
         yaml_file = tmp_path / "tool_pricing.yaml"
         yaml_file.write_text(yaml.dump(yaml_content))
@@ -331,7 +344,11 @@ class TestValidateAgainstRoutes:
         """Warns about priced endpoints that don't exist."""
         yaml_content = {
             "typo_endpoint": [
-                {"chain_id": 8453, "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "price_usd": 0.0001}
+                {
+                    "chain_id": 8453,
+                    "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                    "price_usd": 0.0001,
+                }
             ]
         }
         yaml_file = tmp_path / "tool_pricing.yaml"

@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-import os
-
-import pytest
-
 
 class TestDatabaseSettings:
     """Tests for DatabaseSettings class."""
@@ -63,7 +59,10 @@ class TestDatabaseSettings:
         from mcp_twitter.config import DatabaseSettings
 
         settings = DatabaseSettings()
-        assert settings.database_url == "postgresql+psycopg://myuser:mypass@myhost:5433/mydb"
+        assert (
+            settings.database_url
+            == "postgresql+psycopg://myuser:mypass@myhost:5433/mydb"
+        )
 
     def test_database_url_none_when_not_configured(self, monkeypatch):
         """Verify database_url returns None when not configured."""

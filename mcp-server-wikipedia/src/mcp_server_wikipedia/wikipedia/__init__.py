@@ -2,14 +2,14 @@
 
 from mcp_server_wikipedia.wikipedia.config import WikipediaConfig
 from mcp_server_wikipedia.wikipedia.models import (
-                                                   ArticleNotFoundError,
-                                                   WikipediaAPIError,
-                                                   WikipediaConfigError,
-                                                   WikipediaServiceError,
+    ArticleNotFoundError,
+    WikipediaAPIError,
+    WikipediaConfigError,
+    WikipediaServiceError,
 )
 from mcp_server_wikipedia.wikipedia.module import (
-                                                   _WikipediaService,
-                                                   get_wikipedia_service,
+    _WikipediaService,
+    get_wikipedia_service,
 )
 
 __all__ = [

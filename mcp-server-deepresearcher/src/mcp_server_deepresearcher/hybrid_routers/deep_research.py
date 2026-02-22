@@ -15,8 +15,14 @@ from mcp_server_deepresearcher.deepresearcher.config import (
     get_researcher_config,
 )
 from mcp_server_deepresearcher.deepresearcher.graph import DeepResearcher
-from mcp_server_deepresearcher.deepresearcher.utils import filter_mcp_tools_for_deepresearcher
-from mcp_server_deepresearcher.dependencies import DependencyContainer, get_database, get_research_resources
+from mcp_server_deepresearcher.deepresearcher.utils import (
+    filter_mcp_tools_for_deepresearcher,
+)
+from mcp_server_deepresearcher.dependencies import (
+    DependencyContainer,
+    get_database,
+    get_research_resources,
+)
 from mcp_server_deepresearcher.schemas import DeepResearchRequest
 
 # Langfuse

@@ -2,7 +2,6 @@
 Logging configuration for MCP Quill.
 """
 
-
 from mcp_server_quill.config import get_app_settings
 
 

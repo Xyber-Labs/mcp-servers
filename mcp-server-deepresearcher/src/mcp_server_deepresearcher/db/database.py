@@ -41,7 +41,6 @@ class Database:
             retry_delay: Initial delay between retries in seconds (exponential backoff)
 
         """
-
         self.engine = None
         self.Session: sessionmaker[Session] | None = None
 

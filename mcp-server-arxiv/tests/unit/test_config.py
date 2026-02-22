@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 import yaml
@@ -90,8 +89,16 @@ class TestX402ConfigPricing:
         """Endpoint can have multiple payment options (different chains)."""
         yaml_content = {
             "multi_chain_endpoint": [
-                {"chain_id": 8453, "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "price_usd": 0.0001},
-                {"chain_id": 137, "token_address": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359", "price_usd": 0.0002},
+                {
+                    "chain_id": 8453,
+                    "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                    "price_usd": 0.0001,
+                },
+                {
+                    "chain_id": 137,
+                    "token_address": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+                    "price_usd": 0.0002,
+                },
             ]
         }
         yaml_file = tmp_path / "tool_pricing.yaml"
@@ -166,7 +173,9 @@ class TestX402ConfigPricing:
         with pytest.raises(ValueError, match="Each endpoint must map to a list"):
             _ = config.pricing
 
-    def test_pricing_missing_required_option_field_logs_warning(self, tmp_path: Path, caplog):
+    def test_pricing_missing_required_option_field_logs_warning(
+        self, tmp_path: Path, caplog
+    ):
         """Payment option missing required field logs warning and skips entry."""
         yaml_content = {
             "endpoint": [
@@ -301,7 +310,13 @@ class TestValidateAgainstRoutes:
     def test_validate_correctly_configured(self, tmp_path: Path, caplog):
         """Logs correctly configured endpoints."""
         yaml_content = {
-            "endpoint_a": [{"chain_id": 1, "token_address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "price_usd": 0.0001}]
+            "endpoint_a": [
+                {
+                    "chain_id": 1,
+                    "token_address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+                    "price_usd": 0.0001,
+                }
+            ]
         }
         yaml_file = tmp_path / "tool_pricing.yaml"
         yaml_file.write_text(yaml.dump(yaml_content))
@@ -318,7 +333,11 @@ class TestValidateAgainstRoutes:
         """Warns about priced endpoints that don't exist (when using valid chain_id)."""
         yaml_content = {
             "typo_endpoint": [
-                {"chain_id": 8453, "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "price_usd": 0.0001}
+                {
+                    "chain_id": 8453,
+                    "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                    "price_usd": 0.0001,
+                }
             ]
         }
         yaml_file = tmp_path / "tool_pricing.yaml"

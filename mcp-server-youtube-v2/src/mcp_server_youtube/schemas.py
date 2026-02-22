@@ -2,7 +2,6 @@
 Pydantic schemas for request/response models.
 """
 
-
 from pydantic import BaseModel, ConfigDict, Field
 
 

@@ -118,7 +118,8 @@ async def search_profile(
         description="Max time to wait for the search to finish (seconds).",
     ),
 ) -> list[ProfileBatchResult]:
-    """Search tweets from one or more user profiles.
+    """
+    Search tweets from one or more user profiles.
 
     - Single user: `{"usernames": ["elonmusk"], "max_items": 10}`
     - Multiple users: `{"usernames": ["elonmusk", "jack"], "max_items": 10}`

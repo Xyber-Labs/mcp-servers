@@ -2,9 +2,9 @@ import logging
 from functools import lru_cache
 from typing import Any
 
-import wikipedia
 import wikipediaapi
 
+import wikipedia
 from mcp_server_wikipedia.wikipedia.config import WikipediaConfig
 from mcp_server_wikipedia.wikipedia.models import (
     ArticleNotFoundError,

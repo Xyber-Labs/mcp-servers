@@ -123,4 +123,3 @@ class PaymentTrackingClient:
     async def patch(self, *args, **kwargs):
         response = await self._client.patch(*args, **kwargs)
         return await self._track_payment(response)
-

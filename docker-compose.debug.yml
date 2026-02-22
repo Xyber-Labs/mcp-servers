@@ -239,7 +239,8 @@ services:
       target: dev
     image: mcp_server_youtube_debug
     container_name: mcp_server_youtube_debug
-    command: ["python", "-m", "mcp_server_youtube", "--port", "8114", "--reload"]
+    command: ["python", "-Xfrozen_modules=off", "-m", "debugpy", "--listen", "0.0.0.0:5714", "--wait-for-client", "-m", "mcp_server_youtube", "--port", "8114", "--reload"]
+    # command: ["python", "-m", "mcp_server_youtube", "--port", "8114", "--reload"]
     ports:
       - "8114:8114"
       - "5714:5714"

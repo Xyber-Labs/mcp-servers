@@ -2,7 +2,7 @@
 Tests for REST API endpoints.
 """
 
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -39,8 +39,8 @@ class TestSearchEndpoint:
         from mcp_server_youtube.dependencies import get_youtube_service_search_only
 
         mock_youtube_client.search_videos = AsyncMock(return_value=sample_videos_models)
-        app.dependency_overrides[get_youtube_service_search_only] = (
-            lambda: mock_youtube_client
+        app.dependency_overrides[get_youtube_service_search_only] = lambda: (
+            mock_youtube_client
         )
 
         client = TestClient(app)
@@ -65,8 +65,8 @@ class TestSearchEndpoint:
         from mcp_server_youtube.dependencies import get_youtube_service_search_only
 
         mock_youtube_client.search_videos = AsyncMock(return_value=[])
-        app.dependency_overrides[get_youtube_service_search_only] = (
-            lambda: mock_youtube_client
+        app.dependency_overrides[get_youtube_service_search_only] = lambda: (
+            mock_youtube_client
         )
 
         client = TestClient(app)
@@ -93,8 +93,8 @@ class TestSearchEndpoint:
         from mcp_server_youtube.dependencies import get_youtube_service_search_only
 
         mock_youtube_client.search_videos = AsyncMock(return_value=[sample_video_model])
-        app.dependency_overrides[get_youtube_service_search_only] = (
-            lambda: mock_youtube_client
+        app.dependency_overrides[get_youtube_service_search_only] = lambda: (
+            mock_youtube_client
         )
 
         client = TestClient(app)
@@ -105,7 +105,9 @@ class TestSearchEndpoint:
             # Should use default max_results
             mock_youtube_client.search_videos.assert_called_once()
             call_args = mock_youtube_client.search_videos.call_args
-            assert call_args[1]["max_results"] == 5  # Default from schema (num_videos default)
+            assert (
+                call_args[1]["max_results"] == 5
+            )  # Default from schema (num_videos default)
         finally:
             app.dependency_overrides.clear()
 
@@ -114,15 +116,24 @@ class TestSearchTranscriptsEndpoint:
     """Test cases for search-transcripts endpoint."""
 
     def test_search_transcripts_endpoint_success(
-        self, app: FastAPI, mock_youtube_client: Mock, sample_videos_models, sample_transcript_result
+        self,
+        app: FastAPI,
+        mock_youtube_client: Mock,
+        sample_videos_models,
+        sample_transcript_result,
     ):
         """Test successful search and extract transcripts request."""
-        from mcp_server_youtube.dependencies import DependencyContainer, get_db_manager, get_youtube_service
+        from mcp_server_youtube.dependencies import (
+            get_db_manager,
+            get_youtube_service,
+        )
 
         # Mock search_videos to return YouTubeSearchResult models
         mock_youtube_client.search_videos = AsyncMock(return_value=sample_videos_models)
         # Mock get_transcript_safe to return ApifyTranscriptResult
-        mock_youtube_client.get_transcript_safe = AsyncMock(return_value=sample_transcript_result)
+        mock_youtube_client.get_transcript_safe = AsyncMock(
+            return_value=sample_transcript_result
+        )
 
         # Create mock db manager
         mock_db = MagicMock()
@@ -188,7 +199,9 @@ class TestExtractTranscriptsEndpoint:
         from mcp_server_youtube.dependencies import get_db_manager, get_youtube_service
 
         # Mock get_transcript_safe to return ApifyTranscriptResult
-        mock_youtube_client.get_transcript_safe = AsyncMock(return_value=sample_transcript_result)
+        mock_youtube_client.get_transcript_safe = AsyncMock(
+            return_value=sample_transcript_result
+        )
 
         mock_db = MagicMock()
         mock_db.batch_check_transcripts = Mock(return_value={})

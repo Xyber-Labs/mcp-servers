@@ -12,15 +12,12 @@ import pytest
 
 from mcp_server_lurky.schemas import PricingResponse, SearchResponseSchema
 
-
 # =============================================================================
 # /hybrid/pricing - Free endpoint
 # =============================================================================
 
 
 @pytest.mark.asyncio
-
-
 async def test_hybrid_pricing_rest(rest_client) -> None:
     """Smoke test: /hybrid/pricing via REST (always free)."""
     config, client = rest_client
@@ -38,8 +35,6 @@ async def test_hybrid_pricing_rest(rest_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_off
 async def test_hybrid_search_rest_pricing_off(rest_client) -> None:
     """Priced endpoint works via REST without payment when PRICING_MODE=off."""
@@ -54,8 +49,6 @@ async def test_hybrid_search_rest_pricing_off(rest_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_on
 async def test_hybrid_search_rest_no_payment(rest_client) -> None:
     """Priced endpoint returns 402 when PRICING_MODE=on and no payment provided."""
@@ -69,8 +62,6 @@ async def test_hybrid_search_rest_no_payment(rest_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_on
 async def test_hybrid_search_rest_with_payment(paid_client) -> None:
     """Priced endpoint succeeds when PRICING_MODE=on and payment provided."""

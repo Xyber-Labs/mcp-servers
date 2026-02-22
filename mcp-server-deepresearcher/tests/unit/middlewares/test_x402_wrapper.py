@@ -13,11 +13,11 @@ import pytest_asyncio
 from eth_account import Account
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from mcp_server_deepresearcher.x402_config import PaymentOption
 from x402.clients.base import x402Client
 from x402.types import PaymentPayload, PaymentRequirements, x402PaymentRequiredResponse
 
 from mcp_server_deepresearcher.middlewares import X402WrapperMiddleware
-from mcp_server_deepresearcher.x402_config import PaymentOption
 
 
 class DummyFacilitator:

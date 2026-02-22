@@ -74,15 +74,16 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
         if facilitator_configs := self.settings.facilitator_config:
             # Create client for each facilitator
             self.facilitators = [
-                HTTPFacilitatorClient(config)
-                for config in facilitator_configs
+                HTTPFacilitatorClient(config) for config in facilitator_configs
             ]
 
             # Pass all clients to server (SDK handles routing by chain)
             self.server = x402ResourceServer(self.facilitators)
             self.server.initialize()
 
-            logger.info(f"Initialized x402 with {len(self.facilitators)} facilitator(s):")
+            logger.info(
+                f"Initialized x402 with {len(self.facilitators)} facilitator(s):"
+            )
             for client in self.facilitators:
                 logger.info(f"  - {client._url}")
             # Register schemes for all configured networks AFTER initialize
@@ -220,7 +221,9 @@ class X402WrapperMiddleware(BaseHTTPMiddleware):
             network = getattr(settle_response, "network", None) or ""
             if tx_hash:
                 # Use selected_req.network (CAIP-2) for explorer lookup
-                explorer_base = CUSTOM_NETWORKS.get(selected_req.network, {}).get("explorer_url", "")
+                explorer_base = CUSTOM_NETWORKS.get(selected_req.network, {}).get(
+                    "explorer_url", ""
+                )
                 explorer_url = f"{explorer_base}{tx_hash}" if explorer_base else ""
 
                 logger.info(

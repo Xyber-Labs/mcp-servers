@@ -34,9 +34,7 @@ def get_base_url(url: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}{parsed.path.rstrip('/')}"
 
 
-async def fetch_llms_full(
-    session: aiohttp.ClientSession, base_url: str
-) -> str | None:
+async def fetch_llms_full(session: aiohttp.ClientSession, base_url: str) -> str | None:
     llm_url = f"{base_url}/llms-full.txt"
     logger.info("Checking for native LLM support at: %s", llm_url)
     try:

@@ -11,7 +11,11 @@ from __future__ import annotations
 
 import pytest
 
-from mcp_server_weather.schemas import ForecastResponse, PricingResponse, WeatherResponse
+from mcp_server_weather.schemas import (
+    ForecastResponse,
+    PricingResponse,
+    WeatherResponse,
+)
 from tests.e2e.config import load_e2e_config, require_base_url, require_weather_api_key
 from tests.e2e.utils import (
     call_mcp_tool,

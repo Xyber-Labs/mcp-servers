@@ -12,13 +12,17 @@ class TestQueryDefinitionCacheKey:
             id="1",
             type="topic",
             name="test",
-            input=TwitterScraperInput(searchTerms=["test"], maxItems=100, sort="Latest"),
+            input=TwitterScraperInput(
+                searchTerms=["test"], maxItems=100, sort="Latest"
+            ),
         )
         q2 = QueryDefinition(
             id="2",
             type="topic",
             name="different",
-            input=TwitterScraperInput(searchTerms=["test"], maxItems=100, sort="Latest"),
+            input=TwitterScraperInput(
+                searchTerms=["test"], maxItems=100, sort="Latest"
+            ),
         )
 
         # Same type + input = same key (id/name are ignored)
@@ -30,7 +34,9 @@ class TestQueryDefinitionCacheKey:
             id="1",
             type="topic",
             name="test",
-            input=TwitterScraperInput(searchTerms=["test"], maxItems=100, sort="Latest"),
+            input=TwitterScraperInput(
+                searchTerms=["test"], maxItems=100, sort="Latest"
+            ),
         )
         q2 = QueryDefinition(
             id="1",
@@ -46,8 +52,12 @@ class TestQueryDefinitionCacheKey:
         input_params = TwitterScraperInput(searchTerms=["test"], maxItems=100)
 
         q_topic = QueryDefinition(id="1", type="topic", name="t", input=input_params)
-        q_profile = QueryDefinition(id="2", type="profile", name="p", input=input_params)
-        q_replies = QueryDefinition(id="3", type="replies", name="r", input=input_params)
+        q_profile = QueryDefinition(
+            id="2", type="profile", name="p", input=input_params
+        )
+        q_replies = QueryDefinition(
+            id="3", type="replies", name="r", input=input_params
+        )
 
         assert q_topic.cache_key != q_profile.cache_key
         assert q_profile.cache_key != q_replies.cache_key

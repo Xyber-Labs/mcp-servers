@@ -37,7 +37,8 @@ class TopicSearchRequest(BaseModel):
 
 
 class ProfileSearchRequest(BaseModel):
-    """Request model for profile search (single or batch).
+    """
+    Request model for profile search (single or batch).
 
     Supports both single username and multiple usernames.
     Date filtering is optional - if not provided, returns latest tweets.
@@ -71,7 +72,9 @@ class ProfileSearchRequest(BaseModel):
     max_items: int = Field(
         10, ge=1, le=1000, description="Maximum items to fetch per username"
     )
-    from_date: date | None = Field(None, description="Start date (YYYY-MM-DD), inclusive")
+    from_date: date | None = Field(
+        None, description="Start date (YYYY-MM-DD), inclusive"
+    )
     to_date: date | None = Field(None, description="End date (YYYY-MM-DD), inclusive")
     lang: str = Field("en", description="Tweet language code")
     output_format: OutputFormat = Field("min", description="Output format: min or max")

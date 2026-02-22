@@ -10,7 +10,6 @@ def unique_collection_name() -> str:
     return f"e2e_test_collection_{uuid.uuid4().hex[:8]}"
 
 
-
 @pytest.mark.asyncio
 async def test_qdrant_full_workflow(
     subtests,
@@ -126,7 +125,6 @@ async def test_qdrant_full_workflow(
             print(f"\n[Find] Message: {results}")
 
 
-
 @pytest.mark.asyncio
 async def test_store_with_metadata_filters(
     subtests,
@@ -200,7 +198,6 @@ async def test_store_with_metadata_filters(
                         )
 
 
-
 @pytest.mark.asyncio
 async def test_find_nonexistent_collection(
     server_url: str,
@@ -240,7 +237,6 @@ async def test_find_nonexistent_collection(
         assert response.status_code in (400, 404, 500)
 
 
-
 @pytest.mark.asyncio
 async def test_get_collection_info_nonexistent(
     server_url: str,
@@ -262,7 +258,6 @@ async def test_get_collection_info_nonexistent(
     result = response.json()
     assert isinstance(result, dict), "Expected dict response"
     assert "error" in result, f"Expected error key in response: {result}"
-
 
 
 @pytest.mark.asyncio
@@ -289,7 +284,6 @@ async def test_store_validation_missing_information(
     )
 
 
-
 @pytest.mark.asyncio
 async def test_find_validation_missing_query(
     server_url: str,
@@ -312,7 +306,6 @@ async def test_find_validation_missing_query(
     assert response.status_code == 422, (
         f"Expected 422 for missing field, got {response.status_code}"
     )
-
 
 
 @pytest.mark.asyncio

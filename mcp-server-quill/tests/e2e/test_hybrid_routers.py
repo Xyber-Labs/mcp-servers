@@ -11,8 +11,6 @@ Test coverage:
 from __future__ import annotations
 
 import pytest
-
-from mcp_server_quill.schemas import PricingResponse, TokenSearchResponse, TokenSecurityResponse
 from config import load_e2e_config, require_base_url, require_quill_api_key
 from utils import (
     call_mcp_tool,
@@ -25,6 +23,12 @@ from utils import (
     negotiate_mcp_session_id_with_client,
 )
 
+from mcp_server_quill.schemas import (
+    PricingResponse,
+    TokenSearchResponse,
+    TokenSecurityResponse,
+)
+
 API_KEY_HEADER = "Quill-Api-Key"
 
 
@@ -34,8 +38,6 @@ API_KEY_HEADER = "Quill-Api-Key"
 
 
 @pytest.mark.asyncio
-
-
 async def test_hybrid_pricing_rest(rest_client) -> None:
     """Smoke test: /hybrid/pricing via REST (always free)."""
     config, client = rest_client
@@ -47,8 +49,6 @@ async def test_hybrid_pricing_rest(rest_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 async def test_hybrid_pricing_mcp() -> None:
     """Smoke test: pricing info via MCP (always free)."""
     config = load_e2e_config()
@@ -76,8 +76,6 @@ async def test_hybrid_pricing_mcp() -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_off
 async def test_hybrid_search_token_rest_pricing_off(rest_client) -> None:
     """Priced endpoint works via REST without payment when PRICING_MODE=off."""
@@ -91,8 +89,6 @@ async def test_hybrid_search_token_rest_pricing_off(rest_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_on
 async def test_hybrid_search_token_rest_no_payment(rest_client) -> None:
     """Priced endpoint returns 402 via REST when PRICING_MODE=on and no payment."""
@@ -105,8 +101,6 @@ async def test_hybrid_search_token_rest_no_payment(rest_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_on
 async def test_hybrid_search_token_rest_with_payment(paid_client) -> None:
     """Priced endpoint succeeds via REST when PRICING_MODE=on and payment provided."""
@@ -127,8 +121,6 @@ async def test_hybrid_search_token_rest_with_payment(paid_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_off
 async def test_hybrid_search_token_mcp_pricing_off() -> None:
     """Priced endpoint works via MCP without payment when PRICING_MODE=off."""
@@ -153,8 +145,6 @@ async def test_hybrid_search_token_mcp_pricing_off() -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_on
 async def test_hybrid_search_token_mcp_no_payment() -> None:
     """Priced endpoint returns 402 via MCP when PRICING_MODE=on and no payment."""
@@ -175,8 +165,6 @@ async def test_hybrid_search_token_mcp_no_payment() -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_on
 async def test_hybrid_search_token_mcp_with_payment(paid_client) -> None:
     """Priced endpoint succeeds via MCP when PRICING_MODE=on and payment provided."""
@@ -206,8 +194,6 @@ async def test_hybrid_search_token_mcp_with_payment(paid_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_off
 async def test_hybrid_evm_token_info_rest_pricing_off(rest_client) -> None:
     """Priced endpoint works via REST without payment when PRICING_MODE=off."""
@@ -226,8 +212,6 @@ async def test_hybrid_evm_token_info_rest_pricing_off(rest_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_on
 async def test_hybrid_evm_token_info_rest_no_payment(rest_client) -> None:
     """Priced endpoint returns 402 via REST when PRICING_MODE=on and no payment."""
@@ -245,8 +229,6 @@ async def test_hybrid_evm_token_info_rest_no_payment(rest_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_on
 async def test_hybrid_evm_token_info_rest_with_payment(paid_client) -> None:
     """Priced endpoint succeeds via REST when PRICING_MODE=on and payment provided."""
@@ -272,8 +254,6 @@ async def test_hybrid_evm_token_info_rest_with_payment(paid_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_off
 async def test_hybrid_evm_token_info_mcp_pricing_off() -> None:
     """Priced endpoint works via MCP without payment when PRICING_MODE=off."""
@@ -298,8 +278,6 @@ async def test_hybrid_evm_token_info_mcp_pricing_off() -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_on
 async def test_hybrid_evm_token_info_mcp_no_payment() -> None:
     """Priced endpoint returns 402 via MCP when PRICING_MODE=on and no payment."""
@@ -320,8 +298,6 @@ async def test_hybrid_evm_token_info_mcp_no_payment() -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_on
 async def test_hybrid_evm_token_info_mcp_with_payment(paid_client) -> None:
     """Priced endpoint succeeds via MCP when PRICING_MODE=on and payment provided."""
@@ -351,8 +327,6 @@ async def test_hybrid_evm_token_info_mcp_with_payment(paid_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_off
 async def test_hybrid_solana_token_info_rest_pricing_off(rest_client) -> None:
     """Priced endpoint works via REST without payment when PRICING_MODE=off."""
@@ -371,8 +345,6 @@ async def test_hybrid_solana_token_info_rest_pricing_off(rest_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_on
 async def test_hybrid_solana_token_info_rest_no_payment(rest_client) -> None:
     """Priced endpoint returns 402 via REST when PRICING_MODE=on and no payment."""
@@ -389,8 +361,6 @@ async def test_hybrid_solana_token_info_rest_no_payment(rest_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_on
 async def test_hybrid_solana_token_info_rest_with_payment(paid_client) -> None:
     """Priced endpoint succeeds via REST when PRICING_MODE=on and payment provided."""
@@ -416,8 +386,6 @@ async def test_hybrid_solana_token_info_rest_with_payment(paid_client) -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_off
 async def test_hybrid_solana_token_info_mcp_pricing_off() -> None:
     """Priced endpoint works via MCP without payment when PRICING_MODE=off."""
@@ -443,8 +411,6 @@ async def test_hybrid_solana_token_info_mcp_pricing_off() -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_on
 async def test_hybrid_solana_token_info_mcp_no_payment() -> None:
     """Priced endpoint returns 402 via MCP when PRICING_MODE=on and no payment."""
@@ -465,8 +431,6 @@ async def test_hybrid_solana_token_info_mcp_no_payment() -> None:
 
 
 @pytest.mark.asyncio
-
-
 @pytest.mark.payment_on
 async def test_hybrid_solana_token_info_mcp_with_payment(paid_client) -> None:
     """Priced endpoint succeeds via MCP when PRICING_MODE=on and payment provided."""

@@ -8,7 +8,6 @@ import pytest
 from fastapi import FastAPI
 
 from mcp_server_youtube.app import app_lifespan, create_app
-from mcp_server_youtube.youtube import YouTubeVideoSearchAndTranscript
 
 
 class TestAppLifespan:
@@ -19,8 +18,12 @@ class TestAppLifespan:
         """Test successful app lifespan initialization."""
         mock_app = Mock(spec=FastAPI)
 
-        with patch("mcp_server_youtube.app.DependencyContainer.initialize") as mock_init:
-            with patch("mcp_server_youtube.app.DependencyContainer.shutdown") as mock_shutdown:
+        with patch(
+            "mcp_server_youtube.app.DependencyContainer.initialize"
+        ) as mock_init:
+            with patch(
+                "mcp_server_youtube.app.DependencyContainer.shutdown"
+            ) as mock_shutdown:
                 async with app_lifespan(mock_app):
                     pass
 
@@ -32,7 +35,9 @@ class TestAppLifespan:
         """Test app lifespan with initialization error."""
         mock_app = Mock(spec=FastAPI)
 
-        with patch("mcp_server_youtube.app.DependencyContainer.initialize") as mock_init:
+        with patch(
+            "mcp_server_youtube.app.DependencyContainer.initialize"
+        ) as mock_init:
             mock_init.side_effect = ValueError("Failed to initialize dependencies")
 
             with pytest.raises(ValueError, match="Failed to initialize dependencies"):
@@ -44,7 +49,9 @@ class TestAppLifespan:
         """Test app lifespan with unexpected error during initialization."""
         mock_app = Mock(spec=FastAPI)
 
-        with patch("mcp_server_youtube.app.DependencyContainer.initialize") as mock_init:
+        with patch(
+            "mcp_server_youtube.app.DependencyContainer.initialize"
+        ) as mock_init:
             mock_init.side_effect = Exception("Unexpected initialization error")
 
             with pytest.raises(Exception, match="Unexpected initialization error"):

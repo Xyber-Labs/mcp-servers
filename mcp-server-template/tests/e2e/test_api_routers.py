@@ -12,7 +12,6 @@ import pytest
 
 from mcp_server_weather.schemas import AdminLogsResponse, HealthCheckResponse
 
-
 # =============================================================================
 # /api/health - Free endpoint
 # =============================================================================

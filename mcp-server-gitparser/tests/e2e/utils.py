@@ -10,7 +10,6 @@ from .config import E2ETestConfig
 
 async def negotiate_mcp_session_id(config: E2ETestConfig) -> str:
     """Perform StreamableHTTP handshake and return MCP session ID."""
-
     headers = {"Accept": "text/event-stream"}
     async with httpx.AsyncClient(
         base_url=config.base_url, timeout=config.timeout_seconds
@@ -33,7 +32,6 @@ async def negotiate_mcp_session_id(config: E2ETestConfig) -> str:
 
 async def initialize_mcp_session(config: E2ETestConfig, session_id: str) -> None:
     """Send MCP initialize call for a given session ID."""
-
     payload: dict[str, Any] = {
         "jsonrpc": "2.0",
         "id": 0,
@@ -63,7 +61,6 @@ async def call_mcp_tool(
     arguments: dict[str, Any],
 ) -> httpx.Response:
     """Call an MCP tool via tools/call and return the raw HTTPX response."""
-
     payload: dict[str, Any] = {
         "jsonrpc": "2.0",
         "id": 1,
@@ -149,14 +146,17 @@ async def call_mcp_tool_with_client(
 
 
 def extract_mcp_result(response: httpx.Response) -> dict[str, Any]:
-    """Extract the result object from an MCP response.
+    """
+    Extract the result object from an MCP response.
 
     Handles both JSON and SSE response formats.
     Returns the full result dict (with content, isError, structuredContent).
     """
     import json
 
-    assert response.status_code == 200, f"MCP request failed with status {response.status_code}"
+    assert response.status_code == 200, (
+        f"MCP request failed with status {response.status_code}"
+    )
 
     response_text = response.text
     if response_text.startswith("event:"):
@@ -165,18 +165,23 @@ def extract_mcp_result(response: httpx.Response) -> dict[str, Any]:
                 body = json.loads(line[5:].strip())
                 break
         else:
-            raise AssertionError(f"No data line found in SSE response: {response_text[:200]}")
+            raise AssertionError(
+                f"No data line found in SSE response: {response_text[:200]}"
+            )
     else:
         body = response.json()
 
-    assert "error" not in body or body.get("error") is None, f"MCP protocol error: {body.get('error')}"
+    assert "error" not in body or body.get("error") is None, (
+        f"MCP protocol error: {body.get('error')}"
+    )
     assert "result" in body, "MCP response missing 'result' field"
 
     return body["result"]
 
 
 def get_mcp_content(result: dict[str, Any]) -> dict[str, Any]:
-    """Extract content data from MCP result.
+    """
+    Extract content data from MCP result.
 
     Uses structuredContent if available, otherwise parses text content.
     """

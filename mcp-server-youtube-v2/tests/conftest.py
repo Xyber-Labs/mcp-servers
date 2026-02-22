@@ -3,7 +3,7 @@ Pytest configuration and shared fixtures.
 """
 
 import os
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
 from fastapi import FastAPI
@@ -12,7 +12,10 @@ from fastapi.testclient import TestClient
 from mcp_server_youtube.app import create_app
 from mcp_server_youtube.dependencies import DependencyContainer
 from mcp_server_youtube.youtube import YouTubeVideoSearchAndTranscript
-from mcp_server_youtube.youtube.api_models import ApifyTranscriptResult, YouTubeSearchResult
+from mcp_server_youtube.youtube.api_models import (
+    ApifyTranscriptResult,
+    YouTubeSearchResult,
+)
 
 
 @pytest.fixture(autouse=True)

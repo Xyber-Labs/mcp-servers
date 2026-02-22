@@ -1,6 +1,12 @@
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock
 
 import pytest
+
+from mcp_server_wikipedia.wikipedia import (
+    ArticleNotFoundError,
+    WikipediaAPIError,
+    WikipediaServiceError,
+)
 
 # Import helper functions from conftest
 from tests.conftest import (
@@ -10,12 +16,6 @@ from tests.conftest import (
     _test_get_sections,
     _test_get_summary,
     _test_search_wikipedia,
-)
-
-from mcp_server_wikipedia.wikipedia import (
-    ArticleNotFoundError,
-    WikipediaAPIError,
-    WikipediaServiceError,
 )
 
 # === Test Classes ===

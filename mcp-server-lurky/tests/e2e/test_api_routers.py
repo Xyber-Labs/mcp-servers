@@ -11,15 +11,12 @@ import pytest
 
 from mcp_server_lurky.schemas import HealthResponse
 
-
 # =============================================================================
 # /api/health - Free endpoint
 # =============================================================================
 
 
 @pytest.mark.asyncio
-
-
 async def test_api_health_rest(rest_client) -> None:
     """Smoke test: /api/health endpoint (always free)."""
     config, client = rest_client

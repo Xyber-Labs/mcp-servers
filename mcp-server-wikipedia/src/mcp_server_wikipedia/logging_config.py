@@ -2,6 +2,7 @@ from logging.config import dictConfig
 
 from mcp_server_wikipedia.config import get_app_settings
 
+
 def get_logging_config() -> dict:
     """
     Build and return the logging configuration dictionary.

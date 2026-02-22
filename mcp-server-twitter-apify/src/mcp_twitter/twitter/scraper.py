@@ -85,7 +85,9 @@ class TwitterScraper:
         dataset_id = run["defaultDatasetId"]
         log.info(f"Dataset: https://console.apify.com/storage/datasets/{dataset_id}")
 
-        items: list[dict[str, Any]] = list(self.client.dataset(dataset_id).iterate_items())
+        items: list[dict[str, Any]] = list(
+            self.client.dataset(dataset_id).iterate_items()
+        )
 
         if self.output_format == "min":
             items = [self._minimize_item(i) for i in items]
@@ -115,7 +117,9 @@ class TwitterScraper:
         dataset_id = run["defaultDatasetId"]
         log.info(f"Dataset: https://console.apify.com/storage/datasets/{dataset_id}")
 
-        items: list[dict[str, Any]] = list(self.client.dataset(dataset_id).iterate_items())
+        items: list[dict[str, Any]] = list(
+            self.client.dataset(dataset_id).iterate_items()
+        )
 
         if self.output_format == "min":
             items = [self._minimize_item(i) for i in items]

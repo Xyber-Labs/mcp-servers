@@ -19,7 +19,6 @@ from tests.e2e.utils import (
     parse_mcp_response,
 )
 
-
 # =============================================================================
 # geolocate_city - Free MCP tool
 # =============================================================================
@@ -71,7 +70,10 @@ async def test_mcp_weather_analysis_mcp_pricing_off() -> None:
     assert not is_error
     analysis_data = WeatherAnalysisResponse(**data)
     assert analysis_data.analysis
-    assert "London" in analysis_data.analysis or "weather" in analysis_data.analysis.lower()
+    assert (
+        "London" in analysis_data.analysis
+        or "weather" in analysis_data.analysis.lower()
+    )
 
 
 @pytest.mark.payment_on
@@ -110,4 +112,7 @@ async def test_mcp_weather_analysis_mcp_with_payment(paid_client) -> None:
     assert not is_error
     analysis_data = WeatherAnalysisResponse(**data)
     assert analysis_data.analysis
-    assert "London" in analysis_data.analysis or "weather" in analysis_data.analysis.lower()
+    assert (
+        "London" in analysis_data.analysis
+        or "weather" in analysis_data.analysis.lower()
+    )

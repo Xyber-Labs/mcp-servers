@@ -1,4 +1,3 @@
-from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -20,7 +19,9 @@ class SearchWikipediaRequest(BaseModel):
 class SearchWikipediaResponse(BaseModel):
     """Output schema for Wikipedia search results."""
 
-    results: list[str] = Field(..., description="List of Wikipedia article titles matching the query")
+    results: list[str] = Field(
+        ..., description="List of Wikipedia article titles matching the query"
+    )
 
 
 class GetArticleRequest(BaseModel):
@@ -38,8 +39,12 @@ class ArticleResponse(BaseModel):
     summary: str = Field(..., description="Summary of the Wikipedia article")
     text: str = Field(..., description="Full text content of the Wikipedia article")
     url: str = Field(..., description="URL of the Wikipedia article")
-    sections: list[str] = Field(..., description="List of section titles in the article")
-    links: list[str] = Field(..., description="List of links (article titles) within the article")
+    sections: list[str] = Field(
+        ..., description="List of section titles in the article"
+    )
+    links: list[str] = Field(
+        ..., description="List of links (article titles) within the article"
+    )
 
 
 class GetSummaryRequest(BaseModel):
@@ -67,7 +72,9 @@ class SectionsResponse(BaseModel):
     """Output schema for Wikipedia article sections."""
 
     title: str = Field(..., description="Title of the Wikipedia article")
-    sections: list[str] = Field(..., description="List of section titles in the article")
+    sections: list[str] = Field(
+        ..., description="List of section titles in the article"
+    )
 
 
 class GetLinksRequest(BaseModel):
@@ -82,7 +89,9 @@ class LinksResponse(BaseModel):
     """Output schema for links within a Wikipedia article."""
 
     title: str = Field(..., description="Title of the Wikipedia article")
-    links: list[str] = Field(..., description="List of links (article titles) within the article")
+    links: list[str] = Field(
+        ..., description="List of links (article titles) within the article"
+    )
 
 
 class GetRelatedTopicsRequest(BaseModel):
