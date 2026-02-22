@@ -1,6 +1,24 @@
 from pydantic import BaseModel, ConfigDict, Field
 
-from mcp_server_together_imgen.together_ai.model_registry import list_available_models
+
+class HealthCheckResponse(BaseModel):
+    """Response schema for health check endpoint."""
+
+    status: str = Field(..., description="The status of the server")
+    service: str = Field(..., description="The name of the service")
+
+
+class ImageResponse(BaseModel):
+    """Response schema for image generation endpoints."""
+
+    image_base64: str = Field(..., description="Base64-encoded generated image")
+    model_used: str = Field(..., description="The model that was used for generation")
+    refined_prompt: str | None = Field(
+        None, description="The refined prompt if refine_prompt was enabled"
+    )
+    lora_url: str | None = Field(
+        None, description="The LoRA URL if LoRA was used in generation"
+    )
 
 
 class ImageGenerationRequest(BaseModel):
@@ -46,7 +64,7 @@ class ImageGenerationRequest(BaseModel):
     )
     model: str | None = Field(
         None,
-        description=f"OPTIONAL: The model to use for image generation. Must be a valid model name like 'black-forest-labs/FLUX.2-dev'. If not specified, uses the default model from environment. Available models: {', '.join(list_available_models())}",
+        description="OPTIONAL: The model to use for image generation. Must be a valid model name like 'black-forest-labs/FLUX.2-dev'. If not specified, uses the default model from environment. Common models: black-forest-labs/FLUX.1-dev, black-forest-labs/FLUX.1-dev-lora, black-forest-labs/FLUX.2-dev, black-forest-labs/FLUX.2-pro, black-forest-labs/FLUX.2-flex",
         examples=[
             "black-forest-labs/FLUX.2-dev",
             "black-forest-labs/FLUX.1-dev",
@@ -90,7 +108,7 @@ class ImageGenerationRequest(BaseModel):
     lora_url: str | None = Field(
         None,
         description="LoRA URL. Required if lora_scale > 0 for FLUX.1-dev-lora models.",
-        examples=[None, "https://huggingface.co/ExplosionNuclear/Lumira-3-New"],
+        examples=[None, "https://huggingface.co/<your-account>/<lora-adapter-link>"],
     )
     negative_prompt: str | None = Field(
         None,
@@ -102,20 +120,3 @@ class ImageGenerationRequest(BaseModel):
         description="Whether to refine the prompt using a chat model.",
     )
 
-    def model_display_info(self) -> dict:
-        """Get information about the selected model's capabilities."""
-        if self.model:
-            try:
-                from mcp_server_together_imgen.together_ai.model_registry import (
-                    get_model_schema,
-                )
-
-                schema = get_model_schema(self.model)
-                return {
-                    "model": schema.model_name,
-                    "family": schema.family.value,
-                    "capabilities": schema.capabilities.model_dump(),
-                }
-            except ValueError:
-                return {"error": f"Model '{self.model}' not found"}
-        return {"info": "Using default model from environment"}

@@ -184,15 +184,17 @@ services:
       target: dev
     image: mcp_server_together_imgen_debug
     container_name: mcp_server_together_imgen_debug
-    command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5711", "--wait-for-client", "-m", "mcp_server_together_imgen", "--port", "8111", "--reload"]
+    command: ["python", "-m", "mcp_server_together_imgen", "--port", "8111", "--reload"]
     ports:
       - "8111:8111"
       - "5711:5711"
     volumes:
       - ./mcp-server-together-imgen/src/mcp_server_together_imgen:/app/mcp_server_together_imgen:ro
+      - ./mcp-server-together-imgen/tool_pricing.dev.yaml:/app/tool_pricing.yaml:ro
     env_file: ./mcp-server-together-imgen/.env
     restart: unless-stopped
-    environment: {}
+    environment:
+      <<: *debug-env
 
   mcp_server_twitter:
     build:
@@ -364,8 +366,9 @@ services:
       target: dev
     image: mcp_server_twitter_apify_debug
     container_name: mcp_server_twitter_apify_debug
-    #command: ["python", "-Xfrozen_modules=off", "-m", "debugpy", "--listen", "0.0.0.0:5720", "--wait-for-client", "-m", "mcp_twitter", "--port", "8120", "--reload"]
-    command: ["python", "-m", "mcp_twitter", "--port", "8120", "--reload"]
+    command: ["python", "-Xfrozen_modules=off", "-m", "debugpy", "--listen", "0.0.0.0:5720", # "--wait-for-client", 
+      "-m", "mcp_twitter", "--port", "8120", "--reload"
+    ]
     ports:
       - "8120:8120"
       - "5720:5720"
