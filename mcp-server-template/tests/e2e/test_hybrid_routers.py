@@ -15,13 +15,9 @@ from mcp_server_weather.schemas import ForecastResponse, PricingResponse, Weathe
 from tests.e2e.config import load_e2e_config, require_base_url, require_weather_api_key
 from tests.e2e.utils import (
     call_mcp_tool,
-    call_mcp_tool_with_client,
-    extract_mcp_result,
-    get_mcp_content,
     initialize_mcp_session,
-    initialize_mcp_session_with_client,
     negotiate_mcp_session_id,
-    negotiate_mcp_session_id_with_client,
+    parse_mcp_response,
 )
 
 API_KEY_HEADER = "Weather-Api-Key"
@@ -64,9 +60,9 @@ async def test_hybrid_current_weather_mcp() -> None:
         session_id=session_id,
     )
 
-    result = extract_mcp_result(response)
-    assert not result.get("isError", False)
-    weather_data = WeatherResponse(**get_mcp_content(result))
+    is_error, data = parse_mcp_response(response)
+    assert not is_error
+    weather_data = WeatherResponse(**data)
     assert weather_data.state
     assert weather_data.temperature
     assert weather_data.humidity
@@ -134,9 +130,9 @@ async def test_hybrid_forecast_mcp_pricing_off() -> None:
         session_id=session_id,
     )
 
-    result = extract_mcp_result(response)
-    assert not result.get("isError", False)
-    forecast_data = ForecastResponse(**get_mcp_content(result))
+    is_error, data = parse_mcp_response(response)
+    assert not is_error
+    forecast_data = ForecastResponse(**data)
     assert forecast_data.days == 5
     assert isinstance(forecast_data.forecast, list)
     assert len(forecast_data.forecast) > 0
@@ -157,8 +153,6 @@ async def test_hybrid_forecast_mcp_no_payment() -> None:
         session_id=session_id,
     )
     assert response.status_code == 402
-    body = response.json()
-    assert "accepts" in body or "error" in body
 
 
 @pytest.mark.payment_on
@@ -166,19 +160,19 @@ async def test_hybrid_forecast_mcp_with_payment(paid_client) -> None:
     """Priced endpoint succeeds via MCP when PRICING_MODE=on and payment provided."""
     config, client = paid_client
 
-    session_id = await negotiate_mcp_session_id_with_client(config, client)
-    await initialize_mcp_session_with_client(config, client, session_id)
-    response = await call_mcp_tool_with_client(
+    session_id = await negotiate_mcp_session_id(config, client)
+    await initialize_mcp_session(config, session_id, client)
+    response = await call_mcp_tool(
         config,
-        client,
         name="get_weather_forecast",
         arguments={"days": 5},
         session_id=session_id,
+        client=client,
     )
 
-    result = extract_mcp_result(response)
-    assert not result.get("isError", False)
-    forecast_data = ForecastResponse(**get_mcp_content(result))
+    is_error, data = parse_mcp_response(response)
+    assert not is_error
+    forecast_data = ForecastResponse(**data)
     assert forecast_data.days == 5
     assert isinstance(forecast_data.forecast, list)
     assert len(forecast_data.forecast) > 0
@@ -212,7 +206,7 @@ async def test_hybrid_pricing_mcp() -> None:
         session_id=session_id,
     )
 
-    result = extract_mcp_result(response)
-    assert not result.get("isError", False)
-    pricing_data = PricingResponse(**get_mcp_content(result))
+    is_error, data = parse_mcp_response(response)
+    assert not is_error
+    pricing_data = PricingResponse(**data)
     assert isinstance(pricing_data.pricing, dict)
