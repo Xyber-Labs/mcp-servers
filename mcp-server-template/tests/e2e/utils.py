@@ -139,7 +139,7 @@ async def call_mcp_tool(
 # =============================================================================
 
 
-def parse_mcp_response(response: httpx.Response) -> Tuple[bool, Any]:
+def parse_mcp_response(response: httpx.Response) -> tuple[bool, Any]:
     """
     Parse MCP response and return (is_error, data).
 
