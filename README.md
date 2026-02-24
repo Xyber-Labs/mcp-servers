@@ -10,9 +10,20 @@
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)](https://docker.com)
 [![MCP](https://img.shields.io/badge/MCP-Compatible-green)](https://modelcontextprotocol.io)
 [![Python](https://img.shields.io/badge/Python-3.12+-yellow?logo=python)](https://python.org)
+[![x402](https://img.shields.io/badge/x402-v2.0-purple)](https://x402.org)
 [![Cursor](https://img.shields.io/badge/CursorIDE-Compatible-blue)](https://www.cursor.com/)
 [![Claude Desktop](https://img.shields.io/badge/ClaudeDesktop-Compatible-orange)](https://claude.ai/)
 [![LangChain](https://img.shields.io/badge/LangChain-Compatible-green)](https://www.langchain.com/)
+
+**Supported Payment Chains**
+
+[![Base](https://img.shields.io/badge/Base-0052FF?logo=coinbase&logoColor=white)](https://base.org)
+[![Solana](https://img.shields.io/badge/Solana-9945FF?logo=solana&logoColor=white)](https://solana.com)
+[![Avalanche](https://img.shields.io/badge/Avalanche-E84142?logo=avalanche&logoColor=white)](https://avax.network)
+[![BNB Chain](https://img.shields.io/badge/BNB_Chain-F0B90B?logo=binance&logoColor=black)](https://bnbchain.org)
+[![Polygon](https://img.shields.io/badge/Polygon-8247E5?logo=polygon&logoColor=white)](https://polygon.technology)
+[![SKALE](https://img.shields.io/badge/SKALE-000000?logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgMjRjNi42MjcgMCAxMi01LjM3MyAxMi0xMlMxOC42MjcgMCAxMiAwIDAgNS4zNzMgMCAxMnM1LjM3MyAxMiAxMiAxMnoiIGZpbGw9IiMwMDAiLz48L3N2Zz4=&logoColor=white)](https://skale.space)
+[![Sei](https://img.shields.io/badge/Sei-FF0000?logoColor=white)](https://sei.io)
 
 
 </div>
