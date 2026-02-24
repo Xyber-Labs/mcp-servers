@@ -52,15 +52,17 @@ This repository was built from the ground up to eliminate these frustrations:
 
 **For Custom Development**: Use our `mcp-server-template` to create your own servers in minutes, not hours
 
-## 🛠️ Live Servers 
+## 🛠️ Live Servers
 
 | Server | Live URL | Description |
 |--------|----------|------------|
-| **Quill** | https://mcp-quill.xyber.inc | Token security analysis for EVM & Solana chains |
-| **Tavily** | https://mcp-tavily.xyber.inc | Web-search capabilities |
-| **ArXiv** | https://mcp-arxiv.xyber.inc | Searching & accessing arXiv papers |
-| **Wikipedia** | https://mcp-wikipedia.xyber.inc | Wikipedia content access|
-| **GitParser** | https://mcp-gitparser.xyber.inc | Git repositories parsing and analysis |
+| **Quill** | [https://mcp-quill.xyber.inc](https://mcp-quill.xyber.inc/docs) | Token security analysis for EVM & Solana chains |
+| **Lurky** | [https://mcp-lurky.xyber.inc](https://mcp-lurky.xyber.inc/docs) | Twitter/X data access and analysis |
+| **Tavily** | [https://mcp-tavily.xyber.inc](https://mcp-tavily.xyber.inc/docs) | Web-search capabilities |
+| **YouTube** | [https://mcp-youtube.xyber.inc](https://mcp-youtube.xyber.inc/docs) | YouTube video data and transcripts |
+| **GitParser** | [https://mcp-gitparser.xyber.inc](https://mcp-gitparser.xyber.inc/docs) | Git repositories parsing and analysis |
+| **ArXiv** | [https://mcp-arxiv.xyber.inc](https://mcp-arxiv.xyber.inc/docs) | Searching & accessing arXiv papers |
+| **Wikipedia** | [https://mcp-wikipedia.xyber.inc](https://mcp-wikipedia.xyber.inc/docs) | Wikipedia content access |
 
 > 💡 All live servers support x402 payments on multiple networks, check the server's `/pricing` endpoint for the details
 
